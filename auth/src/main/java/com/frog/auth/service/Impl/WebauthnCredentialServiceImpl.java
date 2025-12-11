@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentialMapper, WebauthnCredential>
         implements IWebauthnCredentialService {
-
     private final RedisTemplate<String, Object> redisTemplate;
     private final SysUserServiceClient userServiceClient;
     private final JwtUtils jwtUtils;
@@ -42,8 +41,6 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
     private static final long CHALLENGE_EXPIRY_SECONDS = 120L;
     private static final long REG_CHALLENGE_EXPIRY_SECONDS = 300L;
     private static final long CREDENTIAL_INACTIVE_DAYS = 90L;
-
-    // ==================== 注册流程 ====================
 
     @Override
     public WebAuthnRegisterChallengeResponse generateRegistrationChallenge(
@@ -87,8 +84,6 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         log.info("Successfully registered WebAuthn credential for user={}", userId);
         return credentialConverter.toDTO(credential);
     }
-
-    // ==================== 认证流程 ====================
 
     @Override
     public WebAuthnChallengeResponse generateAuthenticationChallenge(
@@ -176,8 +171,6 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
                 .build();
     }
 
-    // ==================== 凭证管理 ====================
-
     @Override
     public List<WebauthnCredentialDTO> listActiveCredentials(UUID userId) {
         log.debug("Listing active credentials for user={}", userId);
@@ -261,8 +254,6 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         return credentialConverter.toDTOList(unhealthy);
     }
 
-    // ==================== 安全审计 ====================
-
     @Override
     public void logAuthenticationAttempt(UUID userId, String credentialId,
                                           boolean success, String ipAddress, String userAgent) {
@@ -281,8 +272,6 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
                     userId, credentialId, ipAddress);
         }
     }
-
-    // ==================== 辅助方法 ====================
 
     private static byte[] randomBytes() {
         byte[] bytes = new byte[WEBAUTHN_CHALLENGE_BYTE_LENGTH];

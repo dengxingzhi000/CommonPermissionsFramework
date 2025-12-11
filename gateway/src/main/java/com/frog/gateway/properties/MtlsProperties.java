@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "security.mtls")
 @Data
 public class MtlsProperties {
+
     private Resource keystorePath;
     private String keystorePassword;
     private Resource truststorePath;

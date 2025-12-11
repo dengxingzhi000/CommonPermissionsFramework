@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
     private final JwtUtils jwtUtils;
     private final HttpServletRequestUtils httpServletRequestUtils;
 

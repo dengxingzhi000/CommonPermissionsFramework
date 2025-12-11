@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "security")
 @Data
 public class SecurityProperties {
+
     private Integer maxLoginAttempts = 5;
     private Long lockDuration = 1800000L; // 30分钟
     private Integer passwordExpireDays = 90;

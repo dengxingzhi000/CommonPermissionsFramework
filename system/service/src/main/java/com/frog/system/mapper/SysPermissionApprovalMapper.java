@@ -18,6 +18,7 @@ import java.util.UUID;
  */
 @Mapper
 public interface SysPermissionApprovalMapper extends BaseMapper<SysPermissionApproval> {
+
     /**
      * 分页查询审批列表
      */

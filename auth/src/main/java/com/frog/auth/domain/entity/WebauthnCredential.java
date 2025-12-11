@@ -21,13 +21,13 @@ import java.util.UUID;
  * - W3C Web Authentication API Level 2
  * - FIDO2 CTAP2 Protocol
  * - Google Passkey Implementation
- *
+
  * 安全特性：
  * - 凭证ID全局唯一，防止凭证碰撞
  * - 签名计数器防重放攻击
  * - 公钥隔离存储，降低泄露风险
  * - 支持多设备绑定，提升用户体验
- *
+
  * 业务外键: user_id -> sys_user.user_id (应用层保证完整性)
  *
  * @author system
@@ -39,7 +39,6 @@ import java.util.UUID;
 @TableName(value = "webauthn_credential", autoResultMap = true)
 @Tag(name = "WebauthnCredential", description = "WebAuthn凭证实体")
 public class WebauthnCredential implements Serializable {
-
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -57,7 +56,7 @@ public class WebauthnCredential implements Serializable {
      */
     @Schema(description = "WebAuthn凭证ID(base64url编码)",
             example = "KSjKz3HHnUhFIAoS4RFCw",
-            required = true)
+            requiredMode = Schema.RequiredMode.REQUIRED)
     @TableField(value = "credential_id")
     @NotBlank(message = "凭证ID不能为空")
     @Size(min = 16, max = 1024, message = "凭证ID长度必须在16-1024之间")
@@ -67,7 +66,7 @@ public class WebauthnCredential implements Serializable {
      * 用户ID
      * 业务外键，关联到sys_user表
      */
-    @Schema(description = "用户ID", example = "user_123456", required = true)
+    @Schema(description = "用户ID", example = "user_123456", requiredMode = Schema.RequiredMode.REQUIRED)
     @TableField(value = "user_id")
     @NotBlank(message = "用户ID不能为空")
     @Size(max = 64, message = "用户ID长度不能超过64")
@@ -78,7 +77,7 @@ public class WebauthnCredential implements Serializable {
      * 存储PEM格式的公钥，用于验证认证器签名
      * 建议：生产环境应加密存储或使用HSM
      */
-    @Schema(description = "公钥(PEM格式)", required = true)
+    @Schema(description = "公钥(PEM格式)", requiredMode = Schema.RequiredMode.REQUIRED)
     @TableField(value = "public_key_pem")
     @JsonIgnore // 敏感信息，不在JSON响应中暴露
     @NotBlank(message = "公钥不能为空")
@@ -108,7 +107,7 @@ public class WebauthnCredential implements Serializable {
      * - 如果计数器不递增或回退，说明可能存在克隆攻击
      * - 初始值通常为0或1
      */
-    @Schema(description = "签名计数器(防重放)", example = "42", required = true)
+    @Schema(description = "签名计数器(防重放)", example = "42", requiredMode = Schema.RequiredMode.REQUIRED)
     @TableField(value = "sign_count")
     @NotNull(message = "签名计数器不能为空")
     @Min(value = 0, message = "签名计数器不能为负数")
@@ -154,7 +153,7 @@ public class WebauthnCredential implements Serializable {
      * - true: 激活，可用于认证
      * - false: 停用，用户主动禁用或系统检测到异常
      */
-    @Schema(description = "是否启用", example = "true", required = true)
+    @Schema(description = "是否启用", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
     @TableField(value = "is_active")
     @NotNull(message = "启用状态不能为空")
     private Boolean isActive;
@@ -228,8 +227,6 @@ public class WebauthnCredential implements Serializable {
             allowableValues = {"required", "preferred", "discouraged"})
     @TableField(value = "user_verification")
     private String userVerification;
-
-    // ==================== 业务方法 ====================
 
     /**
      * 检查凭证是否可用

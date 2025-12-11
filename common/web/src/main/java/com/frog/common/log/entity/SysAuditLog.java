@@ -35,6 +35,7 @@ import lombok.experimental.Accessors;
         description="操作审计日志表"
 )
 public class SysAuditLog implements Serializable {
+
     @Serial
     private static final long serialVersionUID = 1L;
 

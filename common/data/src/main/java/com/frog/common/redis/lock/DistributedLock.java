@@ -1,235 +1,264 @@
 package com.frog.common.redis.lock;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * 分布式锁工具类
- * 基于Redis实现
- *
- * @author Deng
- * createData 2025/10/31 10:08
- * @version 1.0
+ * Distributed lock backed by Redis with lease renewal and metrics hooks.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class DistributedLock {
-    private final RedisTemplate<String, Object> redisTemplate;
-
     private static final String LOCK_PREFIX = "lock:";
-    private static final Long RELEASE_SUCCESS = 1L;
+    private static final Duration DEFAULT_RETRY_INTERVAL = Duration.ofMillis(200);
+    private static final Duration DEFAULT_WAIT = Duration.ofSeconds(5);
+    private static final Long LUA_SUCCESS = 1L;
+    private static final String UNLOCK_LUA = """
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+                return redis.call('del', KEYS[1])
+            else
+                return 0
+            end
+            """;
+    private static final String RENEW_LUA = """
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+                return redis.call('pexpire', KEYS[1], ARGV[2])
+            else
+                return 0
+            end
+            """;
 
-    // Lua脚本：原子性释放锁
-    private static final String UNLOCK_SCRIPT =
-            "if redis.call('get', KEYS[1]) == ARGV[1] then " +
-                    "    return redis.call('del', KEYS[1]) " +
-                    "else " +
-                    "    return 0 " +
-                    "end";
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final LockLeaseManager leaseManager;
+    private final LockMetricsRecorder metricsRecorder;
+    private final DefaultRedisScript<Long> unlockScript;
+    private final DefaultRedisScript<Long> renewScript;
+    private final String ownerId;
 
-    /**
-     * 尝试获取锁
-     *
-     * @param lockKey 锁的key
-     * @param expireTime 过期时间
-     * @return 锁的唯一标识，获取失败返回null
-     */
-    public String tryLock(String lockKey, Duration expireTime) {
-        String lockId = UUID.randomUUID().toString();
-        String fullKey = LOCK_PREFIX + lockKey;
-
-        Boolean success = redisTemplate.opsForValue()
-                .setIfAbsent(fullKey, lockId, expireTime);
-
-        return Boolean.TRUE.equals(success) ? lockId : null;
+    public DistributedLock(RedisTemplate<String, Object> redisTemplate,
+                           LockLeaseManager leaseManager,
+                           LockMetricsRecorder metricsRecorder) {
+        this.redisTemplate = redisTemplate;
+        this.leaseManager = leaseManager;
+        this.metricsRecorder = metricsRecorder;
+        this.unlockScript = buildScript(UNLOCK_LUA);
+        this.renewScript = buildScript(RENEW_LUA);
+        this.ownerId = resolveOwnerId();
     }
 
-    /**
-     * 释放锁
-     *
-     * @param lockKey 锁的key
-     * @param lockId 锁的唯一标识
-     * @return 是否释放成功
-     */
-    public boolean unlock(String lockKey, String lockId) {
-        String fullKey = LOCK_PREFIX + lockKey;
-
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-        script.setScriptText(UNLOCK_SCRIPT);
-        script.setResultType(Long.class);
-
-        Long result = redisTemplate.execute(
-                script,
-                Collections.singletonList(fullKey),
-                lockId
-        );
-
-        return RELEASE_SUCCESS.equals(result);
+    public LockHandle acquire(String lockKey, Duration ttl) {
+        return acquire(lockKey, ttl, Duration.ZERO, DEFAULT_RETRY_INTERVAL);
     }
 
-    /**
-     * 自旋获取锁
-     *
-     * @param lockKey 锁的key
-     * @param expireTime 过期时间
-     * @param waitTime 最大等待时间
-     * @param retryInterval 重试间隔
-     * @return 锁的唯一标识，超时返回null
-     */
-    public String tryLockWithRetry(String lockKey, Duration expireTime,
-                                   Duration waitTime, Duration retryInterval) {
-        long deadline = System.currentTimeMillis() + waitTime.toMillis();
+    public LockHandle acquire(String lockKey,
+                              Duration ttl,
+                              Duration maxWait,
+                              Duration retryInterval) {
+        Objects.requireNonNull(lockKey, "lockKey");
+        Objects.requireNonNull(ttl, "ttl");
+        if (ttl.isZero() || ttl.isNegative()) {
+            throw new IllegalArgumentException("ttl must be positive");
+        }
+        Duration sanitizedRetry = retryInterval == null || retryInterval.isZero()
+                ? DEFAULT_RETRY_INTERVAL
+                : retryInterval;
 
-        while (System.currentTimeMillis() < deadline) {
-            String lockId = tryLock(lockKey, expireTime);
-            if (lockId != null) {
-                return lockId;
-            }
-
-            try {
-                TimeUnit.MILLISECONDS.sleep(retryInterval.toMillis());
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error("Lock retry interrupted", e);
-                return null;
+        long deadline = maxWait == null || maxWait.isZero() ? 0L
+                : System.nanoTime() + maxWait.toNanos();
+        LockToken token = tryAcquire(lockKey, ttl);
+        if (token != null) {
+            return prepareHandle(token);
+        }
+        if (deadline == 0L) {
+            metricsRecorder.recordAcquireFailure(lockKey);
+            throw new LockAcquisitionException(lockKey, Duration.ZERO);
+        }
+        var sample = metricsRecorder.startWaitTimer();
+        while (System.nanoTime() < deadline) {
+            sleepWithJitter(sanitizedRetry);
+            token = tryAcquire(lockKey, ttl);
+            if (token != null) {
+                metricsRecorder.recordWait(lockKey, sample, true);
+                return prepareHandle(token);
             }
         }
+        metricsRecorder.recordAcquireFailure(lockKey);
+        metricsRecorder.recordWait(lockKey, sample, false);
+        throw new LockAcquisitionException(lockKey, maxWait);
+    }
 
-        log.warn("Failed to acquire lock after waiting: {}", waitTime);
+    public <T> T executeWithLock(String lockKey,
+                                 Duration ttl,
+                                 Supplier<T> action) {
+        return executeWithLock(lockKey, ttl, DEFAULT_WAIT, DEFAULT_RETRY_INTERVAL, action);
+    }
+
+    public <T> T executeWithLock(String lockKey,
+                                 Duration ttl,
+                                 Duration maxWait,
+                                 Duration retryInterval,
+                                 Supplier<T> action) {
+        try (LockHandle handle = acquire(lockKey, ttl, maxWait, retryInterval)) {
+            return action.get();
+        }
+    }
+
+    public void executeWithLock(String lockKey,
+                                Duration ttl,
+                                Runnable action) {
+        executeWithLock(lockKey, ttl, DEFAULT_WAIT, DEFAULT_RETRY_INTERVAL, () -> {
+            action.run();
+            return null;
+        });
+    }
+
+    /**
+     * Backwards compatible API: prefer acquire().
+     */
+    @Deprecated
+    public String tryLock(String lockKey, Duration expireTime) {
+        LockToken token = tryAcquire(lockKey, expireTime);
+        return token == null ? null : token.lockValue();
+    }
+
+    /**
+     * Backwards compatible API: prefer acquire().
+     */
+    @Deprecated
+    public String tryLockWithRetry(String lockKey,
+                                   Duration expireTime,
+                                   Duration waitTime,
+                                   Duration retryInterval) {
+        LockToken token = tryAcquire(lockKey, expireTime);
+        if (token != null) {
+            return token.lockValue();
+        }
+        Duration effectiveWait = waitTime == null ? Duration.ZERO : waitTime;
+        if (effectiveWait.isZero()) {
+            return null;
+        }
+        long deadline = System.nanoTime() + effectiveWait.toNanos();
+        Duration interval = retryInterval == null ? DEFAULT_RETRY_INTERVAL : retryInterval;
+        while (System.nanoTime() < deadline) {
+            sleepWithJitter(interval);
+            token = tryAcquire(lockKey, expireTime);
+            if (token != null) {
+                return token.lockValue();
+            }
+        }
         return null;
     }
 
     /**
-     * 执行带锁的操作（自动获取和释放锁）
-     *
-     * @param lockKey 锁的key
-     * @param expireTime 锁的过期时间
-     * @param action 需要执行的操作
-     * @param <T> 返回值类型
-     * @return 操作结果
-     * @throws IllegalStateException 获取锁失败
+     * Backwards compatible API: prefer try-with-resources on LockHandle.
      */
-    public <T> T executeWithLock(String lockKey, Duration expireTime,
-                                 Supplier<T> action) {
-        String lockId = tryLock(lockKey, expireTime);
-
-        if (lockId == null) {
-            throw new IllegalStateException("Failed to acquire lock: " + lockKey);
-        }
-
-        try {
-            return action.get();
-        } finally {
-            releaseLock(lockKey, lockId);
-        }
-    }
-
-    /**
-     * 执行带锁的操作（带重试）
-     *
-     * @param lockKey 锁的key
-     * @param expireTime 锁的过期时间
-     * @param waitTime 最大等待时间
-     * @param retryInterval 重试间隔
-     * @param action 需要执行的操作
-     * @param <T> 返回值类型
-     * @return 操作结果
-     * @throws IllegalStateException 获取锁失败
-     */
-    public <T> T executeWithLockRetry(String lockKey, Duration expireTime,
-                                      Duration waitTime, Duration retryInterval,
-                                      Supplier<T> action) {
-        String lockId = tryLockWithRetry(lockKey, expireTime, waitTime, retryInterval);
-
-        if (lockId == null) {
-            throw new IllegalStateException("Failed to acquire lock: " + lockKey);
-        }
-
-        try {
-            return action.get();
-        } finally {
-            releaseLock(lockKey, lockId);
-        }
-    }
-
-    /**
-     * 执行带锁的操作（无返回值）
-     */
-    public void executeWithLock(String lockKey, Duration expireTime, Runnable action) {
-        String lockId = tryLock(lockKey, expireTime);
-
-        if (lockId == null) {
-            throw new IllegalStateException("Failed to acquire lock: " + lockKey);
-        }
-
-        try {
-            action.run();
-        } finally {
-            releaseLock(lockKey, lockId);
-        }
-    }
-
-    /**
-     * 检查锁是否存在
-     */
-    public boolean isLocked(String lockKey) {
-        String fullKey = LOCK_PREFIX + lockKey;
-        return redisTemplate.hasKey(fullKey);
-    }
-
-    /**
-     * 续期锁（延长过期时间）
-     *
-     * @param lockKey 锁的key
-     * @param lockId 锁的唯一标识
-     * @param expireTime 新的过期时间
-     * @return 是否续期成功
-     */
-    public boolean renewLock(String lockKey, String lockId, Duration expireTime) {
-        String fullKey = LOCK_PREFIX + lockKey;
-
-        // Lua脚本：只有持有锁的才能续期
-        String renewScript =
-                "if redis.call('get', KEYS[1]) == ARGV[1] then " +
-                        "    return redis.call('expire', KEYS[1], ARGV[2]) " +
-                        "else " +
-                        "    return 0 " +
-                        "end";
-
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-        script.setScriptText(renewScript);
-        script.setResultType(Long.class);
-
+    @Deprecated
+    public boolean unlock(String lockKey, String lockId) {
+        LockToken token = new LockToken(lockKey, namespaced(lockKey), lockId, ownerId, Instant.now(), Duration.ZERO);
+        leaseManager.cancel(token);
         Long result = redisTemplate.execute(
-                script,
-                Collections.singletonList(fullKey),
-                lockId,
-                String.valueOf(expireTime.getSeconds())
+                unlockScript,
+                Collections.singletonList(token.redisKey()),
+                token.lockValue()
         );
-
-        return RELEASE_SUCCESS.equals(result);
+        boolean success = LUA_SUCCESS.equals(result);
+        if (!success) {
+            metricsRecorder.recordReleaseFailure(lockKey);
+        }
+        return success;
     }
 
-    /**
-     * 释放锁并记录日志
-     *
-     * @param lockKey 锁的key
-     * @param lockId 锁的唯一标识
-     */
-    private void releaseLock(String lockKey, String lockId) {
-        boolean unlocked = unlock(lockKey, lockId);
-        if (!unlocked) {
-            log.warn("Failed to release lock: {}", lockKey);
+    public boolean isLocked(String lockKey) {
+        return redisTemplate.hasKey(namespaced(lockKey));
+    }
+
+    public boolean renewLock(String lockKey, String lockId, Duration ttl) {
+        LockToken token = new LockToken(lockKey, namespaced(lockKey), lockId, ownerId, Instant.now(), ttl);
+        return renewLease(token);
+    }
+
+    void releaseInternal(LockToken token) {
+        leaseManager.cancel(token);
+        Long result = redisTemplate.execute(
+                unlockScript,
+                Collections.singletonList(token.redisKey()),
+                token.lockValue()
+        );
+        if (!LUA_SUCCESS.equals(result)) {
+            metricsRecorder.recordReleaseFailure(token.lockKey());
+            throw new LockReleaseException(token.redisKey());
         }
+    }
+
+    private LockHandle prepareHandle(LockToken token) {
+        leaseManager.register(token, () -> {
+            if (!renewLease(token)) {
+                metricsRecorder.recordRenewFailure(token.lockKey());
+                leaseManager.cancel(token);
+            }
+        });
+        metricsRecorder.recordAcquireSuccess(token.lockKey());
+        return new LockHandle(this, token);
+    }
+
+    private LockToken tryAcquire(String lockKey, Duration ttl) {
+        String redisKey = namespaced(lockKey);
+        String lockValue = ownerId + ":" + UUID.randomUUID();
+        Boolean success = redisTemplate.opsForValue()
+                .setIfAbsent(redisKey, lockValue, ttl);
+        if (Boolean.TRUE.equals(success)) {
+            return new LockToken(lockKey, redisKey, lockValue, ownerId, Instant.now(), ttl);
+        }
+        return null;
+    }
+
+    private boolean renewLease(LockToken token) {
+        Long result = redisTemplate.execute(
+                renewScript,
+                Collections.singletonList(token.redisKey()),
+                token.lockValue(),
+                String.valueOf(token.ttl().toMillis())
+        );
+        return LUA_SUCCESS.equals(result);
+    }
+
+    private static DefaultRedisScript<Long> buildScript(String script) {
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
+        redisScript.setScriptText(script);
+        redisScript.setResultType(Long.class);
+        return redisScript;
+    }
+
+    private static String resolveOwnerId() {
+        String hostname = System.getenv("HOSTNAME");
+        if (hostname == null || hostname.isBlank()) {
+            hostname = "instance";
+        }
+        return hostname + "-" + UUID.randomUUID();
+    }
+
+    private static void sleepWithJitter(Duration baseInterval) {
+        long baseMillis = Math.max(1L, baseInterval.toMillis());
+        long jitter = ThreadLocalRandom.current().nextLong(Math.max(1L, baseMillis / 4));
+        try {
+            TimeUnit.MILLISECONDS.sleep(baseMillis + jitter);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static String namespaced(String lockKey) {
+        return LOCK_PREFIX + lockKey;
     }
 }

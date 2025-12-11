@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  * HMAC-SHA256 implementation that includes the canonicalized body for higher tamper resistance.
  */
 @Component
-public class HmacSha256V2WithBody implements SignatureAlgorithm {
+public class RequestSignatureCalculator implements SignatureAlgorithm {
 
     private static final DefaultDataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory();
     private static final String VERSION = "HMAC-SHA256-V2";
@@ -72,14 +72,13 @@ public class HmacSha256V2WithBody implements SignatureAlgorithm {
                                          String nonce, byte[] bodyBytes) {
         String bodyHash = DigestUtils.sha256Hex(bodyBytes);
         String query = canonicalizeQuery(request.getQueryParams());
-        return new StringBuilder(256)
-                .append("ts=").append(timestamp).append('\n')
-                .append("nonce=").append(nonce).append('\n')
-                .append("appId=").append(appId).append('\n')
-                .append("path=").append(request.getURI().getRawPath()).append('\n')
-                .append("query=").append(query).append('\n')
-                .append("bodyHash=").append(bodyHash)
-                .toString();
+        return String.format("""
+                            ts=%s
+                            nonce=%s
+                            appId=%s
+                            path=%s
+                            query=%s
+                            bodyHash=%s""", timestamp, nonce, appId, request.getURI().getRawPath(), query, bodyHash);
     }
 
     private String canonicalizeQuery(MultiValueMap<String, String> queryParams) {

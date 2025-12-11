@@ -17,6 +17,7 @@ import java.util.UUID;
  */
 @Mapper
 public interface SysRoleMapper extends BaseMapper<SysRole> {
+
     /**
      * 检查角色编码是否存在
      */

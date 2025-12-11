@@ -19,21 +19,12 @@
 mvn clean verify
 ```
 
-**Gradle项目:**
-```bash
-./gradlew clean build
-```
-
 ### 代码质量检查
 
 1. **单元测试:** 所有测试用例必须通过,覆盖率不低于团队标准(建议 ≥ 80%)
    ```bash
    # Maven
    mvn test
-   
-   # Gradle
-   ./gradlew test
-   ```
 
 2. **静态代码分析:** 运行代码检查工具,确保无严重问题
    ```bash

@@ -1,11 +1,13 @@
 package com.frog.system.task;
 
 import com.frog.system.mapper.SysUserMapper;
+import com.frog.system.notification.NotificationService;
+import com.frog.system.notification.model.NotificationChannel;
+import com.frog.system.notification.model.NotificationCommand;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import com.frog.system.notification.NotificationService;
 
 import java.util.List;
 import java.util.Map;
@@ -124,17 +126,22 @@ public class PermissionExpiryTask {
                 String roleName = (String) role.get("role_name");
 
                 log.info("Sending expiry notification to user: {}, role: {}", username, roleName);
-                String subject = "权限已过期提醒";
-                String body = String.format("您好 %s，您被授予的角色 %s 已过期。", username, roleName);
-                notificationService.sendEmail(email, subject, body);
-                notificationService.sendSystemMessage(username, body);
+                String subject = "Permission expired";
+                String body = String.format("Hello %s, your assigned role %s has expired.", username, roleName);
 
-                // TODO: 调用邮件服务发送通知
-                // emailService.sendExpiryNotification(email, username, roleName);
-
-                // TODO: 发送站内信
-                // messageService.sendSystemMessage(userId, "权限已过期", message);
-
+                NotificationCommand command = NotificationCommand.builder()
+                        .referenceId("permission-expired-" + roleName + "-" + username)
+                        .username(username)
+                        .email(email)
+                        .subject(subject)
+                        .content(body)
+                        .templateCode("permission.expired")
+                        .channel(NotificationChannel.EMAIL)
+                        .channel(NotificationChannel.SYSTEM_MESSAGE)
+                        .variable("username", username)
+                        .variable("roleName", roleName)
+                        .build();
+                notificationService.send(command);
             } catch (Exception e) {
                 log.error("Failed to send expiry notification", e);
             }
@@ -153,17 +160,24 @@ public class PermissionExpiryTask {
 
             log.info("Sending expiring notification to user: {}, role: {}, expireTime: {}",
                     username, roleName, expireTime);
-            String subject = "权限即将过期提醒";
-            String message = String.format("您好 %s，您的角色 %s 将于 %s 过期，请及时申请续期。", username, roleName, expireTime);
-            notificationService.sendEmail(email, subject, message);
-            notificationService.sendSystemMessage(username, message);
+            String subject = "Permission expiring soon";
+            String message = String.format("Hello %s, your role %s will expire on %s. Please renew if needed.",
+                    username, roleName, expireTime);
 
-            // TODO: 调用邮件服务
-            // String message = String.format(
-            //     "您好 %s，您的角色 %s 将于 %s 过期，请及时申请续期。",
-            //     username, roleName, expireTime
-            // );
-            // emailService.sendNotification(email, "权限即将过期提醒", message);
+            NotificationCommand command = NotificationCommand.builder()
+                    .referenceId("permission-expiring-" + roleName + "-" + username)
+                    .username(username)
+                    .email(email)
+                    .subject(subject)
+                    .content(message)
+                    .templateCode("permission.expiring")
+                    .channel(NotificationChannel.EMAIL)
+                    .channel(NotificationChannel.SYSTEM_MESSAGE)
+                    .variable("username", username)
+                    .variable("roleName", roleName)
+                    .variable("expireTime", expireTime)
+                    .build();
+            notificationService.send(command);
 
         } catch (Exception e) {
             log.error("Failed to send expiring notification", e);

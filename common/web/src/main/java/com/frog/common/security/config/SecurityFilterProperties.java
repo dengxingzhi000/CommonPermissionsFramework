@@ -14,6 +14,7 @@ import java.util.List;
 @ConfigurationProperties(prefix = "frog.security.sql-filter")
 @Data
 public class SecurityFilterProperties {
+
     /** 是否启用 SQL/XSS 过滤 */
     private boolean enabled = true;
 

@@ -45,6 +45,29 @@ spring:
         - StripPrefix=1
 
 security:
+  ip-access:
+    enabled: true
+    whitelist-only: false
+    cache-max-size: 20000
+    cache-ttl: 1m
+    block-message: Request blocked by gateway policy
+    forwarded-headers:
+      - X-Forwarded-For
+      - X-Real-IP
+    trusted-proxies:
+      - 10.0.0.0/8
+      - 192.168.0.0/16
+  identity:
+    enabled: true
+    identity-token-header: X-Identity-Token
+    user-id-header: X-User-Id
+    username-header: X-User-Name
+    device-id-header: X-Device-Id
+    roles-header: X-User-Roles
+    user-id-claim: userId
+    username-claim: username
+    device-id-claim: deviceId
+    signature-secret: ${IDENTITY_SIGNATURE_SECRET:changeit-identity-secret}
   mtls:
     keystore-path: classpath:certs/gateway-keystore.p12
     keystore-password: changeit

@@ -21,6 +21,7 @@ import java.util.Objects;
 @Slf4j
 @RequiredArgsConstructor
 public class StepUpPolicyLoader {
+
     private static final Yaml YAML = new Yaml();
 
     private final StepUpProperties properties;

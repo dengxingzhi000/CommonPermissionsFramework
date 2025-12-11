@@ -12,7 +12,6 @@ import java.util.UUID;
 @DubboService
 @Component
 public class UserDubboServiceImpl implements UserDubboService {
-
     private final ISysUserService sysUserService;
 
     public UserDubboServiceImpl(ISysUserService sysUserService) {

@@ -31,6 +31,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class ApiAccessControlFilter extends OncePerRequestFilter {
+
     private final PermissionAccessPort permissionAccess;
     private final ISysAuditLogService auditLogService;
 

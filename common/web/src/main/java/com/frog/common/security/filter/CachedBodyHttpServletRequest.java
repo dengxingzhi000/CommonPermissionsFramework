@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
  * 仍允许后续链路正常读取请求体。
  */
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
+
     private final byte[] cachedBody;
 
     public CachedBodyHttpServletRequest(HttpServletRequest request, byte[] cachedBody) {

@@ -1,11 +1,12 @@
 package com.frog.system.notification;
 
+import com.frog.system.notification.model.NotificationCommand;
+
 /**
- * 通知服务接口（邮件/站内信等）
+ * Central notification orchestration service (email, in-app, etc).
  */
 public interface NotificationService {
-    void sendEmail(String to, String subject, String body);
 
-    void sendSystemMessage(String username, String message);
+    void send(NotificationCommand command);
 }
 

@@ -14,7 +14,6 @@ import java.util.UUID;
  * @since 2025-11-27
  */
 public interface ISysAuthService {
-
     /**
      * 用户登录
      * 

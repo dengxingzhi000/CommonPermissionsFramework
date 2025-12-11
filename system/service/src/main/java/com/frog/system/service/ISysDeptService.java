@@ -16,38 +16,56 @@ import java.util.UUID;
  * @since 2025-11-07
  */
 public interface ISysDeptService extends IService<SysDept> {
+
     /**
-     * 查询部门树
+     * 查询部门树（树形结构，从根节点开始）。
+     *
+     * @return 部门树列表
      */
     List<DeptDTO> getDeptTree();
 
     /**
-     * 查询子部门（包含自身）
+     * 查询指定部门及其所有子部门ID（包含自身）。
+     *
+     * @param deptId 部门ID
+     * @return 部门ID列表（包含自身及所有子部门）
      */
     List<UUID> getDeptAndChildren(UUID deptId);
 
     /**
-     * 新增部门
+     * 新增部门。
+     *
+     * @param deptDTO 部门信息
      */
     void addDept(DeptDTO deptDTO);
 
     /**
-     * 修改部门
+     * 修改部门。
+     *
+     * @param deptDTO 部门信息
      */
     void updateDept(DeptDTO deptDTO);
 
     /**
-     * 删除部门
+     * 删除部门。
+     *
+     * @param id 部门ID
      */
     void deleteDept(UUID id);
 
     /**
-     * 检查部门下是否有用户
+     * 检查部门下是否存在用户。
+     *
+     * @param deptId 部门ID
+     * @return true 表示存在用户；false 表示不存在
      */
     boolean hasUsers(UUID deptId);
 
     /**
-     * 检查部门下是否有子部门
+     * 检查部门下是否存在子部门。
+     *
+     * @param deptId 部门ID
+     * @return true 表示存在子部门；false 表示不存在
      */
     boolean hasChildren(UUID deptId);
 }

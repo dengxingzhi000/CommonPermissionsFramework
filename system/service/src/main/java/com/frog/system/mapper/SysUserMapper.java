@@ -32,8 +32,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             """)
     boolean existsByUsername(@Param("username") String username);
 
-    // ==================== 角色权限查询 ====================
-
     @Select("""
             SELECT r.role_code FROM sys_role r
             INNER JOIN sys_user_role ur ON r.id = ur.role_id
@@ -71,8 +69,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             """)
     List<String> findRoleNamesByUserId(@Param("userId") UUID userId);
 
-    // ==================== 登录相关 ====================
-
     @Update("""
             UPDATE sys_user SET 
                 last_login_time = #{loginTime},
@@ -98,8 +94,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             """)
     void lockAccount(@Param("username") String username,
                      @Param("lockedUntil") LocalDateTime lockedUntil);
-
-    // ==================== 角色授予 ====================
 
     @Delete("""
             DELETE FROM sys_user_role 
@@ -146,8 +140,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             @Param("effectiveTime") LocalDateTime effectiveTime,
             @Param("expireTime") LocalDateTime expireTime,
             @Param("createBy") UUID createBy);
-
-    // ==================== 数据权限相关 ====================
 
     @Select("""
             SELECT MIN(r.data_scope) FROM sys_role r
@@ -202,8 +194,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             """)
     boolean hasAccessToDept(@Param("userId") UUID userId, @Param("deptId") UUID deptId);
 
-    // ==================== 角色过期管理 ====================
-
     @Select("""
             SELECT u.id as user_id, u.username, u.email, 
                    r.role_name, ur.expire_time
@@ -240,8 +230,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             AND approval_status = 1
             """)
     int updateExpiredRolesStatus();
-
-    // ==================== 临时授权查询 ====================
 
     /**
      * 查询用户的临时授权列表
@@ -301,8 +289,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             """)
     int terminateTemporaryRole(@Param("userId") UUID userId, @Param("roleId") UUID roleId);
 
-    // ==================== 审批相关查询 ====================
-
     /**
      * 查询用户待审批的角色申请
      */
@@ -332,8 +318,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             @Param("id") UUID id,
             @Param("status") Integer status,
             @Param("approvedBy") UUID approvedBy);
-
-    // ==================== 统计查询 ====================
 
     /**
      * 统计用户的角色数量

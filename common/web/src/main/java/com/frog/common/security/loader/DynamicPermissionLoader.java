@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @RequiredArgsConstructor
 @Slf4j
 public class DynamicPermissionLoader {
+
     private final SysPermissionServiceClient permissionServiceClient;
     private final CacheManager cacheManager;
     private final ApplicationEventPublisher eventPublisher;

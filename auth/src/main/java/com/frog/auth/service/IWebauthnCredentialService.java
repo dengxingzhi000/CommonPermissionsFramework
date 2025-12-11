@@ -21,8 +21,6 @@ import java.util.UUID;
  * @since 2025-11-27
  */
 public interface IWebauthnCredentialService extends IService<WebauthnCredential> {
-
-    // ==================== 注册流程 ====================
     /**
      * 生成注册挑战
      * <p>
@@ -52,7 +50,6 @@ public interface IWebauthnCredentialService extends IService<WebauthnCredential>
      */
     WebauthnCredentialDTO registerCredential(UUID userId, WebauthnRegistrationRequest request);
 
-    // ==================== 认证流程 ====================
     /**
      * 生成认证挑战
      * <p>
@@ -87,7 +84,6 @@ public interface IWebauthnCredentialService extends IService<WebauthnCredential>
             UUID userId, String username, WebauthnAuthenticationRequest request,
             String deviceId, String ipAddress);
 
-    // ==================== 凭证管理 ====================
     /**
      * 获取用户所有激活的凭证
      *
@@ -135,7 +131,6 @@ public interface IWebauthnCredentialService extends IService<WebauthnCredential>
      */
     List<WebauthnCredentialDTO> checkCredentialHealth(UUID userId);
 
-    // ==================== 安全审计 ====================
     /**
      * 记录认证尝试
      *

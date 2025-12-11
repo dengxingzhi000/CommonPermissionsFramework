@@ -107,11 +107,13 @@ public class DataScopeAspect {
     private String buildDeptAndChildrenScope(UUID deptId, String deptAlias) {
         // 使用递归CTE查询所有子部门
         return String.format(
-                "%s IN (WITH RECURSIVE dept_tree AS (" +
-                        "  SELECT id FROM sys_dept WHERE id = UNHEX(REPLACE('%s', '-', '')) " +
-                        "  UNION ALL " +
-                        "  SELECT d.id FROM sys_dept d INNER JOIN dept_tree dt ON d.parent_id = dt.id" +
-                        ") SELECT HEX(id) FROM dept_tree)",
+                            """
+                            %s IN (WITH RECURSIVE dept_tree AS (
+                              SELECT id FROM sys_dept WHERE id = UNHEX(REPLACE('%s', '-', ''))
+                              UNION ALL
+                              SELECT d.id FROM sys_dept d INNER JOIN dept_tree dt ON d.parent_id = dt.id
+                            ) SELECT HEX(id) FROM dept_tree)
+                            """,
                 deptAlias, deptId
         );
     }

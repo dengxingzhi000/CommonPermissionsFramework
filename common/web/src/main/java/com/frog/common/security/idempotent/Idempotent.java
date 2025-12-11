@@ -14,6 +14,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface Idempotent {
+
     /**
      * 幂等性key的前缀
      */

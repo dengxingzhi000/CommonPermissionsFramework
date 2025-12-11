@@ -49,7 +49,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @Slf4j
 public class SysAuthController {
-    
     private final ISysAuthService authService;
     private final IWebauthnCredentialService webAuthnService;
     private final SysUserServiceClient userServiceClient;
@@ -96,6 +95,7 @@ public class SysAuthController {
                 currentUser.getUsername(),
                 deviceId,
                 rpId);
+
         return ApiResponse.success(options);
     }
 
@@ -120,6 +120,7 @@ public class SysAuthController {
                 request, 
                 deviceId, 
                 ipAddress);
+
         return ApiResponse.success(upgraded);
     }
 
@@ -142,6 +143,7 @@ public class SysAuthController {
                 currentUser.getUsername(),
                 deviceId, 
                 rpId);
+
         return ApiResponse.success(options);
     }
 

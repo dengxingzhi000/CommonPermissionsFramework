@@ -18,7 +18,6 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @Schema(description = "审批处理DTO")
 public class ApprovalProcessDTO {
-
     @Schema(description = "是否批准")
     @NotNull(message = "批准状态不能为空")
     private Boolean approved;
