@@ -72,7 +72,8 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
         }
 
         // 2. 校验父部门是否存在
-        if (deptDTO.getParentId() != null && !deptDTO.getParentId().equals(UUID.fromString("00000000-0000-0000-0000-000000000000"))) {
+        if (deptDTO.getParentId() != null && !deptDTO.getParentId().equals(
+                UUID.fromString("00000000-0000-0000-0000-000000000000"))) {
             SysDept parent = deptMapper.selectById(deptDTO.getParentId());
             if (parent == null) {
                 throw new BusinessException("父部门不存在");

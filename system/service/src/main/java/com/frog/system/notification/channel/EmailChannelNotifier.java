@@ -32,4 +32,3 @@ public class EmailChannelNotifier implements ChannelNotifier {
                 command.getVariables());
     }
 }
-

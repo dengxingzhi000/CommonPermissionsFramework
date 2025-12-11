@@ -123,7 +123,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
         // 分配权限
         if (roleDTO.getPermissionIds() != null && !roleDTO.getPermissionIds().isEmpty()) {
-            roleMapper.batchInsertRolePermissions(role.getId(), roleDTO.getPermissionIds(), SecurityUtils.getCurrentUserUuid().orElse(null));
+            roleMapper.batchInsertRolePermissions(role.getId(), roleDTO.getPermissionIds(),
+                    SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
         log.info("Role created: {}, by: {}", role.getRoleCode(), SecurityUtils.getCurrentUsername());
@@ -209,11 +210,13 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
         // 分配新权限
         if (permissionIds != null && !permissionIds.isEmpty()) {
-            roleMapper.batchInsertRolePermissions(roleId, permissionIds, SecurityUtils.getCurrentUserUuid().orElse(null));
+            roleMapper.batchInsertRolePermissions(roleId, permissionIds,
+                    SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
         log.info("Permissions granted to role: {}, permissions count: {}, by: {}",
-                role.getRoleCode(), permissionIds != null ? permissionIds.size() : 0, SecurityUtils.getCurrentUsername());
+                role.getRoleCode(), permissionIds != null ? permissionIds.size() : 0,
+                SecurityUtils.getCurrentUsername());
     }
 
     /**

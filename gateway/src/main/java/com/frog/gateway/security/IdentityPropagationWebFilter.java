@@ -46,23 +46,20 @@ public class IdentityPropagationWebFilter implements WebFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        Mono<SecurityContext> contextMono = ReactiveSecurityContextHolder.getContext();
-        return contextMono.hasElement()
-                .flatMap(has -> has
-                        ? contextMono.map(SecurityContext::getAuthentication)
-                                .flatMap(authentication -> propagate(exchange, chain, authentication))
-                        : chain.filter(exchange));
+        return ReactiveSecurityContextHolder.getContext()
+                .mapNotNull(SecurityContext::getAuthentication)
+                .filter(Authentication::isAuthenticated)
+                .filter(auth -> auth instanceof JwtAuthenticationToken)
+                .flatMap(auth ->
+                        propagate(exchange, chain, (JwtAuthenticationToken) auth).thenReturn(true))
+                .switchIfEmpty(Mono.just(false))
+                .flatMap(propagated -> propagated ? Mono.empty() : chain.filter(exchange));
     }
 
     private Mono<Void> propagate(ServerWebExchange exchange,
                                  WebFilterChain chain,
-                                 Authentication authentication) {
-        if (!(authentication instanceof JwtAuthenticationToken jwtAuthentication)
-                || !authentication.isAuthenticated()) {
-            return chain.filter(exchange);
-        }
-
-        Jwt token = jwtAuthentication.getToken();
+                                 JwtAuthenticationToken authentication) {
+        Jwt token = authentication.getToken();
         String userId = getClaim(token, properties.getUserIdClaim());
         if (!StringUtils.hasText(userId)) {
             return chain.filter(exchange);

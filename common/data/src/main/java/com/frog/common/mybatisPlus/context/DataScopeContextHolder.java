@@ -8,6 +8,7 @@ package com.frog.common.mybatisPlus.context;
  * @version 1.0
  */
 public class DataScopeContextHolder {
+
     private static final ThreadLocal<String> CONTEXT = new ThreadLocal<>();
 
     public static void set(String sqlFilter) {

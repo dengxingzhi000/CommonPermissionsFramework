@@ -23,6 +23,7 @@ import java.util.UUID;
 @Component
 @Slf4j
 public class DataScopeAspect {
+
     /**
      * 拦截带有@DataScope注解的方法
      */
