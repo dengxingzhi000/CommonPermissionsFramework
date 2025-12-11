@@ -29,6 +29,7 @@ import java.util.Properties;
         )}
 )
 public class DataScopeInterceptor implements Interceptor {
+
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         StatementHandler statementHandler = (StatementHandler) invocation.getTarget();

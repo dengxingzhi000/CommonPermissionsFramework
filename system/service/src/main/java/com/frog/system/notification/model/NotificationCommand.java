@@ -47,16 +47,14 @@ public class NotificationCommand {
     /**
      * Optional variables for template rendering.
      */
-    @Builder.Default
     @Singular
-    private final Map<String, Object> variables = Map.of();
+    private final Map<String, Object> variables;
 
     /**
      * Target channels.
      */
-    @Builder.Default
     @Singular
-    private final Set<NotificationChannel> channels = Set.of();
+    private final Set<NotificationChannel> channels;
 
     /**
      * Creation timestamp used for tracing/debugging.

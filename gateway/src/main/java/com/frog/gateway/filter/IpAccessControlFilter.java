@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Hardened IP access control filter that validates trusted proxies, uses redis-backed ACLs and
  * responds with structured payloads.
+ * 强化版IP访问控制过滤器，可验证受信任的代理，使用基于Redis的访问控制列表（ACL），并返回结构化数据。
  */
 @Component
 @Slf4j
@@ -79,14 +80,14 @@ public class IpAccessControlFilter implements GlobalFilter, Ordered {
     private Mono<IpAccessDecision> evaluateAccess(String clientIp) {
         return redisTemplate.hasKey(IP_BLACKLIST_KEY + clientIp)
                 .flatMap(inBlacklist -> {
-                    if (Boolean.TRUE.equals(inBlacklist)) {
+                    if (inBlacklist) {
                         return Mono.just(IpAccessDecision.deny("BLACKLIST"));
                     }
                     if (!properties.isWhitelistOnly()) {
                         return Mono.just(IpAccessDecision.allow());
                     }
                     return redisTemplate.hasKey(IP_WHITELIST_KEY + clientIp)
-                            .map(inWhitelist -> Boolean.TRUE.equals(inWhitelist)
+                            .map(inWhitelist -> inWhitelist
                                     ? IpAccessDecision.allow()
                                     : IpAccessDecision.deny("WHITELIST_ONLY"));
                 })

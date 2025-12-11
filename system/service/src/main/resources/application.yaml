@@ -20,6 +20,8 @@ spring:
     url: jdbc:postgresql://192.168.18.134:5432/sys_service_db
     username: admin
     password: 123456
+  security:
+    default-password: 123456
 
 
 mybatis-plus:

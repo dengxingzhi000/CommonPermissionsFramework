@@ -10,24 +10,24 @@
   <name>NewNearSync</name>
   <url>http://maven.apache.org</url>
     <modules>
-        <module>gateway</module>
-        <module>auth</module>
-        <module>system</module>
         <module>common</module>
         <module>common/core</module>
-        <module>system/api</module>
-        <module>system/service</module>
-        <module>common/web</module>
-        <module>common/data</module>
-        <module>common/integration</module>
         <module>common/monitoring</module>
         <module>common/web/securityCore</module>
+        <module>common/data</module>
+        <module>common/web</module>
+        <module>common/integration</module>
+        <module>system/api</module>
+        <module>system</module>
+        <module>system/service</module>
+        <module>auth</module>
+        <module>gateway</module>
     </modules>
 
     <parent>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-parent</artifactId>
-      <version>3.5.6</version>
+      <version>4.0.0</version>
       <relativePath/>
   </parent>
 
@@ -36,8 +36,8 @@
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <java.version>21</java.version>
-    <spring-cloud.version>2023.0.3</spring-cloud.version>
-    <spring-cloud-alibaba.version>2023.0.3.3</spring-cloud-alibaba.version>
+    <spring-cloud.version>2025.1.0</spring-cloud.version>
+    <spring-cloud-alibaba.version>2025.0.0.0</spring-cloud-alibaba.version>
     <postgresql.version>42.6.0</postgresql.version>
     <mybatis-plus.version>3.5.14</mybatis-plus.version>
     <org.projectlombok.version>1.18.38</org.projectlombok.version>
@@ -54,7 +54,7 @@
     <guava.version>33.5.0-jre</guava.version>
     <fastjson2.version>2.0.9</fastjson2.version>
     <rabbitmq.version>5.14.2</rabbitmq.version>
-    <spring-boot.version>3.5.6</spring-boot.version>
+    <spring-boot.version>4.0.0</spring-boot.version>
   </properties>
 
 <dependencyManagement>
@@ -70,7 +70,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
-            <version>${spring-boot.version}</version>
+            <version>4.0.0-M2</version>
         </dependency>
         <!-- Spring Boot Starter Web -->
         <dependency>
@@ -108,7 +108,7 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
-            <version>${spring-cloud-alibaba.version}</version>
+<!--            <version>${spring-cloud-alibaba.version}</version>-->
         </dependency>
         <dependency>
             <groupId>com.alibaba.csp</groupId>

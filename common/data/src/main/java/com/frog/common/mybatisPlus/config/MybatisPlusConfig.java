@@ -22,6 +22,7 @@ import java.util.UUID;
  */
 @Configuration
 public class MybatisPlusConfig {
+
     /**
      * 添加分页插件
      */

@@ -39,13 +39,19 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/auth/webauthn")
 @RequiredArgsConstructor
-@Tag(name = "WebAuthn凭证管理", description = "WebAuthn生物识别/硬件密钥认证管理")
+@Tag(
+        name = "WebAuthn凭证管理",
+        description = "WebAuthn生物识别/硬件密钥认证管理"
+)
 public class WebAuthnCredentialController {
     private final IWebauthnCredentialService credentialService;
 
     @PostMapping("/register/challenge")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "生成注册挑战", description = "生成WebAuthn注册挑战，用于注册新的认证器")
+    @Operation(
+            summary = "生成注册挑战",
+            description = "生成WebAuthn注册挑战，用于注册新的认证器"
+    )
     public ApiResponse<WebAuthnRegisterChallengeResponse> generateRegistrationChallenge(
             @Parameter(description = "依赖方ID（域名）", example = "example.com")
             @RequestParam(required = false, defaultValue = "localhost") String rpId,
@@ -66,7 +72,10 @@ public class WebAuthnCredentialController {
 
     @PostMapping("/register/verify")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "验证并注册凭证", description = "验证WebAuthn注册响应并保存凭证")
+    @Operation(
+            summary = "验证并注册凭证",
+            description = "验证WebAuthn注册响应并保存凭证"
+    )
     public ApiResponse<WebauthnCredentialDTO> registerCredential(
             @Valid @RequestBody WebauthnRegistrationRequest request,
             @AuthenticationPrincipal SecurityUser user) {
@@ -82,7 +91,10 @@ public class WebAuthnCredentialController {
 
     @PostMapping("/authenticate/challenge")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "生成认证挑战", description = "生成WebAuthn认证挑战，用于多因素认证或Token升级")
+    @Operation(
+            summary = "生成认证挑战",
+            description = "生成WebAuthn认证挑战，用于多因素认证或Token升级"
+    )
     public ApiResponse<WebAuthnChallengeResponse> generateAuthenticationChallenge(
             @Parameter(description = "依赖方ID（域名）", example = "example.com")
             @RequestParam(required = false, defaultValue = "localhost") String rpId,
@@ -103,7 +115,10 @@ public class WebAuthnCredentialController {
 
     @PostMapping("/authenticate/verify")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "验证认证并升级Token", description = "验证WebAuthn认证响应并升级访问令牌的AMR")
+    @Operation(
+            summary = "验证认证并升级Token",
+            description = "验证WebAuthn认证响应并升级访问令牌的AMR"
+    )
     public ApiResponse<TokenUpgradeResponse> authenticateAndUpgradeToken(
             @Valid @RequestBody WebauthnAuthenticationRequest request,
             @AuthenticationPrincipal SecurityUser user,
@@ -138,7 +153,10 @@ public class WebAuthnCredentialController {
 
     @GetMapping("/credentials")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "列出所有凭证", description = "获取当前用户的所有活跃WebAuthn凭证")
+    @Operation(
+            summary = "列出所有凭证",
+            description = "获取当前用户的所有活跃WebAuthn凭证"
+    )
     public ApiResponse<List<WebauthnCredentialDTO>> listCredentials(
             @AuthenticationPrincipal SecurityUser user
     ) {
@@ -153,7 +171,10 @@ public class WebAuthnCredentialController {
 
     @PutMapping("/credentials/{credentialId}/name")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "更新设备名称", description = "更新WebAuthn凭证的设备名称")
+    @Operation(
+            summary = "更新设备名称",
+            description = "更新WebAuthn凭证的设备名称"
+    )
     public ApiResponse<WebauthnCredentialDTO> updateDeviceName(
             @Parameter(description = "凭证ID", required = true)
             @PathVariable String credentialId,
@@ -174,7 +195,10 @@ public class WebAuthnCredentialController {
 
     @DeleteMapping("/credentials/{credentialId}")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "删除凭证", description = "永久删除WebAuthn凭证")
+    @Operation(
+            summary = "删除凭证",
+            description = "永久删除WebAuthn凭证"
+    )
     public ApiResponse<Void> deleteCredential(
             @Parameter(description = "凭证ID", required = true)
             @PathVariable String credentialId,
@@ -191,7 +215,10 @@ public class WebAuthnCredentialController {
 
     @PutMapping("/credentials/{credentialId}/deactivate")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "停用凭证", description = "停用WebAuthn凭证（软删除）")
+    @Operation(
+            summary = "停用凭证",
+            description = "停用WebAuthn凭证（软删除）"
+    )
     public ApiResponse<Void> deactivateCredential(
             @Parameter(description = "凭证ID", required = true)
             @PathVariable String credentialId,
@@ -208,7 +235,10 @@ public class WebAuthnCredentialController {
 
     @GetMapping("/credentials/health")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "检查凭证健康状态", description = "检测异常凭证（长期未使用、计数器异常等）")
+    @Operation(
+            summary = "检查凭证健康状态",
+            description = "检测异常凭证（长期未使用、计数器异常等）"
+    )
     public ApiResponse<List<WebauthnCredentialDTO>> checkCredentialHealth(
             @AuthenticationPrincipal SecurityUser user) {
         UUID userId = user.getUserId();
