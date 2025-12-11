@@ -1,0 +1,8 @@
+mybatis-plus:
+  type-handlers-package: com.frog.common.handler
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    # 控制台打印 SQL，上线可关
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

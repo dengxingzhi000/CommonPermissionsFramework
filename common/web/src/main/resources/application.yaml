@@ -1,0 +1,51 @@
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:t+gG4GvjtxpXiYSW64mTNVK2TmnwtvHNXrp0TGjrGz9sd5XzzFJ7bw83puCeMoVS8Yp+9pRl78FK0L8XI3zlcg==}
+  expiration: 7200000 # 2小时
+  refresh-expiration: 604800000 # 7天
+  issuer: nearsync-auth-service
+  header: Authorization
+  prefix: "Bearer "
+  strict-ip-check: false
+  device-fingerprint-enabled: true
+  auto-renew-enabled: true
+  auto-renew-threshold: 1800000 # 30分钟
+  max-concurrent-sessions: 5
+  session-policy: REPLACE_OLD
+  blacklist-cleanup-strategy: SCHEDULED
+  blacklist-cleanup-interval: 24
+
+# Security配置
+security:
+  # 登录安全配置
+  max-login-attempts: 5
+  lock-duration: 1800000 # 30分钟
+  password-expire-days: 90
+  session-timeout: 1800000 # 30分钟
+
+  # 密码策略
+  password:
+    min-length: 8
+    max-length: 20
+    require-uppercase: true
+    require-lowercase: true
+    require-digit: true
+    require-special-char: true
+    special-chars: "@#$%^&+=!"
+
+  # 加密配置
+  crypto:
+    aes-key: ${AES_KEY:c9Z1kz0y9o+uQLkRYq1LZFBOM3ZgUfNy}
+
+  # mTLS配置（服务间通信）
+  mtls:
+    enabled: false
+    keystore-path: ${KEYSTORE_PATH:classpath:keystore.p12}
+    keystore-password: ${KEYSTORE_PASSWORD:changeit}
+    truststore-path: ${TRUSTSTORE_PATH:classpath:truststore.p12}
+    truststore-password: ${TRUSTSTORE_PASSWORD:changeit}
+
+  # Feign签名配置
+  feign:
+    app-id: ${FEIGN_APP_ID:auth-service}
+    secret-key: ${FEIGN_SECRET_KEY:your-feign-secret-key}

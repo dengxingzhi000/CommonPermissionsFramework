@@ -1,44 +1,164 @@
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-.kotlin
+# Compiled class files
+*.class
 
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
-*.iws
-*.iml
-*.ipr
+# Log files
+*.log
+logs/
 
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# Gradle files
+.gradle/
 build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
+# Maven files
+target/
+*.jar
+*.war
+*.ear
+dependency-reduced-pom.xml
+.m2/
+
+# Package Files
+*.zip
+*.tar.gz
+*.rar
+
+# IDE files
+.idea/
 .vscode/
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
 
-### Mac OS ###
+# OS files
+Thumbs.db
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
 
-# 忽略配置文件
-**/application.yaml
-**/application-dev.yaml
-**/application-prod.yaml
+# Spring Boot
+application-local.properties
+application-dev.yml
+application-test.yml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IntelliJ
+out/
+.idea/artifacts/
+.idea/dataSources/
+.idea/dictionaries/
+
+# Netbeans
+nbproject/
+.nb-gradle/
+
+# Other
+*.swp
+*.swo
+*~
+.svn/
+.hg/
+*.bak
+*.orig
+
+# Build artifacts
+dist/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+.temp/
+
+# Node
+node_modules/
+npm-debug.log
+
+# Docker
+docker-compose.override.yml
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# Secrets and credentials
+.credentials
+.aws/credentials
+secrets/
+
+# Test coverage
+coverage/
+htmlcov/
+
+# JaCoCo
+*.exec
+
+# SonarQube
+.sonarqube/
+
+# Generated files
+/generated/
+
+# Checksum files
+*.md5
+*.sha1
+
+# Backup files
+*.backup
+*.tmp
+
+# Local overrides
+local.properties
+local.xml
+
+# Misc
+HELP.md
+
+# Spring Boot specific files
+application.properties
+application.yml
+
+# Custom local settings
+config/local/
+config/secret/
+
+# IDE launch configurations
+.vscode/launch.json
+
+# Surefire test reports
+target/surefire-reports/
+
+# Failsafe test reports
+target/failsafe-reports/
+
+# VS Code
+*.code-workspace
+
+# macOS
+.AppleDouble
+.LSOverride
+*.swp
+
+# Linux
+*~
+.nfs*
+
+# Windows
+ehthumbs.db
+
+# Archives
+*.7z
