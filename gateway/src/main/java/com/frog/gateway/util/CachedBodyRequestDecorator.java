@@ -11,10 +11,10 @@ import reactor.core.publisher.Flux;
 
 /**
  * Simple request decorator that keeps a copy of the request body for multiple reads.
+ * 简单的请求装饰器，保留请求正文的副本以供多次读取。
  */
 @Getter
 public class CachedBodyRequestDecorator extends ServerHttpRequestDecorator {
-
     private static final DataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory();
 
     private final byte[] cachedBody;

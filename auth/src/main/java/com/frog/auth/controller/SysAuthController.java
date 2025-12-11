@@ -80,7 +80,7 @@ public class SysAuthController {
      * WebAuthn 断言挑战（Step-Up 前置）
      * 
      * @param httpRequest HTTP请求对象
-     * @param rpId Relying Party ID
+     * @param rpId Party ID
      * @param currentUser 当前安全用户
      * @return WebAuthn挑战响应
      */
@@ -128,7 +128,7 @@ public class SysAuthController {
      * WebAuthn 注册挑战
      * 
      * @param httpRequest HTTP请求对象
-     * @param rpId Relying Party ID
+     * @param rpId Party ID
      * @param currentUser 当前安全用户
      * @return WebAuthn注册挑战响应
      */

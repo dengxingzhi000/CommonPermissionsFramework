@@ -19,6 +19,7 @@ import com.frog.system.service.ISysUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,6 +47,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final SysUserMapper userMapper;
     private final SysPermissionMapper permissionMapper;
     private final PasswordEncoder passwordEncoder;
+    
+    @Value("${spring.security.default-password}")
+    private String defaultPassword;
 
     /**
      * 分页查询用户列表
@@ -146,7 +150,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             allEntries = true
     )
     public void addUser(UserDTO userDTO) {
-        // 检查用户名是否存在
         if (userMapper.existsByUsername(userDTO.getUsername())) {
             throw new BusinessException(ResultCode.USER_EXIST.getCode(), ResultCode.USER_EXIST.getMessage());
         }
@@ -154,24 +157,20 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         SysUser user = new SysUser();
         BeanUtils.copyProperties(userDTO, user);
 
-        // 加密密码
         if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
             user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         } else {
-            // 默认密码
-            user.setPassword(passwordEncoder.encode("123456"));
+            user.setPassword(passwordEncoder.encode(defaultPassword));
         }
 
         user.setId(UUIDv7Util.generate());
 
-        // 设置密码过期时间（90天后）
         LocalDateTime passwordExpireTime = LocalDateTime.now().plusDays(90);
         user.setPasswordExpireTime(passwordExpireTime);
-        user.setForceChangePassword(1); // 首次登录强制修改密码
+        user.setForceChangePassword(1);
 
         userMapper.insert(user);
 
-        // 分配角色
         if (userDTO.getRoleIds() != null && !userDTO.getRoleIds().isEmpty()) {
             userMapper.batchInsertUserRoles(user.getId(), userDTO.getRoleIds(),
                     SecurityUtils.getCurrentUserUuid().orElse(null));
@@ -197,12 +196,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         SysUser user = new SysUser();
         BeanUtils.copyProperties(userDTO, user);
 
-        // 密码不在此处修改
         user.setPassword(null);
 
         userMapper.updateById(user);
 
-        // 更新角色
         if (userDTO.getRoleIds() != null) {
             userMapper.deleteUserRoles(user.getId());
             if (!userDTO.getRoleIds().isEmpty()) {
@@ -228,13 +225,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException(ResultCode.USER_NOT_FOUND.getCode(), ResultCode.USER_NOT_FOUND.getMessage());
         }
 
-        // 不能删除超级管理员
         if (user.getId().equals(UUID.fromString("019a0aee-3b74-7bfc-b34f-48b5428d4875"))) {
             throw new BusinessException(ResultCode.USER_CANNOT_DELETE_ADMIN.getCode(),
                     ResultCode.USER_CANNOT_DELETE_ADMIN.getMessage());
         }
 
-        // 不能删除自己
         if (user.getId().equals(SecurityUtils.getCurrentUserUuid().orElse(null))) {
             throw new BusinessException(ResultCode.USER_CANNOT_DELETE_SELF.getCode(),
                     ResultCode.USER_CANNOT_DELETE_SELF.getMessage());
@@ -259,11 +254,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException("用户不存在");
         }
 
-        // 生成随机密码
         String newPassword = generateRandomPassword();
 
         user.setPassword(passwordEncoder.encode(newPassword));
-        user.setForceChangePassword(1); // 强制修改密码
+        user.setForceChangePassword(1);
 
         userMapper.updateById(user);
 
@@ -278,13 +272,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         SecureRandom random = new SecureRandom();
         StringBuilder password = new StringBuilder();
 
-        // 确保包含大写、小写、数字和特殊字符
-        password.append(chars.charAt(random.nextInt(26))); // 大写
-        password.append(chars.charAt(26 + random.nextInt(26))); // 小写
-        password.append(chars.charAt(52 + random.nextInt(10))); // 数字
-        password.append(chars.charAt(62 + random.nextInt(4))); // 特殊字符
+        password.append(chars.charAt(random.nextInt(26)));
+        password.append(chars.charAt(26 + random.nextInt(26)));
+        password.append(chars.charAt(52 + random.nextInt(10)));
+        password.append(chars.charAt(62 + random.nextInt(4)));
 
-        // 剩余随机字符
         for (int i = 0; i < 8; i++) {
             password.append(chars.charAt(random.nextInt(chars.length())));
         }
@@ -317,12 +309,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException("用户不存在");
         }
 
-        // 验证旧密码
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("原密码不正确");
         }
 
-        // 新密码不能与旧密码相同
         if (passwordEncoder.matches(newPassword, user.getPassword())) {
             throw new BusinessException("新密码不能与原密码相同");
         }
@@ -331,7 +321,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         user.setForceChangePassword(0);
         user.setLastPasswordChangeTime(LocalDateTime.now());
 
-        // 更新密码过期时间
         LocalDateTime passwordExpireTime = LocalDateTime.now().plusDays(90);
         user.setPasswordExpireTime(passwordExpireTime);
 
@@ -354,10 +343,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return;
         }
 
-        // 删除原有角色
         userMapper.deleteUserRoles(userId);
 
-        // 分配新角色
         if (roleIds != null && !roleIds.isEmpty()) {
             userMapper.batchInsertUserRoles(userId, roleIds, SecurityUtils.getCurrentUserUuid().orElse(null));
         }
@@ -381,11 +368,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
 
         if (lock) {
-            user.setStatus(2); // 锁定
-            LocalDateTime lockedUntil = LocalDateTime.now().plusHours(24); // 锁定24小时
+            user.setStatus(2);
+            LocalDateTime lockedUntil = LocalDateTime.now().plusHours(24);
             user.setLockedUntil(lockedUntil);
         } else {
-            user.setStatus(1); // 启用
+            user.setStatus(1);
             user.setLockedUntil(null);
             user.setLoginAttempts(0);
         }
@@ -413,7 +400,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException(ResultCode.USER_NOT_FOUND.getCode(), ResultCode.USER_NOT_FOUND.getMessage());
         }
 
-        // 验证时间
         if (expireTime != null && expireTime.isBefore(LocalDateTime.now())) {
             throw new BusinessException("过期时间不能早于当前时间");
         }
@@ -422,7 +408,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException("生效时间不能晚于过期时间");
         }
 
-        // 批量插入临时角色
         if (roleIds != null && !roleIds.isEmpty()) {
             userMapper.batchInsertTemporaryUserRoles(
                     userId, roleIds,
@@ -446,12 +431,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             key = "#userId"
     )
     public void extendTemporaryRole(UUID userId, UUID roleId, LocalDateTime newExpireTime) {
-        // 验证用户是否有该临时角色
         if (!userMapper.hasTemporaryRole(userId, roleId)) {
             throw new BusinessException("用户不存在该临时角色或已过期");
         }
 
-        // 验证新的过期时间
         if (newExpireTime.isBefore(LocalDateTime.now())) {
             throw new BusinessException("新的过期时间不能早于当前时间");
         }
@@ -514,7 +497,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     )
     public Integer getUserDataScope(UUID userId) {
         Integer dataScope = userMapper.getUserDataScope(userId);
-        return dataScope != null ? dataScope : 5; // 默认仅本人
+        return dataScope != null ? dataScope : 5;
     }
 
     /**
@@ -524,23 +507,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     public Map<String, Object> getUserStatistics(UUID userId) {
         Map<String, Object> stats = new HashMap<>();
 
-        // 统计角色数量
         Integer roleCount = userMapper.countUserRoles(userId);
         stats.put("roleCount", roleCount);
 
-        // 统计临时角色数量
         Integer tempRoleCount = userMapper.countTemporaryRoles(userId);
         stats.put("temporaryRoleCount", tempRoleCount);
 
-        // 统计即将过期的角色数量（7天内）
         Integer expiringCount = userMapper.countExpiringRoles(userId, 7);
         stats.put("expiringRoleCount", expiringCount);
 
-        // 获取数据权限范围
         Integer dataScope = userMapper.getUserDataScope(userId);
-        stats.put("dataScope", dataScope != null ? dataScope : 5); // 默认仅本人
+        stats.put("dataScope", dataScope != null ? dataScope : 5);
 
-        // 获取最大审批金额
         BigDecimal maxApprovalAmount = userMapper.getMaxApprovalAmount(userId);
         stats.put("maxApprovalAmount", maxApprovalAmount);
 

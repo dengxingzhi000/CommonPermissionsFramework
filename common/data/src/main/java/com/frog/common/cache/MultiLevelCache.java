@@ -3,6 +3,7 @@ package com.frog.common.cache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -127,7 +128,7 @@ public class MultiLevelCache {
         localCache.invalidate(key);
     }
 
-    public com.github.benmanes.caffeine.cache.stats.CacheStats localStats() {
+    public CacheStats localStats() {
         return localCache.stats();
     }
 

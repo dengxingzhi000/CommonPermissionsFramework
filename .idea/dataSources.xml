@@ -18,7 +18,6 @@
       <synchronize>true</synchronize>
       <imported>true</imported>
       <remarks>$PROJECT_DIR$/system/service/src/main/resources/application.yaml</remarks>
-      <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
       <jdbc-url>jdbc:mysql://192.168.18.134:3306/new-near-sync?useUnicode=true&amp;characterEncoding=utf-8&amp;zeroDateTimeBehavior=convertToNull&amp;transformedBitIsBoolean=true&amp;allowMultiQueries=true&amp;useSSL=false&amp;allowPublicKeyRetrieval=true</jdbc-url>
       <jdbc-additional-properties>
         <property name="com.intellij.clouds.kubernetes.db.host.port" />

@@ -1,0 +1,2 @@
+com.frog.common.integration.config.RabbitIntegrationAutoConfiguration
+com.frog.common.integration.config.KafkaIntegrationAutoConfiguration

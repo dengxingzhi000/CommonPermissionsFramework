@@ -34,7 +34,6 @@ import java.util.stream.Stream;
 @Slf4j
 @RequiredArgsConstructor
 public class ApiSignatureFilter implements GlobalFilter, Ordered {
-
     private static final long EXPIRE_MILLIS = 300_000L;
     private static final String NONCE_KEY_PREFIX = "api:nonce:";
     private static final DefaultDataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory();
@@ -107,7 +106,7 @@ public class ApiSignatureFilter implements GlobalFilter, Ordered {
         String nonceKey = NONCE_KEY_PREFIX + appId + ":" + nonce;
         return redisTemplate.hasKey(nonceKey)
                 .flatMap(exists -> {
-                    if (Boolean.TRUE.equals(exists)) {
+                    if (exists) {
                         return unauthorized(exchange, "请求重复（可能的重放攻击）");
                     }
 

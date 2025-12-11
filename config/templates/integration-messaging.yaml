@@ -1,0 +1,21 @@
+integration:
+  messaging:
+    publisher-confirms: true
+    delayed-exchange-enabled: true
+    confirm-timeout: 5s
+    ordering-partitions: 4
+  kafka:
+    bootstrap-servers: localhost:9092
+    client-id: integration-producer
+    acks: all
+    retries: 3
+    linger-ms: 5
+    batch-size: 16384
+    max-in-flight: 5
+    idempotence: true
+    dlq-enabled: true
+    dlq-suffix: ".dlq"
+    max-attempts: 3
+    backoff-initial: 200ms
+    backoff-max: 5s
+    backoff-multiplier: 2.0

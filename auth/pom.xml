@@ -123,16 +123,10 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- TODO: Integrate a real WebAuthn verification library (choose one) -->
-        <!-- <dependency>
+        <dependency>
             <groupId>com.webauthn4j</groupId>
             <artifactId>webauthn4j-core</artifactId>
-            <version>VERSION_HERE</version>
-        </dependency> -->
-        <!-- <dependency>
-            <groupId>com.yubico</groupId>
-            <artifactId>webauthn-server-core</artifactId>
-            <version>VERSION_HERE</version>
-        </dependency> -->
+            <version>0.30.1.RELEASE</version>
+        </dependency>
     </dependencies>
 </project>

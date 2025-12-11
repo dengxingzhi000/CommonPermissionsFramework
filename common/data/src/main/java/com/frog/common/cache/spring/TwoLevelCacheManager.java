@@ -41,7 +41,7 @@ public class TwoLevelCacheManager implements CacheManager {
         }
     }
 
-    public java.util.Map<String, TwoLevelCache> currentCaches() {
-        return java.util.Collections.unmodifiableMap(caches);
+    public Map<String, TwoLevelCache> currentCaches() {
+        return Collections.unmodifiableMap(caches);
     }
 }
