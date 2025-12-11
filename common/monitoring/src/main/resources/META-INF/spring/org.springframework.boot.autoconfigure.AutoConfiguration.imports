@@ -1,0 +1,2 @@
+com.frog.common.monitoring.config.ObservabilityAutoConfiguration
+com.frog.common.sentinel.config.SentinelAutoConfiguration

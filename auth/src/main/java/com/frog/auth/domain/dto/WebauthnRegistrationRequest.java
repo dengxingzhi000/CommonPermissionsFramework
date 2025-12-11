@@ -24,18 +24,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "WebAuthn注册请求")
 public class WebauthnRegistrationRequest {
-
-    @Schema(description = "凭证ID(base64url)", example = "KSjKz3HHnUhFIAoS4RFCw", required = true)
+    @Schema(description = "凭证ID(base64url)", example = "KSjKz3HHnUhFIAoS4RFCw", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "凭证ID不能为空")
     @Size(min = 16, max = 1024, message = "凭证ID长度必须在16-1024之间")
     private String credentialId;
 
-    @Schema(description = "公钥(PEM格式)", required = true)
+    @Schema(description = "公钥(PEM格式)", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "公钥不能为空")
     @Size(max = 2048, message = "公钥长度不能超过2048")
     private String publicKeyPem;
 
-    @Schema(description = "签名算法", example = "ES256", required = true)
+    @Schema(description = "签名算法", example = "ES256", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "签名算法不能为空")
     @Pattern(regexp = "^(ES256|ES384|ES512|RS256|RS384|RS512|PS256|PS384|PS512|EdDSA)$",
              message = "不支持的签名算法")

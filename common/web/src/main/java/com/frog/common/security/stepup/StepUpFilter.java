@@ -27,6 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class StepUpFilter extends OncePerRequestFilter {
+
     private final StepUpEvaluator evaluator;
     private final ISysAuditLogService auditLogService;
     private final JwtUtils jwtUtils;

@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
  */
 @Component
 public class WebauthnCredentialConverter {
-
     /**
      * 将实体转换为DTO
      * 移除敏感信息（公钥等）

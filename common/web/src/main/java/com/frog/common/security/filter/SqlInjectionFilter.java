@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 @RequiredArgsConstructor
 public class SqlInjectionFilter implements Filter {
+
     private final SecurityFilterProperties properties;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 

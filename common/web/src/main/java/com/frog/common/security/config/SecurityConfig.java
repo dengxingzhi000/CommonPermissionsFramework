@@ -42,6 +42,7 @@ import java.util.List;
 )
 @RequiredArgsConstructor
 public class SecurityConfig {
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final SqlInjectionFilter sqlInjectionFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;

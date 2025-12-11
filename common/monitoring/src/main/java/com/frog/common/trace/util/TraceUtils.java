@@ -1,37 +1,36 @@
 package com.frog.common.trace.util;
 
-import org.apache.skywalking.apm.toolkit.trace.CallableWrapper;
-import org.apache.skywalking.apm.toolkit.trace.RunnableWrapper;
-import org.apache.skywalking.apm.toolkit.trace.TraceContext;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 
 import java.util.concurrent.Callable;
 
-/**
- * SkyWalking工具类
- *
- * @author Deng
- * createData 2025/10/21 16:29
- * @version 1.0
- */
-public class TraceUtils {
-    /**
-     * 获取TraceId
-     */
+public final class TraceUtils {
+    private TraceUtils() {
+    }
+
     public static String getTraceId() {
-        return TraceContext.traceId();
+        Span span = Span.current();
+        return span.getSpanContext().isValid() ? span.getSpanContext().getTraceId() : "";
     }
 
-    /**
-     * 包装Runnable以传递TraceContext
-     */
     public static Runnable wrapRunnable(Runnable runnable) {
-        return RunnableWrapper.of(runnable);
+        Context context = Context.current();
+        return () -> {
+            try (Scope scope = context.makeCurrent()) {
+                runnable.run();
+            }
+        };
     }
 
-    /**
-     * 包装Callable以传递TraceContext
-     */
     public static <V> Callable<V> wrapCallable(Callable<V> callable) {
-        return CallableWrapper.of(callable);
+        Context context = Context.current();
+        return () -> {
+            try (Scope scope = context.makeCurrent()) {
+                return callable.call();
+            }
+        };
     }
 }
+

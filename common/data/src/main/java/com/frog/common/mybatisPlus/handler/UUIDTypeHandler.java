@@ -44,7 +44,6 @@ import java.util.concurrent.atomic.LongAdder;
 @MappedTypes(UUID.class)
 @MappedJdbcTypes({JdbcType.BINARY, JdbcType.VARBINARY})
 public class UUIDTypeHandler extends BaseTypeHandler<UUID> {
-
     /**
      * UUID标准字节长度 (128 bits = 16 bytes)
      */
@@ -66,8 +65,6 @@ public class UUIDTypeHandler extends BaseTypeHandler<UUID> {
      * 错误阈值 - 用于熔断告警
      */
     private static final long ERROR_THRESHOLD = 1000L;
-
-    // ======================== MyBatis TypeHandler 接口实现 ========================
 
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, UUID parameter, JdbcType jdbcType)
@@ -95,8 +92,6 @@ public class UUIDTypeHandler extends BaseTypeHandler<UUID> {
     public UUID getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {
         return bytesToUuidSafe(cs.getBytes(columnIndex), "callableStatement[" + columnIndex + "]");
     }
-
-    // ======================== 核心转换算法（参考Google Guava设计）========================
 
     /**
      * UUID转字节数组 - 零拷贝高性能实现
@@ -178,8 +173,6 @@ public class UUIDTypeHandler extends BaseTypeHandler<UUID> {
 
         return new UUID(mostSigBits, leastSigBits);
     }
-
-    // ======================== 可观测性与容错设计（参考Netflix架构）========================
 
     /**
      * 安全的字节转UUID包装方法

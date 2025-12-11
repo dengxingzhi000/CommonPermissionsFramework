@@ -3,7 +3,13 @@ package com.frog.common.trace.aspect;
 import com.alibaba.fastjson2.JSON;
 import com.frog.common.trace.annotation.BusinessTrace;
 import com.frog.common.web.util.SecurityUtils;
-import org.apache.skywalking.apm.toolkit.trace.ActiveSpan;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -12,74 +18,76 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- *
- *
- * @author Deng
- * createData 2025/11/10 9:39
- * @version 1.0
- */
 @Aspect
 @Component
+@RequiredArgsConstructor
 public class BusinessTraceAspect {
+    private final Tracer tracer;
+    private final ObservationRegistry observationRegistry;
 
     @Around("@annotation(businessTrace)")
     public Object around(ProceedingJoinPoint point, BusinessTrace businessTrace) throws Throwable {
-        // 1) 操作名兜底：注解优先，否则用 Class.method
+        String operationName = resolveOperationName(point, businessTrace);
+        Observation observation = Observation.createNotStarted(operationName, observationRegistry)
+                .lowCardinalityKeyValue("operation", operationName)
+                .start();
+        Span span = tracer.spanBuilder(operationName).startSpan();
+
+        enrichUser(span);
+        if (businessTrace.recordArgs()) {
+            Object[] args = point.getArgs();
+            span.setAttribute("args.count", args == null ? 0 : args.length);
+            span.setAttribute("args.payload", toJsonLimited(args, 2048));
+        }
+
+        long startNs = System.nanoTime();
+        try (Observation.Scope ignored = observation.openScope(); Scope scope = span.makeCurrent()) {
+            Object result = point.proceed();
+            if (businessTrace.recordResult()) {
+                span.setAttribute("result.payload", toJsonLimited(result, 4096));
+            }
+            return result;
+        } catch (Throwable ex) {
+            span.setAttribute("error.type", ex.getClass().getName());
+            String msg = ex.getMessage();
+            if (msg != null && !msg.isBlank()) {
+                span.setAttribute("error.message", truncate(msg, 512));
+            }
+            span.recordException(ex);
+            span.setStatus(StatusCode.ERROR, msg == null ? "" : truncate(msg, 256));
+            throw ex;
+        } finally {
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
+            span.setAttribute("duration.ms", elapsedMs);
+            span.end();
+            observation.stop();
+        }
+    }
+
+    private String resolveOperationName(ProceedingJoinPoint point, BusinessTrace businessTrace) {
         String operationName = businessTrace.operationName();
         if (operationName == null || operationName.isBlank()) {
             MethodSignature sig = (MethodSignature) point.getSignature();
             operationName = sig.getDeclaringType().getSimpleName() + "." + sig.getMethod().getName();
         }
-        ActiveSpan.tag("operation", operationName);
+        return operationName;
+    }
 
-        // 2) 用户标签：容错 + 限长，避免 NPE/超长
-        String username = null;
+    private void enrichUser(Span span) {
         try {
-            username = SecurityUtils.getCurrentUsername().orElse(null);
-        } catch (Throwable ignore) { /* 保底不影响主流程 */ }
-        if (username != null && !username.isBlank()) {
-            ActiveSpan.tag("user", truncate(username, 128));
-        }
-
-        // 可选：若有 ActiveSpan.isNoop() 可用，提前快速返回，减少无追踪时的开销
-        // if (ActiveSpan.isNoop()) return point.proceed();
-
-        // 3) 入参：仅在配置需要时序列化，限制长度并兜底异常
-        if (businessTrace.recordArgs()) {
-            Object[] args = point.getArgs();
-            ActiveSpan.tag("argsCount", String.valueOf(args == null ? 0 : args.length));
-            ActiveSpan.tag("args", toJsonLimited(args, 2048));
-        }
-
-        long startNs = System.nanoTime();
-        try {
-            Object result = point.proceed();
-
-            // 4) 返回：仅在配置需要时序列化，限制长度
-            if (businessTrace.recordResult()) {
-                ActiveSpan.tag("result", toJsonLimited(result, 4096));
+            String username = SecurityUtils.getCurrentUsername().orElse(null);
+            if (username != null && !username.isBlank()) {
+                span.setAttribute("user", truncate(username, 128));
             }
-            return result;
-        } catch (Throwable e) {
-            // 5) 错误标签精简且安全（限长），并保留原有 ActiveSpan.error
-            ActiveSpan.tag("error.type", e.getClass().getName());
-            String msg = e.getMessage();
-            if (msg != null && !msg.isBlank()) {
-                ActiveSpan.tag("error.message", truncate(msg, 512));
-            }
-            ActiveSpan.error(e);
-            throw e;
-        } finally {
-            // 6) 纳秒计时，记录为毫秒
-            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
-            ActiveSpan.tag("duration.ms", String.valueOf(elapsedMs));
+        } catch (Throwable ignore) {
+            // best effort
         }
     }
 
-    // 安全序列化：容错 + 限长，避免巨型对象或 toString/JSON 异常拖垮
     private static String toJsonLimited(Object obj, int maxLen) {
-        if (obj == null) return "null";
+        if (obj == null) {
+            return "null";
+        }
         try {
             String s = JSON.toJSONString(obj);
             return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
@@ -89,8 +97,10 @@ public class BusinessTraceAspect {
     }
 
     private static String truncate(String s, int maxLen) {
-        if (s == null) return null;
+        if (s == null) {
+            return null;
+        }
         return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
     }
-
 }
+

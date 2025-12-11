@@ -21,7 +21,6 @@ import java.util.UUID;
 @Accessors(chain = true)
 @Schema(description = "权限审批DTO")
 public class ApprovalDTO {
-
     @Schema(description = "审批ID")
     private UUID id;
 

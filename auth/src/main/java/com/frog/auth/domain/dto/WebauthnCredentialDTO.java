@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Schema(description = "WebAuthn凭证信息")
 public class WebauthnCredentialDTO {
-
     @Schema(description = "凭证ID", example = "KSjKz3HHnUhFIAoS4RFCw")
     private String credentialId;
 

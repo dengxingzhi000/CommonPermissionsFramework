@@ -13,6 +13,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum SecurityEventType {
+
     LOGIN_SUCCESS("登录成功", 1),
     LOGIN_FAILED("登录失败", 2),
     LOGOUT("登出", 1),

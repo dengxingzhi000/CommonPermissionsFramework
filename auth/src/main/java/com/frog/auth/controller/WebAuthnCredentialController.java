@@ -41,10 +41,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "WebAuthn凭证管理", description = "WebAuthn生物识别/硬件密钥认证管理")
 public class WebAuthnCredentialController {
-
     private final IWebauthnCredentialService credentialService;
-
-    // ==================== 注册流程 ====================
 
     @PostMapping("/register/challenge")
     @PreAuthorize("isAuthenticated()")
@@ -82,8 +79,6 @@ public class WebAuthnCredentialController {
 
         return ApiResponse.success(credential);
     }
-
-    // ==================== 认证流程 ====================
 
     @PostMapping("/authenticate/challenge")
     @PreAuthorize("isAuthenticated()")
@@ -140,8 +135,6 @@ public class WebAuthnCredentialController {
             throw e;
         }
     }
-
-    // ==================== 凭证管理 ====================
 
     @GetMapping("/credentials")
     @PreAuthorize("isAuthenticated()")
@@ -213,8 +206,6 @@ public class WebAuthnCredentialController {
         return ApiResponse.success();
     }
 
-    // ==================== 健康检查 ====================
-
     @GetMapping("/credentials/health")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "检查凭证健康状态", description = "检测异常凭证（长期未使用、计数器异常等）")
@@ -228,8 +219,6 @@ public class WebAuthnCredentialController {
 
         return ApiResponse.success(unhealthyCredentials);
     }
-
-    // ==================== 辅助方法 ====================
 
     /**
      * 从请求中提取设备ID

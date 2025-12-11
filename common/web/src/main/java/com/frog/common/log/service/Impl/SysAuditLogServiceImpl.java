@@ -25,6 +25,7 @@ import java.util.UUID;
 @Slf4j
 public class SysAuditLogServiceImpl extends ServiceImpl<SysAuditLogMapper, SysAuditLog>
         implements ISysAuditLogService {
+
     private final SysAuditLogMapper sysAuditLogMapper;
 
     @Async

@@ -22,27 +22,26 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "WebAuthn认证请求")
 public class WebauthnAuthenticationRequest {
-
-    @Schema(description = "凭证ID", example = "KSjKz3HHnUhFIAoS4RFCw", required = true)
+    @Schema(description = "凭证ID", example = "KSjKz3HHnUhFIAoS4RFCw", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "凭证ID不能为空")
     private String credentialId;
 
-    @Schema(description = "客户端数据JSON(base64url)", required = true)
+    @Schema(description = "客户端数据JSON(base64url)", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "客户端数据不能为空")
     private String clientDataJSON;
 
-    @Schema(description = "认证器数据(base64url)", required = true)
+    @Schema(description = "认证器数据(base64url)", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "认证器数据不能为空")
     private String authenticatorData;
 
-    @Schema(description = "签名(base64url)", required = true)
+    @Schema(description = "签名(base64url)", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "签名不能为空")
     private String signature;
 
     @Schema(description = "用户句柄(base64url,可选)")
     private String userHandle;
 
-    @Schema(description = "新的签名计数器", example = "43", required = true)
+    @Schema(description = "新的签名计数器", example = "43", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "签名计数器不能为空")
     private Long signCount;
 }

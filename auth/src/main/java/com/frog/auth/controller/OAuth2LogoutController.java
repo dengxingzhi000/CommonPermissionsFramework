@@ -1,8 +1,8 @@
 package com.frog.auth.controller;
 
+import com.frog.common.response.ApiResponse;
 import com.frog.common.security.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
@@ -25,7 +25,7 @@ public class OAuth2LogoutController {
     private final JwtUtils jwtUtils;
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(
+    public ApiResponse<?> logout(
             @RequestHeader("Authorization") String token,
             @RequestParam(required = false) String clientId) {
 
@@ -46,6 +46,6 @@ public class OAuth2LogoutController {
             jwtUtils.revokeAllUserTokens(userId);
         }
 
-        return ResponseEntity.ok("Logout successful");
+        return ApiResponse.success("Logout successful");
     }
 }

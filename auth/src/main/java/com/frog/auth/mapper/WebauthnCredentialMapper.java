@@ -23,7 +23,6 @@ import java.util.UUID;
  */
 @Mapper
 public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential> {
-
     /**
      * 根据用户ID查询所有活跃凭证
      *

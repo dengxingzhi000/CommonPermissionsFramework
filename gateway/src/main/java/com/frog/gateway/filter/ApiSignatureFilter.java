@@ -1,5 +1,6 @@
 package com.frog.gateway.filter;
 
+import com.frog.gateway.util.CachedBodyRequestDecorator;
 import com.frog.gateway.util.SignatureAlgorithm;
 import com.frog.gateway.util.SignatureAlgorithmRegistry;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +9,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -17,7 +20,7 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.Map;
 import java.util.stream.Stream;
 
 /**
@@ -31,8 +34,10 @@ import java.util.stream.Stream;
 @Slf4j
 @RequiredArgsConstructor
 public class ApiSignatureFilter implements GlobalFilter, Ordered {
+
     private static final long EXPIRE_MILLIS = 300_000L;
     private static final String NONCE_KEY_PREFIX = "api:nonce:";
+    private static final DefaultDataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory();
 
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final SignatureAlgorithmRegistry algorithmRegistry;
@@ -46,9 +51,29 @@ public class ApiSignatureFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        return cacheRequestBody(exchange)
+                .flatMap(cachedExchange -> doFilterInternal(cachedExchange, chain));
+    }
+
+    private Mono<ServerWebExchange> cacheRequestBody(ServerWebExchange exchange) {
+        ServerHttpRequest request = exchange.getRequest();
+        if (request instanceof CachedBodyRequestDecorator) {
+            return Mono.just(exchange);
+        }
+        return DataBufferUtils.join(request.getBody())
+                .defaultIfEmpty(BUFFER_FACTORY.wrap(new byte[0]))
+                .map(buffer -> {
+                    byte[] bytes = new byte[buffer.readableByteCount()];
+                    buffer.read(bytes);
+                    DataBufferUtils.release(buffer);
+                    ServerHttpRequest decorated = new CachedBodyRequestDecorator(request, bytes);
+                    return exchange.mutate().request(decorated).build();
+                });
+    }
+
+    private Mono<Void> doFilterInternal(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
 
-        // 白名单跳过
         if (isWhitelisted(request.getPath().value())) {
             return chain.filter(exchange);
         }
@@ -80,7 +105,6 @@ public class ApiSignatureFilter implements GlobalFilter, Ordered {
         }
 
         String nonceKey = NONCE_KEY_PREFIX + appId + ":" + nonce;
-
         return redisTemplate.hasKey(nonceKey)
                 .flatMap(exists -> {
                     if (Boolean.TRUE.equals(exists)) {

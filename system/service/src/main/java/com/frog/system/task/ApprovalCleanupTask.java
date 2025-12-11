@@ -3,9 +3,11 @@ package com.frog.system.task;
 import com.frog.system.domain.entity.SysPermissionApproval;
 import com.frog.system.mapper.SysPermissionApprovalMapper;
 import com.frog.system.mapper.SysUserMapper;
+import com.frog.system.notification.NotificationService;
+import com.frog.system.notification.model.NotificationChannel;
+import com.frog.system.notification.model.NotificationCommand;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.frog.system.notification.NotificationService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -145,20 +147,45 @@ public class ApprovalCleanupTask {
      */
     private void sendExpiringNotification(String username, String email,
                                           String roleName, Object expireTime) {
-        String subject = "权限即将过期提醒";
-        String message = String.format("您好 %s，您的角色 %s 将于 %s 过期，请及时申请续期。", username, roleName, expireTime);
-        notificationService.sendEmail(email, subject, message);
-        notificationService.sendSystemMessage(username, message);
+        String subject = "Temporary role expiring soon";
+        String message = String.format("Hello %s, your temporary role %s will expire on %s.",
+                username, roleName, expireTime);
+
+        NotificationCommand command = NotificationCommand.builder()
+                .referenceId("temp-role-expiring-" + roleName + "-" + username)
+                .username(username)
+                .email(email)
+                .subject(subject)
+                .content(message)
+                .templateCode("temporary-role.expiring")
+                .channel(NotificationChannel.EMAIL)
+                .channel(NotificationChannel.SYSTEM_MESSAGE)
+                .variable("username", username)
+                .variable("roleName", roleName)
+                .variable("expireTime", expireTime)
+                .build();
+        notificationService.send(command);
     }
 
     /**
      * 发送审批即将过期通知
      */
     private void sendApprovalExpiringNotification(SysPermissionApproval approval) {
-        String subject = "审批即将过期提醒";
-        String message = String.format("审批单 %s（类型：%s）将于 %s 过期，请尽快处理。",
+        String subject = "Approval expiring soon";
+        String message = String.format("Approval %s (type: %s) will expire on %s.",
                 approval.getId(), approval.getApprovalType(), approval.getExpireTime());
-        // 这里缺少收件人/用户名来源，实际集成时可通过审批实体补充
-        notificationService.sendSystemMessage("approver", message);
+
+        NotificationCommand command = NotificationCommand.builder()
+                .referenceId("approval-expiring-" + approval.getId())
+                .username("approver")
+                .subject(subject)
+                .content(message)
+                .templateCode("approval.expiring")
+                .channel(NotificationChannel.SYSTEM_MESSAGE)
+                .variable("approvalId", approval.getId())
+                .variable("approvalType", approval.getApprovalType())
+                .variable("expireTime", approval.getExpireTime())
+                .build();
+        notificationService.send(command);
     }
 }

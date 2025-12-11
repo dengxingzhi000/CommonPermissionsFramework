@@ -14,7 +14,6 @@ import java.util.Set;
  * @version 1.0
  */
 public interface ICustomAuthorizationService {
-
     OAuth2Authorization createAuthorization(RegisteredClient client,
                                             Authentication principal,
                                             Set<String> authorizedScopes);

@@ -42,6 +42,7 @@ import java.util.Properties;
 @RequiredArgsConstructor
 @Slf4j
 public class EncryptionInterceptor implements Interceptor {
+
     private final AESEncryptor aesEncryptor;
 
     @Override

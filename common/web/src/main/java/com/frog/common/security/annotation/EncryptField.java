@@ -13,6 +13,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface EncryptField {
+
     /**
      * 加密算法（预留，当前仅支持AES）
      */
