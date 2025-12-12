@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -42,8 +43,10 @@ public class SecurityUser implements UserDetails {
     private Integer status;
     private Integer accountType;
     private Integer userLevel;
-    private Set<String> roles;
-    private Set<String> permissions;
+    @Builder.Default
+    private Set<String> roles = Collections.emptySet();
+    @Builder.Default
+    private Set<String> permissions = Collections.emptySet();
     private String twoFactorSecret;
 
     // 安全相关字段
@@ -60,12 +63,12 @@ public class SecurityUser implements UserDetails {
     @Override
     @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // 合并角色和权限
-        Set<GrantedAuthority> authorities = roles.stream()
+        // 合并角色和权限，防御空集合
+        Set<GrantedAuthority> authorities = (roles != null ? roles : Collections.<String>emptySet()).stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toSet());
 
-        authorities.addAll(permissions.stream()
+        authorities.addAll((permissions != null ? permissions : Collections.<String>emptySet()).stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toSet()));
 

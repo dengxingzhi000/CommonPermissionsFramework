@@ -18,10 +18,17 @@ public class SecurityFilterProperties {
     /** 是否启用 SQL/XSS 过滤 */
     private boolean enabled = true;
 
+    /** SQL/XSS 过滤动作：ALERT 仅告警，BLOCK 拦截 */
+    private SqlFilterMode mode = SqlFilterMode.ALERT;
+
     /** 是否启用 XSS 简单检测（建议主要依赖 CSP/输出编码） */
     private boolean xssEnabled = true;
 
     /** 按路径排除（Ant 表达式），例如：/api/public/** */
     private List<String> excludePaths = new ArrayList<>();
-}
 
+    public enum SqlFilterMode {
+        ALERT,
+        BLOCK
+    }
+}

@@ -35,8 +35,17 @@
 
         <!-- common start -->
         <dependency>
-            <groupId>com.frog.common.web</groupId>
-            <artifactId>securityCore</artifactId>
+            <groupId>com.frog.common</groupId>
+            <artifactId>core</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- REFACTORED (Phase 3): Security interfaces moved to dedicated module
+             SecurityContext interface is now in common/security-api
+             This allows core to be ultra-lightweight (no Spring dependencies) -->
+        <dependency>
+            <groupId>com.frog.common</groupId>
+            <artifactId>security-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <!-- common end -->

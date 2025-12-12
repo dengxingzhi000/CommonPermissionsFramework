@@ -7,7 +7,6 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -30,13 +29,10 @@ public class JwtUtils {
     private final JwtProperties jwtProperties;
     private final RedisTemplate<String, Object> redisTemplate;
 
-    @Value("${jwt.secret:t+gG4GvjtxpXiYSW64mTNVK2TmnwtvHNXrp0TGjrGz9sd5XzzFJ7bw83puCeMoVS8Yp+9pRl78FK0L8XI3zlcg==}")
-    private String defaultSecret;
-
     private SecretKey signingKey;
 
     private static final String TOKEN_BLACKLIST_PREFIX = "jwt:blacklist:";
-    private static final String USER_TOKEN_PREFIX = "jwt:user:";
+    private static final String USER_TOKENS_HASH = "jwt:user:tokens:";  // Hash key per user
     private static final String TOKEN_FINGERPRINT_PREFIX = "jwt:fingerprint:";
     private static final String REFRESH_LOCK_PREFIX = "jwt:refresh:lock:";
 
@@ -44,8 +40,7 @@ public class JwtUtils {
     public void init() {
         String secret = jwtProperties.getSecret();
         if (secret == null || secret.isEmpty()) {
-            log.warn("JWT secret not configured, using default");
-            secret = defaultSecret;
+            throw new IllegalStateException("jwt.secret must be configured via Nacos/ENV (JWT_SECRET)");
         }
 
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
@@ -242,15 +237,40 @@ public class JwtUtils {
         }
     }
 
+    /**
+     * Revokes all tokens for a given user across all devices.
+     *
+     * PERFORMANCE: Uses Redis Hash instead of KEYS command for O(1) lookup.
+     * Each user has a hash: jwt:user:tokens:{userId} -> { deviceId: token }
+     */
     public void revokeAllUserTokens(UUID userId) {
-        Set<String> keys = redisTemplate.keys(USER_TOKEN_PREFIX + userId + ":*");
-        if ( !keys.isEmpty()) {
-            for (String key : keys) {
-                String token = (String) redisTemplate.opsForValue().get(key);
+        String hashKey = USER_TOKENS_HASH + userId;
+
+        // Get all device tokens for this user (O(N) where N = devices per user, typically < 10)
+        Map<Object, Object> deviceTokens = redisTemplate.opsForHash().entries(hashKey);
+
+        if (deviceTokens != null && !deviceTokens.isEmpty()) {
+            log.info("Revoking {} token(s) for user {}", deviceTokens.size(), userId);
+
+            for (Map.Entry<Object, Object> entry : deviceTokens.entrySet()) {
+                String deviceId = (String) entry.getKey();
+                String token = (String) entry.getValue();
+
                 if (token != null) {
-                    revokeToken(token, "Admin forced logout");
+                    try {
+                        revokeToken(token, "Admin forced logout");
+                        log.debug("Revoked token for user {} device {}", userId, deviceId);
+                    } catch (Exception e) {
+                        log.error("Failed to revoke token for user {} device {}: {}",
+                                 userId, deviceId, e.getMessage());
+                    }
                 }
             }
+
+            // Clean up the hash
+            redisTemplate.delete(hashKey);
+        } else {
+            log.debug("No active tokens found for user {}", userId);
         }
     }
 
@@ -382,13 +402,22 @@ public class JwtUtils {
         return redisTemplate.hasKey(fingerprintKey);
     }
 
+    /**
+     * Stores token metadata in Redis using Hash structure for efficient lookups.
+     *
+     * PERFORMANCE OPTIMIZATION:
+     * - User tokens stored in Hash: jwt:user:tokens:{userId} -> {deviceId: token}
+     * - Allows O(1) lookup and O(N) revocation where N = devices (typically < 10)
+     * - Avoids O(N) KEYS scan where N = total tokens in Redis
+     */
     private void storeTokenMetadata(UUID userId, String deviceId, String token,
                                     String jti, String ipAddress, long ttl) {
-        // 存储Token
-        String tokenKey = USER_TOKEN_PREFIX + userId + ":" + deviceId;
-        redisTemplate.opsForValue().set(tokenKey, token, Duration.ofMillis(ttl));
+        // Store token in user's Hash (deviceId -> token mapping)
+        String userTokensHash = USER_TOKENS_HASH + userId;
+        redisTemplate.opsForHash().put(userTokensHash, deviceId, token);
+        redisTemplate.expire(userTokensHash, Duration.ofMillis(ttl));
 
-        // 存储指纹
+        // Store token fingerprint (for validation)
         String fingerprintKey = TOKEN_FINGERPRINT_PREFIX + jti;
         Map<String, Object> fingerprint = new HashMap<>();
         fingerprint.put("userId", userId.toString());
@@ -411,26 +440,37 @@ public class JwtUtils {
         redisTemplate.expire(blacklistKey, Duration.ofMillis(ttl));
     }
 
+    /**
+     * Deletes token cache for a specific user device.
+     * Uses Hash deletion (HDEL) instead of key deletion.
+     */
     private void deleteTokenCache(UUID userId, String deviceId) {
-        String tokenKey = USER_TOKEN_PREFIX + userId + ":" + deviceId;
-        redisTemplate.delete(tokenKey);
+        String userTokensHash = USER_TOKENS_HASH + userId;
+        redisTemplate.opsForHash().delete(userTokensHash, deviceId);
+        log.debug("Deleted token cache for user {} device {}", userId, deviceId);
     }
 
     private void deleteFingerprint(String jti) {
         String fingerprintKey = TOKEN_FINGERPRINT_PREFIX + jti;
         redisTemplate.delete(fingerprintKey);
+        log.debug("Deleted fingerprint for jti {}", jti);
     }
 
     private boolean isTokenBlacklisted(String jti) {
         String blacklistKey = TOKEN_BLACKLIST_PREFIX + jti;
-        return redisTemplate.hasKey(blacklistKey);
+        return Boolean.TRUE.equals(redisTemplate.hasKey(blacklistKey));
     }
 
+    /**
+     * Revokes access tokens for a specific user device.
+     * Uses Hash lookup (HGET) instead of key lookup.
+     */
     private void revokeUserAccessTokens(UUID userId, String deviceId) {
-        String tokenKey = USER_TOKEN_PREFIX + userId + ":" + deviceId;
-        String oldToken = (String) redisTemplate.opsForValue().get(tokenKey);
+        String userTokensHash = USER_TOKENS_HASH + userId;
+        String oldToken = (String) redisTemplate.opsForHash().get(userTokensHash, deviceId);
         if (oldToken != null) {
             revokeToken(oldToken, "Token refreshed");
+            log.debug("Revoked old token for user {} device {}", userId, deviceId);
         }
     }
 

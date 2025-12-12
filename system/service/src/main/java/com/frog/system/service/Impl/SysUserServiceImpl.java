@@ -90,13 +90,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         UserDTO userDTO = convertToDTO(user);
 
-        // 查询用户角色
-        List<UUID> roleIds = userMapper.findRoleIdsByUserId(id);
-        userDTO.setRoleIds(roleIds);
+        // PERFORMANCE: Single query to fetch both role IDs and names (fixes N+1 issue)
+        List<Map<String, Object>> roles = userMapper.findUserRolesWithNames(id);
 
-        // 查询角色名称
-        if (!roleIds.isEmpty()) {
-            List<String> roleNames = userMapper.findRoleNamesByUserId(id);
+        if (!roles.isEmpty()) {
+            List<UUID> roleIds = roles.stream()
+                    .map(role -> (UUID) role.get("id"))
+                    .toList();
+            List<String> roleNames = roles.stream()
+                    .map(role -> (String) role.get("name"))
+                    .toList();
+
+            userDTO.setRoleIds(roleIds);
             userDTO.setRoleNames(roleNames);
         }
 
@@ -143,40 +148,52 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     /**
      * 新增用户
+     *
+     * PERFORMANCE: Password encoding moved outside transaction to reduce lock time
      */
-    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(
             value = {"user", "userDetails", "userInfo"},
             allEntries = true
     )
     public void addUser(UserDTO userDTO) {
+        // 1. Pre-transaction validation and preparation
         if (userMapper.existsByUsername(userDTO.getUsername())) {
             throw new BusinessException(ResultCode.USER_EXIST.getCode(), ResultCode.USER_EXIST.getMessage());
         }
 
+        // 2. CPU-intensive operation BEFORE transaction (BCrypt hashing)
+        String encodedPassword;
+        if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+            encodedPassword = passwordEncoder.encode(userDTO.getPassword());
+        } else {
+            encodedPassword = passwordEncoder.encode(defaultPassword);
+        }
+
+        // 3. Prepare entity
         SysUser user = new SysUser();
         BeanUtils.copyProperties(userDTO, user);
-
-        if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
-            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
-        } else {
-            user.setPassword(passwordEncoder.encode(defaultPassword));
-        }
-
+        user.setPassword(encodedPassword);
         user.setId(UUIDv7Util.generate());
-
-        LocalDateTime passwordExpireTime = LocalDateTime.now().plusDays(90);
-        user.setPasswordExpireTime(passwordExpireTime);
+        user.setPasswordExpireTime(LocalDateTime.now().plusDays(90));
         user.setForceChangePassword(1);
 
-        userMapper.insert(user);
-
-        if (userDTO.getRoleIds() != null && !userDTO.getRoleIds().isEmpty()) {
-            userMapper.batchInsertUserRoles(user.getId(), userDTO.getRoleIds(),
-                    SecurityUtils.getCurrentUserUuid().orElse(null));
-        }
+        // 4. Start transaction - only database operations inside
+        executeAddUserTransaction(user, userDTO.getRoleIds());
 
         log.info("User created: {}, by: {}", user.getUsername(), SecurityUtils.getCurrentUsername());
+    }
+
+    /**
+     * Transaction-only method - no CPU-intensive operations allowed
+     */
+    @Transactional(rollbackFor = Exception.class)
+    protected void executeAddUserTransaction(SysUser user, List<UUID> roleIds) {
+        userMapper.insert(user);
+
+        if (roleIds != null && !roleIds.isEmpty()) {
+            userMapper.batchInsertUserRoles(user.getId(), roleIds,
+                    SecurityUtils.getCurrentUserUuid().orElse(null));
+        }
     }
 
     /**

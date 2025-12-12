@@ -6,13 +6,19 @@ import com.frog.common.feign.client.SysPermissionServiceClient;
 import com.frog.common.feign.factory.BaseFallbackFactory;
 import com.frog.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 
 /**
- * 权限服务Feign客户端
- * 用于服务间调用
+ * 权限服务 Feign 客户端降级工厂
+ *
+ * <p>SECURITY: Implements fail-closed pattern for permission checks
+ * - Permission lookup methods throw AccessDeniedException on service failure
+ * - Other query methods return safe defaults (empty collections)
+ *
+ * <p>Sentinel 熔断触发后会调用此降级方法
  *
  * @author Deng
  * createData 2025/11/6 15:30
@@ -50,14 +56,20 @@ public class PermissionServiceClientFallbackFactory extends BaseFallbackFactory<
 
             @Override
             public List<String> findPermissionsByUrl(String url, String method) {
-                log.error("调用权限服务查询权限失败: url={}, method={}, 错误信息: {}", url, method, errorMsg, cause);
-                return Collections.emptyList();
+                log.error("SECURITY: Permission lookup by URL failed via Sentinel fallback - DENYING ACCESS. " +
+                         "url={}, method={}, error: {}", url, method, errorMsg, cause);
+                // FAIL-CLOSED: Throw exception to deny access when permission check fails
+                throw new AccessDeniedException(
+                    "Permission service unavailable (Sentinel circuit open) - access denied as safety measure");
             }
 
             @Override
             public Set<String> findAllPermissionsByUserId(UUID userId) {
-                log.error("调用权限服务查询用户权限失败: userId={}, 错误信息: {}", userId, errorMsg, cause);
-                return Collections.emptySet();
+                log.error("SECURITY: User permission lookup failed via Sentinel fallback - DENYING ACCESS. " +
+                         "userId={}, error: {}", userId, errorMsg, cause);
+                // FAIL-CLOSED: Throw exception to deny access when permission check fails
+                throw new AccessDeniedException(
+                    "Permission service unavailable (Sentinel circuit open) - access denied as safety measure");
             }
 
             @Override

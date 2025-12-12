@@ -1,9 +1,11 @@
 package com.frog.common.security.filter;
 
-import com.frog.common.web.domain.SecurityUser;
+import com.frog.common.security.metrics.SecurityMetrics;
 import com.frog.common.security.util.HttpServletRequestUtils;
 import com.frog.common.security.util.IpUtils;
 import com.frog.common.security.util.JwtUtils;
+import com.frog.common.security.util.SecurityErrorResponseWriter;
+import com.frog.common.web.domain.SecurityUser;
 import jakarta.annotation.Nonnull;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -38,6 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
     private final HttpServletRequestUtils httpServletRequestUtils;
+    private final SecurityMetrics securityMetrics;
 
     @Override
     protected void doFilterInternal(@Nonnull HttpServletRequest request,
@@ -86,11 +89,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // 设置到Security上下文
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                    log.debug("User authenticated: {}", username);
+                    log.debug("User authenticated: traceId={}, userId={}, username={}",
+                            request.getHeader("X-Request-ID"), userId, username);
+                } else {
+                    securityMetrics.increment("security.jwt.invalid");
+                    SecurityErrorResponseWriter.write(request, response,
+                            HttpServletResponse.SC_UNAUTHORIZED,
+                            "INVALID_TOKEN",
+                            "Token validation failed");
+                    return;
                 }
             }
         } catch (Exception e) {
-            log.error("Cannot set user authentication: {}", e.getMessage());
+            securityMetrics.increment("security.jwt.errors");
+            log.error("Cannot set user authentication traceId={}", request.getHeader("X-Request-ID"), e);
+            SecurityErrorResponseWriter.write(request, response,
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "AUTH_ERROR",
+                    "Authentication error");
+            return;
         }
 
         filterChain.doFilter(request, response);

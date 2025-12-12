@@ -5,6 +5,11 @@ import com.frog.common.response.ResultCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,14 +17,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.LockedException;
-import org.springframework.security.core.AuthenticationException;
-
-
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -36,9 +36,12 @@ public class GlobalExceptionHandler {
      * 业务异常
      */
     @ExceptionHandler(ServiceException.class)
-    public ApiResponse<Void> handleServiceException(ServiceException e, HttpServletRequest request) {
-        log.error("Service exception at {}: {}", request.getRequestURI(), e.getMessage());
-        return ApiResponse.fail(e.getCode(), e.getMessage());
+    public ResponseEntity<ApiResponse<Void>> handleServiceException(ServiceException e, HttpServletRequest request) {
+        String traceId = traceId(request);
+        log.error("Service exception at {}, traceId={}: {}", request.getRequestURI(), traceId, e.getMessage());
+        HttpStatus status = HttpStatus.resolve(e.getCode()) != null ? HttpStatus.valueOf(e.getCode()) : HttpStatus.INTERNAL_SERVER_ERROR;
+        return ResponseEntity.status(status)
+                .body(ApiResponse.fail(e.getCode(), safeMessage("Service error", e.getMessage()) + " (traceId=" + traceId + ")"));
     }
 
     /**
@@ -48,8 +51,9 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleAuthenticationException(AuthenticationException e,
                                                            HttpServletRequest request) {
-        log.warn("Authentication failed: {}, URI: {}", e.getMessage(), request.getRequestURI());
-        return ApiResponse.fail(ResultCode.UNAUTHORIZED.getCode(), "认证失败: " + e.getMessage());
+        String traceId = traceId(request);
+        log.warn("Authentication failed: {}, URI: {}, traceId={}", e.getMessage(), request.getRequestURI(), traceId);
+        return ApiResponse.fail(ResultCode.UNAUTHORIZED.getCode(), "Authentication failed (traceId=" + traceId + ")");
     }
 
     /**
@@ -58,8 +62,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleBadCredentialsException(BadCredentialsException e) {
-        log.warn("Bad credentials: {}", e.getMessage());
-        return ApiResponse.fail(ResultCode.UNAUTHORIZED.getCode(), e.getMessage());
+        log.warn("Bad credentials");
+        return ApiResponse.fail(ResultCode.UNAUTHORIZED.getCode(), "Invalid username or password");
     }
 
     /**
@@ -69,8 +73,9 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ApiResponse<Void> handleAccessDeniedException(AccessDeniedException e,
                                                          HttpServletRequest request) {
-        log.warn("Access denied: {}, URI: {}", e.getMessage(), request.getRequestURI());
-        return ApiResponse.fail(ResultCode.FORBIDDEN.getCode(), "权限不足，访问被拒绝");
+        String traceId = traceId(request);
+        log.warn("Access denied: {}, URI: {}, traceId={}", e.getMessage(), request.getRequestURI(), traceId);
+        return ApiResponse.fail(ResultCode.FORBIDDEN.getCode(), "Access denied (traceId=" + traceId + ")");
     }
 
     /**
@@ -79,8 +84,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LockedException.class)
     @ResponseStatus(HttpStatus.LOCKED)
     public ApiResponse<Void> handleLockedException(LockedException e) {
-        log.warn("Account locked: {}", e.getMessage());
-        return ApiResponse.fail(ResultCode.USER_LOCKED.getCode(), e.getMessage());
+        log.warn("Account locked");
+        return ApiResponse.fail(ResultCode.USER_LOCKED.getCode(), "Account locked");
     }
 
     /**
@@ -89,8 +94,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RateLimitException.class)
     @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
     public ApiResponse<Void> handleRateLimitException(RateLimitException e) {
-        log.warn("Rate limit exceeded: {}", e.getMessage());
-        return ApiResponse.fail(ResultCode.TOO_MANY_REQUESTS.getCode(), e.getMessage());
+        log.warn("Rate limit exceeded");
+        return ApiResponse.fail(ResultCode.TOO_MANY_REQUESTS.getCode(), "Too many requests");
     }
 
     /**
@@ -99,8 +104,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleUnauthorizedException(UnauthorizedException e) {
-        log.warn("Unauthorized: {}", e.getMessage());
-        return ApiResponse.fail(ResultCode.UNAUTHORIZED.getCode(), e.getMessage());
+        log.warn("Unauthorized");
+        return ApiResponse.fail(ResultCode.UNAUTHORIZED.getCode(), "Unauthorized");
     }
 
     /**
@@ -110,7 +115,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleBusinessException(BusinessException e) {
         log.error("Business exception: {}", e.getMessage());
-        return ApiResponse.fail(e.getCode(), e.getMessage());
+        return ApiResponse.fail(e.getCode(), safeMessage("Business error", e.getMessage()));
     }
 
     /**
@@ -127,7 +132,7 @@ public class GlobalExceptionHandler {
         });
 
         log.warn("Validation failed: {}", errors);
-        return new ApiResponse<>(ResultCode.BAD_REQUEST.getCode(), "参数校验失败", errors,
+        return new ApiResponse<>(ResultCode.BAD_REQUEST.getCode(), "Validation failed", errors,
                 System.currentTimeMillis());
     }
 
@@ -147,7 +152,7 @@ public class GlobalExceptionHandler {
                 ));
 
         log.warn("Bind exception: {}", errors);
-        return new ApiResponse<>(ResultCode.BAD_REQUEST.getCode(), "参数绑定失败", errors,
+        return new ApiResponse<>(ResultCode.BAD_REQUEST.getCode(), "Parameter binding failed", errors,
                 System.currentTimeMillis());
     }
 
@@ -158,7 +163,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("Illegal argument: {}", e.getMessage());
-        return ApiResponse.fail(ResultCode.BAD_REQUEST.getCode(), "参数错误: " + e.getMessage());
+        return ApiResponse.fail(ResultCode.BAD_REQUEST.getCode(), "Invalid argument");
     }
 
     /**
@@ -168,8 +173,9 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleNullPointerException(NullPointerException e,
                                                         HttpServletRequest request) {
-        log.error("NullPointerException at {}: {}", request.getRequestURI(), e.getMessage(), e);
-        return ApiResponse.fail(ResultCode.INTERNAL_SERVER_ERROR.getCode(), "系统内部错误，请联系管理员");
+        String traceId = traceId(request);
+        log.error("NullPointerException at {}, traceId={}: {}", request.getRequestURI(), traceId, e.getMessage(), e);
+        return ApiResponse.fail(ResultCode.INTERNAL_SERVER_ERROR.getCode(), "Internal server error (traceId=" + traceId + ")");
     }
 
     /**
@@ -178,7 +184,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception e, HttpServletRequest request) {
-        log.error("Unexpected exception at {}: {}", request.getRequestURI(), e.getMessage(), e);
-        return ApiResponse.fail(ResultCode.INTERNAL_SERVER_ERROR.getCode(), "系统异常: " + e.getMessage());
+        String traceId = traceId(request);
+        log.error("Unexpected exception at {}, traceId={}: {}", request.getRequestURI(), traceId, e.getMessage(), e);
+        return ApiResponse.fail(ResultCode.INTERNAL_SERVER_ERROR.getCode(), "Internal server error (traceId=" + traceId + ")");
+    }
+
+    private String traceId(HttpServletRequest request) {
+        String id = request.getHeader("X-Request-ID");
+        if (id == null || id.isBlank()) {
+            id = request.getHeader("traceparent");
+        }
+        if (id == null || id.isBlank()) {
+            id = UUID.randomUUID().toString();
+        }
+        return id;
+    }
+
+    private String safeMessage(String prefix, String detail) {
+        if (detail == null || detail.isBlank()) {
+            return prefix;
+        }
+        return prefix + ": " + detail;
     }
 }

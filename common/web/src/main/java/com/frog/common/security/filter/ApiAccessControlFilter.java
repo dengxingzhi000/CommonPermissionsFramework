@@ -1,92 +1,111 @@
 package com.frog.common.security.filter;
 
-import com.frog.common.access.PermissionAccessPort;
+import com.frog.common.security.PermissionService;
 import com.frog.common.log.enums.SecurityEventType;
 import com.frog.common.log.service.ISysAuditLogService;
+import com.frog.common.security.config.ApiAccessControlProperties;
+import com.frog.common.security.metrics.SecurityMetrics;
 import com.frog.common.security.util.IpUtils;
+import com.frog.common.security.util.SecurityErrorResponseWriter;
+import com.frog.common.web.domain.SecurityUser;
 import com.frog.common.web.util.SecurityUtils;
+import jakarta.annotation.Nonnull;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+
 /**
- * API访问控制过滤器
- * 基于URL和HTTP方法进行细粒度权限控制
+ * API访问控制过滤器：URL/Method 精细化权限校验，支持白名单、旁路和 Sentinel 熔断。
+ *
+ * <p>REFACTORED: Now depends on PermissionService interface (common/core)
+ * instead of PermissionAccessPort. This decouples from business modules.
+ *
+ * <p>使用 Sentinel 进行熔断降级保护，替代原有的 SimpleCircuitBreaker
+ *
+ * <p>Sentinel Resource: "api-access-control"
  *
  * @author Deng
- * createData 2025/11/6 15:24
- * @version 1.0
+ * @version 2.0 - Refactored to use PermissionService
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class ApiAccessControlFilter extends OncePerRequestFilter {
 
-    private final PermissionAccessPort permissionAccess;
+    private final PermissionService permissionService;
     private final ISysAuditLogService auditLogService;
+    private final SecurityMetrics securityMetrics;
+    private final ApiAccessControlProperties properties;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    // 白名单路径（不需要权限检查）
-    private static final List<String> WHITE_LIST = List.of(
-            "/api/auth/login",
-            "/api/auth/register",
-            "/api/auth/refresh",
-            "/swagger-ui",
-            "/v3/api-docs",
-            "/doc.html",
-            "/actuator/health"
-    );
+    public ApiAccessControlFilter(PermissionService permissionService,
+                                  ISysAuditLogService auditLogService,
+                                  SecurityMetrics securityMetrics,
+                                  ApiAccessControlProperties properties) {
+        this.permissionService = permissionService;
+        this.auditLogService = auditLogService;
+        this.securityMetrics = securityMetrics;
+        this.properties = properties;
+        log.info("ApiAccessControlFilter initialized with PermissionService and Sentinel circuit breaking support");
+    }
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response,
+                                    @Nonnull FilterChain filterChain) throws ServletException, IOException {
+
+        if (!properties.isEnabled()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String requestUri = request.getRequestURI();
         String method = request.getMethod();
 
-        // 白名单检查
         if (isWhitelisted(requestUri)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 获取当前用户
-        UUID userId = SecurityUtils.getCurrentUserUuid().orElse(null);
+        SecurityUser principal = SecurityUtils.getCurrentUser();
+        UUID userId = principal != null ? principal.getUserId() : SecurityUtils.getCurrentUserUuid().orElse(null);
         if (userId == null) {
-            // 未登录，由JwtAuthenticationFilter处理
+            // 未登录，由 JwtAuthenticationFilter 处理
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 查询该API需要的权限
-        List<String> requiredPermissions = permissionAccess
-                .findPermissionsByUrl(requestUri, method);
+        if (shouldBypass(requestUri, principal)) {
+            markBypass(response, "api-access-bypass");
+            securityMetrics.increment("security.access.bypass.config");
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // Permission lookup is protected by Sentinel in FeignPermissionAccess
+        // If circuit is open, exception will be thrown and handled by SecurityRestExceptionHandler
+        List<String> requiredPermissions = permissionService.findPermissionsByUrl(requestUri, method);
 
         if (requiredPermissions.isEmpty()) {
-            // 没有配置权限要求，放行
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 获取用户权限
-        Set<String> userPermissions = permissionAccess
-                .findAllPermissionsByUserId(userId);
+        Set<String> userPermissions = permissionService.findAllPermissionsByUserId(userId);
 
-        // 检查用户是否拥有所需权限
         boolean hasPermission = requiredPermissions.stream()
                 .anyMatch(userPermissions::contains);
 
         if (!hasPermission) {
-            // 记录未授权访问
             String username = SecurityUtils.getCurrentUsername().orElse(null);
             String ipAddress = IpUtils.getClientIp(request);
 
@@ -101,15 +120,18 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
                     "尝试访问无权限的API: " + method + " " + requestUri
             );
 
-            log.warn("Unauthorized API access: user={}, uri={}, method={}, required={}",
-                    username, requestUri, method, requiredPermissions);
+            String traceId = request.getHeader("X-Request-ID");
+            log.warn("Unauthorized API access: traceId={}, userId={}, user={}, uri={}, method={}, required={}",
+                    traceId, userId, username, requestUri, method, requiredPermissions);
 
-            response.sendError(HttpServletResponse.SC_FORBIDDEN,
+            securityMetrics.increment("security.access.denied");
+            SecurityErrorResponseWriter.write(request, response,
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "ACCESS_DENIED",
                     "您没有访问该资源的权限");
             return;
         }
 
-        // 记录敏感操作
         if (isSensitiveOperation(method, requestUri)) {
             logSensitiveOperation(userId, method, requestUri);
         }
@@ -117,23 +139,41 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * 检查是否在白名单中
-     */
     private boolean isWhitelisted(String uri) {
-        return WHITE_LIST.stream().anyMatch(uri::startsWith);
+        return matchesAny(uri, properties.getWhitelist());
     }
 
-    /**
-     * 判断是否为敏感操作
-     */
+    private boolean shouldBypass(String uri, SecurityUser principal) {
+        if (matchesAny(uri, properties.getBypassPaths())) {
+            return true;
+        }
+        if (principal == null) {
+            return false;
+        }
+        if (properties.getBypassUsers().stream()
+                .anyMatch(u -> Objects.equals(u, principal.getUsername()))) {
+            return true;
+        }
+        Set<String> roles = principal.getRoles();
+        if (roles != null && roles.stream().anyMatch(properties.getBypassRoles()::contains)) {
+            return true;
+        }
+        Set<String> permissions = principal.getPermissions();
+        return permissions != null && permissions.stream().anyMatch(properties.getBypassPermissions()::contains);
+    }
+
+    private boolean matchesAny(String uri, List<String> patterns) {
+        if (patterns == null || patterns.isEmpty()) {
+            return false;
+        }
+        return patterns.stream().anyMatch(p -> pathMatcher.match(p, uri) || uri.startsWith(p));
+    }
+
     private boolean isSensitiveOperation(String method, String uri) {
-        // DELETE操作
         if ("DELETE".equals(method)) {
             return true;
         }
 
-        // 包含敏感关键词的URI
         String[] sensitiveKeywords = {
                 "delete", "reset", "password", "grant", "revoke",
                 "approve", "reject", "lock", "unlock"
@@ -149,14 +189,15 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
         return false;
     }
 
-    /**
-     * 记录敏感操作
-     */
     private void logSensitiveOperation(UUID userId, String method, String uri) {
         String username = SecurityUtils.getCurrentUsername().orElse(null);
         log.info("Sensitive operation: user={}, method={}, uri={}",
                 username, method, uri);
-
         // TODO: 可以发送实时告警
     }
+
+    private void markBypass(HttpServletResponse response, String reason) {
+        response.setHeader("X-Security-Bypass", reason);
+    }
 }
+

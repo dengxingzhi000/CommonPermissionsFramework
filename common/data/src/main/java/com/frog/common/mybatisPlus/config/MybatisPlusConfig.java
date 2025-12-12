@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.inner.BlockAttackInnerIntercep
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.frog.common.mybatisPlus.handler.UUIDTypeHandler;
+import com.frog.common.mybatisPlus.properties.MybatisPlusProperties;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,12 +28,12 @@ public class MybatisPlusConfig {
      * 添加分页插件
      */
     @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    public MybatisPlusInterceptor mybatisPlusInterceptor(MybatisPlusProperties properties) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
 
         // 分页插件
         PaginationInnerInterceptor paginationInterceptor = new PaginationInnerInterceptor(DbType.MYSQL);
-        paginationInterceptor.setMaxLimit(1000L); // 最大单页限制数量
+        paginationInterceptor.setMaxLimit(properties.getPaginationMaxLimit()); // 最大单页限制数量
         paginationInterceptor.setOverflow(false); // 溢出总页数后是否进行处理
         interceptor.addInnerInterceptor(paginationInterceptor);
 
@@ -55,5 +56,10 @@ public class MybatisPlusConfig {
             // 注册UUID类型处理器
             typeHandlerRegistry.register(UUID.class, UUIDTypeHandler.class);
         };
+    }
+
+    @Bean
+    public MybatisPlusProperties mybatisPlusProperties() {
+        return new MybatisPlusProperties();
     }
 }

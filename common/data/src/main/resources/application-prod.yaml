@@ -1,0 +1,15 @@
+# Production Environment Configuration
+# SQL logging is DISABLED for security and performance
+
+mybatis-plus:
+  configuration:
+    # PROD: No SQL logging (security + performance)
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+# Production logging - only WARN and ERROR
+logging:
+  level:
+    root: INFO
+    com.frog: INFO
+    com.baomidou.mybatisplus: WARN
+    org.springframework: WARN

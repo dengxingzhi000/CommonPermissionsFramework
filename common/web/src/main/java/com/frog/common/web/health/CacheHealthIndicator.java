@@ -2,10 +2,10 @@ package com.frog.common.web.health;
 
 import com.frog.common.cache.MultiLevelCache;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
 
 @Component
 @RequiredArgsConstructor

@@ -20,9 +20,25 @@
     </properties>
 
     <dependencies>
+        <!-- REFACTORED: common/core is now ultra-lightweight
+             Removed all Spring dependencies (Web, Security, AOP, Redis, MyBatis)
+             Only keeping pure utility libraries -->
+
+        <!-- Lombok for code generation (provided scope) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Jackson for JSON processing (minimal) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -30,35 +46,24 @@
             <version>2.19.2</version>
         </dependency>
 
-        <!-- Spring Boot Web -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <!-- spring security -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <!-- spring boot aop -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
-        </dependency>
-        <!-- spring boot redis -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
-        <!-- Mybatis Plus -->
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-        </dependency>
-        <!-- uuid -->
+        <!-- UUID generator -->
         <dependency>
             <groupId>com.github.f4b6a3</groupId>
             <artifactId>uuid-creator</artifactId>
         </dependency>
+
+        <!-- Guava for utility functions -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+
+        <!-- REMOVED (moved to specific modules that need them):
+             - spring-boot-starter-web (moved to common/web)
+             - spring-boot-starter-security (moved to common/web)
+             - spring-boot-starter-aop (moved to common/data)
+             - spring-boot-starter-data-redis (moved to common/data)
+             - mybatis-plus (moved to common/data)
+        -->
     </dependencies>
 </project>

@@ -35,14 +35,6 @@ public class UUIDv7Util {
     }
 
     /**
-     * 生成Long类型ID（用于数据库主键）
-     */
-    public static Long generateLong() {
-        UUID uuid = generate();
-        return uuid.getMostSignificantBits() & Long.MAX_VALUE;
-    }
-
-    /**
      * 从UUIDv7提取时间戳
      */
     public static long extractTimestamp(UUID uuid) {

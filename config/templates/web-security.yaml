@@ -1,0 +1,26 @@
+jwt:
+  secret: ${JWT_SECRET:change-me-in-prod-64-bytes-min}
+  expiration: 7200000
+  refresh-expiration: 604800000
+  issuer: https://api.example.com
+  header: Authorization
+  prefix: "Bearer "
+  strict-ip-check: false
+  device-fingerprint-enabled: true
+
+security:
+  stepup:
+    enabled: true
+    business-start-hour: 9
+    business-end-hour: 18
+    new-device-trigger: true
+    policy-path: classpath:security/stepup-policy.yaml
+    refresh-seconds: 60
+
+frog:
+  security:
+    sql-filter:
+      enabled: true
+      xss-enabled: true
+      exclude-paths:
+        - /api/public/**

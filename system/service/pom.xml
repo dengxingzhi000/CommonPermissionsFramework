@@ -21,6 +21,13 @@
 
     <dependencies>
         <!-- common start -->
+        <!-- REFACTORED (Phase 3): Added security-api for PermissionService interface
+             system/service provides DubboPermissionServiceAdapter implementation -->
+        <dependency>
+            <groupId>com.frog.common</groupId>
+            <artifactId>security-api</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
         <!-- data -->
         <dependency>
             <groupId>com.frog.common</groupId>

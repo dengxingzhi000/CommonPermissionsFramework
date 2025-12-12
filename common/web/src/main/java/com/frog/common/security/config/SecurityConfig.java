@@ -16,6 +16,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.Customizer;
+import org.springframework.util.StringUtils;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
@@ -48,6 +50,7 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
     private final StepUpFilter stepUpFilter;
+    private final SecurityHeadersProperties securityHeadersProperties;
 
     /**
      * Spring Security 主过滤器链
@@ -75,27 +78,46 @@ public class SecurityConfig {
 
                 // 5️⃣ 安全头配置
                 // 安全头配置
-                .headers(headers -> headers
-                        // HSTS
-                        .httpStrictTransportSecurity(hsts -> hsts
-                                .includeSubDomains(true)
-                                .maxAgeInSeconds(31536000))
-                        // X-Frame-Options
-                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
-                        // X-Content-Type-Options
-                        .contentTypeOptions(HeadersConfigurer.ContentTypeOptionsConfig::disable)
-                        // X-XSS-Protection
-                        .xssProtection(HeadersConfigurer.XXssConfig::disable)
-                        // Content-Security-Policy
-                        .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; " +
-                                        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
-                                        "style-src 'self' 'unsafe-inline'; " +
-                                        "img-src 'self' data: https:; " +
-                                        "frame-ancestors 'none'"))
-                        // Referrer-Policy
-                        .referrerPolicy(referrer -> referrer
-                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
+                .headers(headers -> {
+                    if (!securityHeadersProperties.isEnabled()) {
+                        return;
+                    }
+                    if (securityHeadersProperties.isHstsEnabled()) {
+                        headers.httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(securityHeadersProperties.isHstsIncludeSubdomains())
+                                .maxAgeInSeconds(securityHeadersProperties.getHstsMaxAgeSeconds()));
+                    } else {
+                        headers.httpStrictTransportSecurity(HeadersConfigurer.HstsConfig::disable);
+                    }
+
+                    if (securityHeadersProperties.isFrameOptionsEnabled()) {
+                        headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::deny);
+                    } else {
+                        headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable);
+                    }
+
+                    if (securityHeadersProperties.isContentTypeOptionsEnabled()) {
+                        headers.contentTypeOptions(Customizer.withDefaults());
+                    } else {
+                        headers.contentTypeOptions(HeadersConfigurer.ContentTypeOptionsConfig::disable);
+                    }
+
+                    headers.xssProtection(HeadersConfigurer.XXssConfig::disable);
+
+                    headers.contentSecurityPolicy(csp -> csp
+                            .policyDirectives("default-src 'self'; " +
+                                    "script-src 'self' https://cdn.jsdelivr.net; " +
+                                    "style-src 'self' 'unsafe-inline'; " +
+                                    "img-src 'self' data: https:; " +
+                                    "frame-ancestors 'none'"));
+
+                    if (securityHeadersProperties.isReferrerPolicyEnabled()) {
+                        headers.referrerPolicy(referrer -> referrer.policy(
+                                resolveReferrerPolicy(securityHeadersProperties.getReferrerPolicy())));
+                    } else {
+                        headers.referrerPolicy(HeadersConfigurer.ReferrerPolicyConfig::disable);
+                    }
+                })
 
                 // 6️⃣ 授权规则
                 .authorizeHttpRequests(auth -> auth
@@ -155,5 +177,19 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
+    }
+
+    private ReferrerPolicyHeaderWriter.ReferrerPolicy resolveReferrerPolicy(String configured) {
+        ReferrerPolicyHeaderWriter.ReferrerPolicy defaultPolicy =
+                ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN;
+        if (!StringUtils.hasText(configured)) {
+            return defaultPolicy;
+        }
+        String normalized = configured.trim().toUpperCase().replace('-', '_');
+        try {
+            return ReferrerPolicyHeaderWriter.ReferrerPolicy.valueOf(normalized);
+        } catch (IllegalArgumentException ex) {
+            return defaultPolicy;
+        }
     }
 }

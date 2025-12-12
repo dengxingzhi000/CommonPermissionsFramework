@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 分页结果类
@@ -27,6 +28,7 @@ public class PageResult<T> {
     private List<T> records;
 
     public static <T> PageResult<T> of(Page<T> page) {
+        Objects.requireNonNull(page, "page");
         return PageResult.<T>builder()
                 .total(page.getTotal())
                 .pageNum(page.getCurrent())
