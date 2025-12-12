@@ -53,21 +53,48 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             """)
     Set<String> findEffectivePermissionsByUserId(@Param("userId") UUID userId);
 
+    /**
+     * DEPRECATED: Use findUserRolesWithNames instead to avoid N+1 query
+     * @deprecated This method causes N+1 queries when used with findRoleNamesByUserId
+     */
+    @Deprecated
     @Select("""
-            SELECT role_id FROM sys_user_role 
+            SELECT role_id FROM sys_user_role
             WHERE user_id = #{userId}
             AND (expire_time IS NULL OR expire_time > NOW())
             """)
     List<UUID> findRoleIdsByUserId(@Param("userId") UUID userId);
 
+    /**
+     * DEPRECATED: Use findUserRolesWithNames instead to avoid N+1 query
+     * @deprecated This method causes N+1 queries when used with findRoleIdsByUserId
+     */
+    @Deprecated
     @Select("""
             SELECT r.role_name FROM sys_role r
             INNER JOIN sys_user_role ur ON r.id = ur.role_id
-            WHERE ur.user_id = #{userId} 
+            WHERE ur.user_id = #{userId}
             AND r.deleted = 0
             AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             """)
     List<String> findRoleNamesByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Efficient query to fetch both role IDs and names in a single query
+     * Replaces the N+1 pattern of calling findRoleIdsByUserId + findRoleNamesByUserId
+     *
+     * @param userId User ID
+     * @return Map with keys: "id" (UUID), "name" (String)
+     */
+    @Select("""
+            SELECT ur.role_id as id, r.role_name as name
+            FROM sys_user_role ur
+            INNER JOIN sys_role r ON ur.role_id = r.id
+            WHERE ur.user_id = #{userId}
+            AND r.deleted = 0
+            AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
+            """)
+    List<Map<String, Object>> findUserRolesWithNames(@Param("userId") UUID userId);
 
     @Update("""
             UPDATE sys_user SET 

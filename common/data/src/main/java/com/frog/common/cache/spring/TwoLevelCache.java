@@ -109,10 +109,18 @@ public class TwoLevelCache implements org.springframework.cache.Cache {
     public void clear() {
         local.invalidateAll();
         try {
-            var keys = redisTemplate.keys(redisKey("*"));
-            if (!keys.isEmpty()) {
-                redisTemplate.delete(keys);
-            }
+            redisTemplate.execute(connection -> {
+                var cursor = connection.scan(
+                        org.springframework.data.redis.core.ScanOptions.scanOptions()
+                                .match(redisKey("*"))
+                                .count(500)
+                                .build());
+                while (cursor.hasNext()) {
+                    byte[] key = cursor.next();
+                    connection.keyCommands().del(key);
+                }
+                return null;
+            }, false, true);
             redisTemplate.convertAndSend(CHANNEL, name + "|*");
         } catch (Exception e) {
             log.warn("TwoLevelCache clear redis failed: {}", e.getMessage());

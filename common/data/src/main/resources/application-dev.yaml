@@ -1,0 +1,16 @@
+# Development Environment Configuration
+# Enable SQL logging for debugging
+
+mybatis-plus:
+  configuration:
+    # DEV ONLY: Enable SQL logging for debugging
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # Show SQL execution time
+    jdbc-type-for-null: NULL
+
+# Logging configuration for development
+logging:
+  level:
+    com.frog: DEBUG
+    com.baomidou.mybatisplus: DEBUG
+    org.springframework.jdbc: DEBUG

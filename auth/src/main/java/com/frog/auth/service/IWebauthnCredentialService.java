@@ -14,11 +14,10 @@ import java.util.UUID;
 
 /**
  * WebAuthn凭证服务接口
- * <p>
- * 参考Google和FIDO Alliance最佳实践设计
  *
- * @author system
- * @since 2025-11-27
+ * @author Deng
+ * createData 2025/11/13 10:46
+ * @version 1.0
  */
 public interface IWebauthnCredentialService extends IService<WebauthnCredential> {
     /**

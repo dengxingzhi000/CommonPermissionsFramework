@@ -2,6 +2,7 @@ package com.frog.auth.controller;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.frog.auth.domain.dto.WebauthnAuthenticationRequest;
+import com.frog.auth.domain.dto.WebauthnRegistrationRequest;
 import com.frog.auth.service.ISysAuthService;
 import com.frog.auth.service.IWebauthnCredentialService;
 import com.frog.common.dto.auth.TokenUpgradeResponse;
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,8 +72,10 @@ public class SysAuthController {
             HttpServletRequest httpRequest) {
         String ipAddress = IpUtils.getClientIp(httpRequest);
         String deviceId = httpServletRequestUtils.getDeviceId(httpRequest);
+        String traceId = traceId(httpRequest);
 
         LoginResponse response = authService.login(request, ipAddress, deviceId);
+        log.info("login success traceId={} user={} ip={} device={}", traceId, request.getUsername(), ipAddress, deviceId);
 
         return ApiResponse.success(response);
     }
@@ -85,10 +89,14 @@ public class SysAuthController {
      * @return WebAuthn挑战响应
      */
     @GetMapping("/webauthn/challenge")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<WebAuthnChallengeResponse> webAuthnChallenge(
             HttpServletRequest httpRequest,
             @RequestParam(defaultValue = "auth.example.com") String rpId,
             @AuthenticationPrincipal SecurityUser currentUser) {
+        if (currentUser == null) {
+            return ApiResponse.fail(401, "Unauthorized");
+        }
         String deviceId = httpServletRequestUtils.getDeviceId(httpRequest);
         WebAuthnChallengeResponse options = webAuthnService.generateAuthenticationChallenge(
                 currentUser.getUserId(),
@@ -108,18 +116,25 @@ public class SysAuthController {
      * @return 升级后的Token响应
      */
     @PostMapping("/webauthn/verify")
+    @PreAuthorize("isAuthenticated()")
+    @RateLimit()
     public ApiResponse<TokenUpgradeResponse> webAuthnVerify(
             @RequestBody WebauthnAuthenticationRequest request,
             HttpServletRequest httpRequest,
             @AuthenticationPrincipal SecurityUser currentUser) {
+        if (currentUser == null) {
+            return ApiResponse.fail(401, "Unauthorized");
+        }
         String ipAddress = IpUtils.getClientIp(httpRequest);
         String deviceId = httpServletRequestUtils.getDeviceId(httpRequest);
+        String traceId = traceId(httpRequest);
         TokenUpgradeResponse upgraded = webAuthnService.authenticateAndUpgradeToken(
                 currentUser.getUserId(), 
                 currentUser.getUsername(),
                 request, 
                 deviceId, 
                 ipAddress);
+        log.info("webauthn verify success traceId={} user={} ip={} device={}", traceId, currentUser.getUsername(), ipAddress, deviceId);
 
         return ApiResponse.success(upgraded);
     }
@@ -133,10 +148,14 @@ public class SysAuthController {
      * @return WebAuthn注册挑战响应
      */
     @GetMapping("/webauthn/register/challenge")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<WebAuthnRegisterChallengeResponse> webAuthnRegisterChallenge(
             HttpServletRequest httpRequest,
             @RequestParam(defaultValue = "auth.example.com") String rpId,
             @AuthenticationPrincipal SecurityUser currentUser) {
+        if (currentUser == null) {
+            return ApiResponse.fail(401, "Unauthorized");
+        }
         String deviceId = httpServletRequestUtils.getDeviceId(httpRequest);
         WebAuthnRegisterChallengeResponse options = webAuthnService.generateRegistrationChallenge(
                 currentUser.getUserId(),
@@ -156,19 +175,32 @@ public class SysAuthController {
      * @return 操作结果
      */
     @PostMapping("/webauthn/register/verify")
+    @PreAuthorize("isAuthenticated()")
+    @RateLimit()
     public ApiResponse<Void> webAuthnRegisterVerify(
             @RequestBody WebAuthnRegisterVerifyRequest request,
             HttpServletRequest httpRequest,
             @AuthenticationPrincipal SecurityUser currentUser) {
+        if (currentUser == null) {
+            return ApiResponse.fail(401, "Unauthorized");
+        }
         String ipAddress = IpUtils.getClientIp(httpRequest);
         String deviceId = httpServletRequestUtils.getDeviceId(httpRequest);
-        //todo 修复注册验证代码
-//        webAuthnService.registerVerify(
-//                currentUser.getUserId(),
-//                currentUser.getUsername(),
-//                request,
-//                deviceId,
-//                ipAddress);
+        String credId = StringUtils.hasText(request.getId()) ? request.getId() : request.getRawId();
+        if (!StringUtils.hasText(credId)) {
+            return ApiResponse.fail(400, "Missing credential id");
+        }
+        WebauthnRegistrationRequest regRequest = WebauthnRegistrationRequest.builder()
+                .credentialId(credId)
+                .publicKeyPem(request.getPublicKeyPem())
+                .algorithm(request.getAlg())
+                .deviceName(httpRequest.getHeader("X-Device-Name"))
+                .build();
+        if (!StringUtils.hasText(regRequest.getPublicKeyPem())) {
+            return ApiResponse.fail(400, "Missing public key");
+        }
+        webAuthnService.registerCredential(currentUser.getUserId(), regRequest);
+        log.info("webauthn register persisted user={} device={} ip={}", currentUser.getUsername(), deviceId, ipAddress);
 
         return ApiResponse.success();
     }
@@ -180,11 +212,17 @@ public class SysAuthController {
      * @return 操作结果
      */
     @PostMapping("/logout")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> logout(HttpServletRequest request) {
         String token = httpServletRequestUtils.getTokenFromRequest(request);
+        if (!StringUtils.hasText(token)) {
+            return ApiResponse.fail(400, "Missing token");
+        }
         UUID userId = SecurityUtils.getCurrentUserUuid().orElse(null);
+        String traceId = traceId(request);
 
         authService.logout(token, userId, "用户主动登出");
+        log.info("logout traceId={} userId={}", traceId, userId);
 
         return ApiResponse.success();
     }
@@ -197,9 +235,13 @@ public class SysAuthController {
      * @return 登录响应结果
      */
     @PostMapping("/refresh")
+    @RateLimit()
     public ApiResponse<LoginResponse> refreshToken(
             @RequestBody RefreshTokenRequest request,
             HttpServletRequest httpRequest) {
+        if (!StringUtils.hasText(request.getRefreshToken())) {
+            return ApiResponse.fail(400, "Missing refresh token");
+        }
         String ipAddress = IpUtils.getClientIp(httpRequest);
         String deviceId = request.getDeviceId() != null ? 
                 request.getDeviceId() :
@@ -219,15 +261,25 @@ public class SysAuthController {
      * @return 用户信息
      */
     @GetMapping("/userinfo")
-    public ApiResponse<UserInfo> getUserInfo() {
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<UserInfo> getUserInfo(HttpServletRequest request) {
         UUID userId = SecurityUtils.getCurrentUserUuid().orElse(null);
+        if (userId == null) {
+            return ApiResponse.fail(401, "Unauthorized");
+        }
 
         // 优先使用 Dubbo，失败回退到 Feign
         UserInfo userInfo;
         try {
             userInfo = userDubboService.getUserInfo(userId);
         } catch (Exception ex) {
-            userInfo = userServiceClient.getUserInfo(userId).data();
+            try {
+                userInfo = userServiceClient.getUserInfo(userId).data();
+            } catch (Exception ex2) {
+                String traceId = traceId(request);
+                log.error("getUserInfo failed traceId={} userId={} dubboErr={} feignErr={}", traceId, userId, ex.getMessage(), ex2.getMessage());
+                return ApiResponse.fail(503, "User info unavailable");
+            }
         }
 
         return ApiResponse.success(userInfo);
@@ -251,8 +303,19 @@ public class SysAuthController {
             @PathVariable UUID userId, 
             @RequestParam String reason) {
 
+        if (!StringUtils.hasText(reason)) {
+            return ApiResponse.fail(400, "Reason is required");
+        }
         authService.forceLogout(userId, reason);
 
         return ApiResponse.success();
+    }
+
+    private String traceId(HttpServletRequest request) {
+        String id = request.getHeader("X-Request-ID");
+        if (!StringUtils.hasText(id)) {
+            id = request.getHeader("traceparent");
+        }
+        return StringUtils.hasText(id) ? id : UUID.randomUUID().toString();
     }
 }

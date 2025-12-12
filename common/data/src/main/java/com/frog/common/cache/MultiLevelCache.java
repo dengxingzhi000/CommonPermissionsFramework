@@ -6,6 +6,7 @@ import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,8 @@ import java.util.function.Supplier;
  * createData 2025/10/24 14:10
  * @version 1.0
  */
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MultiLevelCache {
@@ -65,11 +68,18 @@ public class MultiLevelCache {
         }
 
         // 2) L2
-        Object value = redisTemplate.opsForValue().get(key);
-        if (value != null) {
-            // 使用默认TTL回填L1
-            putLocal(key, value, DEFAULT_TTL);
-            return type.cast(value);
+        try {
+            Object value = redisTemplate.opsForValue().get(key);
+            if (value != null) {
+                Long ttlSeconds = redisTemplate.getExpire(key);
+                Duration ttl = (ttlSeconds != null && ttlSeconds > 0) ? Duration.ofSeconds(ttlSeconds) : DEFAULT_TTL;
+                putLocal(key, value, ttl);
+                return type.cast(value);
+            }
+        } catch (Exception e) {
+            // Fail soft on L2 issues: rely on L1 only
+            log.warn("MultiLevelCache L2 get failed for key={}: {}", key, e.getMessage());
+            return null;
         }
 
         return null;

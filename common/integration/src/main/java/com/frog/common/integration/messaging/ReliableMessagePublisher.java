@@ -87,9 +87,9 @@ public class ReliableMessagePublisher {
             return;
         }
         var confirm = correlationData.getFuture().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        String cause = confirm.getReason();
-        if (!confirm.isAck()) {
-            throw new AmqpException("Message NACK: " + (cause.isBlank() ? "unknown reason" : cause));
+        String cause = confirm.reason();
+        if (!confirm.ack()) {
+            throw new AmqpException("Message NACK: " + (cause == null || cause.isBlank() ? "unknown reason" : cause));
         }
     }
 
@@ -97,7 +97,7 @@ public class ReliableMessagePublisher {
         if (delayMillis > 0 && properties.isDelayedExchangeEnabled()) {
             message.getMessageProperties().setHeader("x-delay", delayMillis);
         }
-        if (message.getBody() == null || message.getBody().length == 0) {
+        if (message.getBody().length == 0) {
             message.getMessageProperties().setContentType("application/json");
             message.getMessageProperties().setContentEncoding(StandardCharsets.UTF_8.name());
         }

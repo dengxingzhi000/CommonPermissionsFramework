@@ -39,7 +39,7 @@ public class KafkaMessagePublisher {
                     observation.error(ex);
                 } else {
                     span.setStatus(StatusCode.OK);
-                    if (result != null && result.getRecordMetadata() != null) {
+                    if (result != null) {
                         span.setAttribute("partition", result.getRecordMetadata().partition());
                         span.setAttribute("offset", result.getRecordMetadata().offset());
                     }

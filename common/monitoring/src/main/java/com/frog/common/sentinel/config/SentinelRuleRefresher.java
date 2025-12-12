@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
-@SuppressWarnings("ClassCanBeRecord")
 public class SentinelRuleRefresher {
     private final MonitoringProperties properties;
 

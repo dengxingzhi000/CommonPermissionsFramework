@@ -49,3 +49,80 @@ security:
   feign:
     app-id: ${FEIGN_APP_ID:auth-service}
     secret-key: ${FEIGN_SECRET_KEY:your-feign-secret-key}
+
+# Feign 配置
+feign:
+  sentinel:
+    enabled: true  # 启用 Sentinel Feign 集成
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 5000
+      permission-service:  # 权限服务专用配置
+        connect-timeout: 2000
+        read-timeout: 3000
+
+# Sentinel 熔断降级规则
+monitoring:
+  sentinel:
+    enabled: true
+    # 降级规则（Circuit Breaking）
+    degrade-rules:
+      # Feign 权限查询 - 通过 URL 查找权限
+      - resource: "permission:findByUrl"
+        grade: 2  # DEGRADE_GRADE_EXCEPTION_RATIO (异常比例)
+        count: 0.5  # 50% 异常率触发熔断
+        time-window: 10  # 熔断时长 10 秒
+        min-request-amount: 5  # 最小请求数量
+        stat-interval-ms: 1000  # 统计时长 1 秒
+
+      # Feign 权限查询 - 通过用户ID查找权限
+      - resource: "permission:findByUserId"
+        grade: 2  # DEGRADE_GRADE_EXCEPTION_RATIO
+        count: 0.5  # 50% 异常率触发熔断
+        time-window: 10
+        min-request-amount: 5
+        stat-interval-ms: 1000
+
+      # Step-Up 评估资源
+      - resource: "step-up:evaluate"
+        grade: 2  # DEGRADE_GRADE_EXCEPTION_RATIO
+        count: 0.6  # 60% 异常率触发熔断
+        time-window: 15  # 熔断时长 15 秒
+        min-request-amount: 3
+        stat-interval-ms: 1000
+
+    # 限流规则（可选，根据需要调整）
+    flow-rules:
+      # 权限查询限流
+      - resource: "permission:findByUrl"
+        grade: 1  # QPS 模式
+        count: 100  # 每秒最多 100 次
+        control-behavior: 0  # 直接拒绝
+
+      - resource: "permission:findByUserId"
+        grade: 1  # QPS 模式
+        count: 200  # 每秒最多 200 次
+        control-behavior: 0  # 直接拒绝
+
+      - resource: "step-up:evaluate"
+        grade: 1  # QPS 模式
+        count: 50  # 每秒最多 50 次
+        control-behavior: 0  # 直接拒绝
+
+frog:
+  security:
+    headers:
+      enabled: true
+      hsts-enabled: true
+      hsts-max-age-seconds: 31536000
+      hsts-include-subdomains: true
+      content-type-options-enabled: false # enable if you want X-Content-Type-Options: nosniff
+      frame-options-enabled: true
+      referrer-policy-enabled: true
+      referrer-policy: STRICT_ORIGIN_WHEN_CROSS_ORIGIN
+    https-redirect:
+      enabled: true
+      http-port: 8080
+      redirect-port: 8443

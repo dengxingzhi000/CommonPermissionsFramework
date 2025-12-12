@@ -1,5 +1,6 @@
 package com.frog.gateway.filter;
 
+import com.frog.gateway.config.ApiSignatureProperties;
 import com.frog.gateway.util.CachedBodyRequestDecorator;
 import com.frog.gateway.util.SignatureAlgorithm;
 import com.frog.gateway.util.SignatureAlgorithmRegistry;
@@ -15,41 +16,37 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
 import java.util.stream.Stream;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
- * API签名验证过滤器（防重放攻击）
- *
- * @author Deng
- * createData 2025/10/24 14:48
- * @version 2.0
+ * API signature validation filter with configurable replay protection.
  */
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class ApiSignatureFilter implements GlobalFilter, Ordered {
-    private static final long EXPIRE_MILLIS = 300_000L;
-    private static final String NONCE_KEY_PREFIX = "api:nonce:";
     private static final DefaultDataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory();
 
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final SignatureAlgorithmRegistry algorithmRegistry;
-
-    // 模拟配置中心
-    private static final Map<String, String> APP_SECRETS = Map.of(
-            "web-app", "web-secret-key",
-            "mobile-app", "mobile-secret-key",
-            "internal-service", "internal-secret"
-    );
+    private final ApiSignatureProperties properties;
+    private final MeterRegistry meterRegistry;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        meterRegistry.counter("gateway.signature.requests").increment();
+        if (!properties.isEnabled()) {
+            return chain.filter(exchange);
+        }
         return cacheRequestBody(exchange)
                 .flatMap(cachedExchange -> doFilterInternal(cachedExchange, chain));
     }
@@ -85,66 +82,95 @@ public class ApiSignatureFilter implements GlobalFilter, Ordered {
         String version = headers.getFirst("X-Sign-Version");
 
         if (Stream.of(timestamp, nonce, signature, appId).anyMatch(StringUtils::isBlank)) {
-            return unauthorized(exchange, "缺少签名参数");
+            return unauthorized(exchange, "MISSING_PARAMETERS", "Missing signature parameters");
         }
-        if (timestamp == null) {
-            return unauthorized(exchange, "时间戳为空");
-        }
+
+        assert timestamp != null && nonce != null && signature != null && appId != null : "Parameters already validated";
 
         long current = System.currentTimeMillis();
         long requestTime;
         try {
             requestTime = Long.parseLong(timestamp);
         } catch (NumberFormatException e) {
-            return unauthorized(exchange, "无效的时间戳");
+            return unauthorized(exchange, "INVALID_TIMESTAMP", "Invalid timestamp");
         }
 
-        if (Math.abs(current - requestTime) > EXPIRE_MILLIS) {
-            return unauthorized(exchange, "请求已过期");
+        long skew = properties.getAllowedClockSkew().toMillis();
+        if (skew < 1000) {
+            skew = Duration.ofMinutes(1).toMillis();
+        }
+        if (Math.abs(current - requestTime) > skew) {
+            return unauthorized(exchange, "REQUEST_EXPIRED", "Request expired");
         }
 
-        String nonceKey = NONCE_KEY_PREFIX + appId + ":" + nonce;
+        String nonceKey = properties.getNonceKeyPrefix() + appId + ":" + nonce;
         return redisTemplate.hasKey(nonceKey)
                 .flatMap(exists -> {
                     if (exists) {
-                        return unauthorized(exchange, "请求重复（可能的重放攻击）");
+                        meterRegistry.counter("gateway.signature.replay").increment();
+                        log.warn("Signature replay detected traceId={} appId={} path={}",
+                                exchange.getRequest().getId(), appId, request.getURI().getPath());
+                        return unauthorized(exchange, "REPLAY", "Replay detected");
                     }
 
                     SignatureAlgorithm algorithm = algorithmRegistry.getAlgorithm(
-                            StringUtils.defaultIfBlank(version, "HMAC-SHA256-V1"));
-                    String secretKey = APP_SECRETS.get(appId);
+                            StringUtils.defaultIfBlank(version, properties.getDefaultVersion()));
+                    if (algorithm == null) {
+                        return unauthorized(exchange, "UNSUPPORTED_VERSION", "Unsupported signature version");
+                    }
+                    String secretKey = properties.getAppSecrets().get(appId);
 
                     if (secretKey == null) {
-                        return unauthorized(exchange, "无效的AppId");
+                        meterRegistry.counter("gateway.signature.invalid_app").increment();
+                        log.warn("Unknown appId signature traceId={} appId={} path={}",
+                                exchange.getRequest().getId(), appId, request.getURI().getPath());
+                        return unauthorized(exchange, "INVALID_APP_ID", "Invalid appId");
                     }
 
                     return algorithm.verify(request, signature, appId, timestamp, nonce, secretKey)
                             .flatMap(valid -> {
                                 if (!valid) {
-                                    log.warn("签名验证失败 AppId={}, Path={}", appId, request.getURI().getPath());
-                                    return unauthorized(exchange, "签名验证失败");
+                                    meterRegistry.counter("gateway.signature.invalid").increment();
+                                    log.warn("Signature verification failed traceId={} appId={} path={}",
+                                            exchange.getRequest().getId(), appId, request.getURI().getPath());
+                                    return unauthorized(exchange, "SIGNATURE_INVALID", "Signature verification failed");
                                 }
 
                                 return redisTemplate.opsForValue()
-                                        .set(nonceKey, "1", Duration.ofMillis(EXPIRE_MILLIS))
+                                        .set(nonceKey, "1", properties.getNonceTtl())
                                         .then(chain.filter(exchange));
                             });
                 })
                 .onErrorResume(e -> {
-                    log.error("签名验证异常", e);
-                    return unauthorized(exchange, "签名验证异常");
+                    meterRegistry.counter("gateway.signature.errors").increment();
+                    log.error("Signature validation error traceId={}", exchange.getRequest().getId(), e);
+                    return unauthorized(exchange, "INTERNAL_ERROR", "Signature validation error");
                 });
     }
 
     private boolean isWhitelisted(String path) {
-        return path.startsWith("/public") || path.startsWith("/actuator");
+        return properties.getWhitelist().stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
-    private Mono<Void> unauthorized(ServerWebExchange exchange, String msg) {
+    private Mono<Void> unauthorized(ServerWebExchange exchange, String code, String msg) {
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        byte[] bytes = msg.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponse().getHeaders().setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        byte[] bytes = buildErrorBody(code, msg, exchange).getBytes(StandardCharsets.UTF_8);
         return exchange.getResponse().writeWith(Mono.just(exchange.getResponse()
                 .bufferFactory().wrap(bytes)));
+    }
+
+    private String buildErrorBody(String code, String message, ServerWebExchange exchange) {
+        String path = exchange.getRequest().getURI().getPath();
+        return String.format("{\"code\":401,\"error\":\"%s\",\"message\":\"%s\",\"path\":\"%s\"}",
+                code, escape(message), escape(path));
+    }
+
+    private String escape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     @Override

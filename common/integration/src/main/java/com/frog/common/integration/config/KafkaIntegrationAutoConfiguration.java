@@ -1,6 +1,5 @@
 package com.frog.common.integration.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.frog.common.integration.messaging.InstrumentedKafkaConsumer;
 import com.frog.common.integration.messaging.KafkaMessagePublisher;
 import io.micrometer.observation.ObservationRegistry;
@@ -17,10 +16,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
-import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.util.backoff.ExponentialBackOff;
 
 import java.util.HashMap;
@@ -35,7 +34,7 @@ public class KafkaIntegrationAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ProducerFactory<String, Object> kafkaProducerFactory(ObjectMapper objectMapper) {
+    public ProducerFactory<String, Object> kafkaProducerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
         config.put(ProducerConfig.CLIENT_ID_CONFIG, properties.getClientId());
@@ -45,11 +44,11 @@ public class KafkaIntegrationAutoConfiguration {
         config.put(ProducerConfig.BATCH_SIZE_CONFIG, properties.getBatchSize());
         config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, properties.getMaxInFlight());
         config.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, properties.isIdempotence());
-        config.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
-        DefaultKafkaProducerFactory<String, Object> factory = new DefaultKafkaProducerFactory<>(config);
-        factory.setKeySerializer(new StringSerializer());
-        factory.setValueSerializer(new JsonSerializer<>(objectMapper));
-        return factory;
+        
+        JacksonJsonSerializer<Object> jsonSerializer = new JacksonJsonSerializer<>();
+        jsonSerializer.setAddTypeInfo(false);
+        
+        return new DefaultKafkaProducerFactory<>(config, new StringSerializer(), jsonSerializer);
     }
 
     @Bean
@@ -60,15 +59,15 @@ public class KafkaIntegrationAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ConsumerFactory<String, Object> kafkaConsumerFactory(ObjectMapper objectMapper) {
+    public ConsumerFactory<String, Object> kafkaConsumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        config.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        config.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(),
-                new JsonDeserializer<>(Object.class, objectMapper, false));
+        
+        JacksonJsonDeserializer<Object> jsonDeserializer = new JacksonJsonDeserializer<>();
+        jsonDeserializer.addTrustedPackages("*");
+        jsonDeserializer.setUseTypeHeaders(false);
+        
+        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(), jsonDeserializer);
     }
 
     @Bean
