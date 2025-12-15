@@ -66,7 +66,7 @@
 
 ### 表结构
 
-详见 `scripts/db/webauthn_credential.sql`
+详见 `scripts/db/001_schema.sql`
 
 **关键字段说明：**
 

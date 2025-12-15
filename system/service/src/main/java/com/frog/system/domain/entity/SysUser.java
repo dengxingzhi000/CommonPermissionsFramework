@@ -97,11 +97,11 @@ public class SysUser implements Serializable {
 
     @Schema(description = "是否强制修改密码")
     @TableField("force_change_password")
-    private Integer forceChangePassword;
+    private Boolean forceChangePassword;
 
     @Schema(description = "是否启用双因素认证")
     @TableField("two_factor_enabled")
-    private Integer twoFactorEnabled;
+    private Boolean twoFactorEnabled;
 
     @Schema(description = "双因素认证密钥")
     @TableField("two_factor_secret")
@@ -136,8 +136,9 @@ public class SysUser implements Serializable {
     private LocalDateTime lastPasswordChangeTime;
 
     @Schema(description = "逻辑删除")
+    @TableLogic(value = "false", delval = "true")
     @TableField("deleted")
-    private Integer deleted;
+    private Boolean deleted;
 
     @Schema(description = "备注")
     @TableField("remark")

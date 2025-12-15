@@ -22,13 +22,13 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
 
     @Select("""
             SELECT * FROM sys_user
-            WHERE username = #{username} AND deleted = 0
+            WHERE username = #{username} AND NOT deleted
             """)
     SysUser findByUsername(@Param("username") String username);
 
     @Select("""
-            SELECT COUNT(*) > 0 FROM sys_user 
-            WHERE username = #{username} AND deleted = 0
+            SELECT COUNT(*) > 0 FROM sys_user
+            WHERE username = #{username} AND NOT deleted
             """)
     boolean existsByUsername(@Param("username") String username);
 
@@ -36,8 +36,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             SELECT r.role_code FROM sys_role r
             INNER JOIN sys_user_role ur ON r.id = ur.role_id
             WHERE ur.user_id = #{userId}
-            AND r.status = 1 AND r.deleted = 0
-            AND ur.approval_status = 1
+            AND r.status = 1 AND NOT r.deleted
+            AND ur.approval_status = 2
             AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             """)
     Set<String> findRolesByUserId(@Param("userId") UUID userId);
@@ -47,8 +47,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
             INNER JOIN sys_user_role ur ON rp.role_id = ur.role_id
             WHERE ur.user_id = #{userId}
-            AND p.status = 1 AND p.deleted = 0
-            AND ur.approval_status = 1
+            AND p.status = 1 AND NOT p.deleted
+            AND ur.approval_status = 2
             AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             """)
     Set<String> findEffectivePermissionsByUserId(@Param("userId") UUID userId);
@@ -74,7 +74,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             SELECT r.role_name FROM sys_role r
             INNER JOIN sys_user_role ur ON r.id = ur.role_id
             WHERE ur.user_id = #{userId}
-            AND r.deleted = 0
+            AND NOT r.deleted
+            AND ur.approval_status = 2
             AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             """)
     List<String> findRoleNamesByUserId(@Param("userId") UUID userId);
@@ -91,7 +92,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             FROM sys_user_role ur
             INNER JOIN sys_role r ON ur.role_id = r.id
             WHERE ur.user_id = #{userId}
-            AND r.deleted = 0
+            AND NOT r.deleted
+            AND ur.approval_status = 2
             AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             """)
     List<Map<String, Object>> findUserRolesWithNames(@Param("userId") UUID userId);
@@ -133,11 +135,11 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      */
     @Insert("""
             <script>
-            INSERT INTO sys_user_role 
-            (id, user_id, role_id, approval_status, create_by, create_time) 
+            INSERT INTO sys_user_role
+            (id, user_id, role_id, approval_status, create_by, create_time)
             VALUES
             <foreach collection='roleIds' item='roleId' separator=','>
-            (UNHEX(REPLACE(UUID(), '-', '')), #{userId}, #{roleId}, 1, #{createBy}, NOW())
+            (gen_random_uuid(), #{userId}, #{roleId}, 2, #{createBy}, NOW())
             </foreach>
             </script>
             """)
@@ -150,13 +152,13 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      */
     @Insert("""
             <script>
-            INSERT INTO sys_user_role 
-            (id, user_id, role_id, approval_status, effective_time, expire_time, create_by, create_time) 
+            INSERT INTO sys_user_role
+            (id, user_id, role_id, approval_status, effective_time, expire_time, create_by, create_time)
             VALUES
             <foreach collection='roleIds' item='roleId' separator=','>
-            (UNHEX(REPLACE(UUID(), '-', '')), 
-             #{userId}, #{roleId}, 1, 
-             #{effectiveTime}, #{expireTime}, 
+            (gen_random_uuid(),
+             #{userId}, #{roleId}, 2,
+             #{effectiveTime}, #{expireTime},
              #{createBy}, NOW())
             </foreach>
             </script>
@@ -172,8 +174,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             SELECT MIN(r.data_scope) FROM sys_role r
             INNER JOIN sys_user_role ur ON r.id = ur.role_id
             WHERE ur.user_id = #{userId}
-            AND r.status = 1 AND r.deleted = 0
-            AND ur.approval_status = 1
+            AND r.status = 1 AND NOT r.deleted
+            AND ur.approval_status = 2
             AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             """)
     Integer getUserDataScope(@Param("userId") UUID userId);
@@ -182,7 +184,8 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             SELECT MAX(r.max_approval_amount) FROM sys_role r
             INNER JOIN sys_user_role ur ON r.id = ur.role_id
             WHERE ur.user_id = #{userId}
-            AND r.status = 1 AND r.deleted = 0
+            AND r.status = 1 AND NOT r.deleted
+            AND ur.approval_status = 2
             AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             """)
     BigDecimal getMaxApprovalAmount(@Param("userId") UUID userId);
@@ -222,14 +225,14 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     boolean hasAccessToDept(@Param("userId") UUID userId, @Param("deptId") UUID deptId);
 
     @Select("""
-            SELECT u.id as user_id, u.username, u.email, 
+            SELECT u.id as user_id, u.username, u.email,
                    r.role_name, ur.expire_time
             FROM sys_user u
             INNER JOIN sys_user_role ur ON u.id = ur.user_id
             INNER JOIN sys_role r ON ur.role_id = r.id
             WHERE ur.expire_time IS NOT NULL
-            AND ur.expire_time BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL #{days} DAY)
-            AND ur.approval_status = 1
+            AND ur.expire_time BETWEEN NOW() AND NOW() + make_interval(days => #{days})
+            AND ur.approval_status = 2
             """)
     List<Map<String, Object>> findExpiringRoles(@Param("days") Integer days);
 
@@ -239,22 +242,22 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             INNER JOIN sys_user_role ur ON u.id = ur.user_id
             INNER JOIN sys_role r ON ur.role_id = r.id
             WHERE ur.expire_time < NOW()
-            AND ur.approval_status = 1
+            AND ur.approval_status = 2
             """)
     List<Map<String, Object>> findExpiredRoles();
 
     @Delete("""
-            DELETE FROM sys_user_role 
+            DELETE FROM sys_user_role
             WHERE expire_time < NOW()
-            AND approval_status = 1
+            AND approval_status = 2
             """)
     int deleteExpiredRoles();
 
     @Update("""
-            UPDATE sys_user_role 
-            SET approval_status = 2
+            UPDATE sys_user_role
+            SET approval_status = 3
             WHERE expire_time < NOW()
-            AND approval_status = 1
+            AND approval_status = 2
             """)
     int updateExpiredRolesStatus();
 
@@ -282,7 +285,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             AND role_id = #{roleId}
             AND expire_time IS NOT NULL
             AND expire_time > NOW()
-            AND approval_status = 1
+            AND approval_status = 2
             """)
     boolean hasTemporaryRole(@Param("userId") UUID userId, @Param("roleId") UUID roleId);
 
@@ -303,11 +306,11 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             @Param("newExpireTime") LocalDateTime newExpireTime);
 
     /**
-     * 提前终止临时授权
+     * 提前终止临时授权（设为已拒绝状态）
      */
     @Update("""
             UPDATE sys_user_role
-            SET approval_status = 0,
+            SET approval_status = 3,
                 expire_time = NOW()
             WHERE user_id = #{userId}
             AND role_id = #{roleId}
@@ -352,7 +355,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     @Select("""
             SELECT COUNT(*) FROM sys_user_role
             WHERE user_id = #{userId}
-            AND approval_status = 1
+            AND approval_status = 2
             AND (expire_time IS NULL OR expire_time > NOW())
             """)
     Integer countUserRoles(@Param("userId") UUID userId);
@@ -363,7 +366,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     @Select("""
             SELECT COUNT(*) FROM sys_user_role
             WHERE user_id = #{userId}
-            AND approval_status = 1
+            AND approval_status = 2
             AND expire_time IS NOT NULL
             AND expire_time > NOW()
             """)
@@ -375,8 +378,9 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     @Select("""
             SELECT COUNT(*) FROM sys_user_role
             WHERE user_id = #{userId}
+            AND approval_status = 2
             AND expire_time IS NOT NULL
-            AND expire_time BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL #{days} DAY)
+            AND expire_time BETWEEN NOW() AND NOW() + make_interval(days => #{days})
             """)
     Integer countExpiringRoles(@Param("userId") UUID userId, @Param("days") Integer days);
 }

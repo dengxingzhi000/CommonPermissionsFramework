@@ -3,6 +3,7 @@ package com.frog.common.mybatisPlus.aspect;
 import com.frog.common.mybatisPlus.annotation.DataScope;
 import com.frog.common.mybatisPlus.context.DataScopeContextHolder;
 import com.frog.common.mybatisPlus.context.DataScopeFilter;
+import com.frog.common.mybatisPlus.service.DataPermissionService;
 import com.frog.common.security.SecurityContext;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -10,8 +11,12 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 数据权限切面
@@ -30,14 +35,17 @@ import java.util.UUID;
 public class DataScopeAspect {
 
     private final SecurityContext securityContext;
+    private final DataPermissionService dataPermissionService;
 
     /**
-     * Constructor injection of SecurityContext.
+     * Constructor injection of SecurityContext and DataPermissionService.
      *
      * @param securityContext Security context interface (implementation provided by web layer)
+     * @param dataPermissionService Data permission service for custom rules
      */
-    public DataScopeAspect(SecurityContext securityContext) {
+    public DataScopeAspect(SecurityContext securityContext, DataPermissionService dataPermissionService) {
         this.securityContext = securityContext;
+        this.dataPermissionService = dataPermissionService;
     }
 
     /**
@@ -74,20 +82,19 @@ public class DataScopeAspect {
 
             return point.proceed();
         } finally {
-            // 清理ThreadLocal
+            // 清理 ThreadLocal
             DataScopeContextHolder.clear();
         }
     }
 
     /**
      * Builds SQL filter clause for data scope.
-     * Adapted for MySQL BINARY(16) UUID storage.
-     *
+     * Adapted for PostgreSQL native UUID type.
      * SECURITY: Validates table aliases to prevent SQL injection through annotation parameters.
      */
     private DataScopeFilter buildSqlFilter(Integer dataScope, UUID userId, UUID deptId, DataScope annotation) {
-        String deptAlias = validateSqlIdentifier(annotation.deptAlias(), "dept");
-        String userAlias = validateSqlIdentifier(annotation.userAlias(), "user");
+        String deptAlias = validateSqlIdentifier(annotation.deptAlias(), "dept_id");
+        String userAlias = validateSqlIdentifier(annotation.userAlias(), "create_by");
 
         return switch (dataScope) {
             case 1 -> // 全部数据权限
@@ -96,10 +103,10 @@ public class DataScopeAspect {
             case 2 -> // 自定义数据权限（从数据库查询配置）
                     buildCustomDataScope(userId, deptAlias, userAlias);
 
-            case 3 -> // 本部门数据权限
+            case 3 -> // 本部门数据权限 (PostgreSQL UUID)
                     deptId != null
                             ? new DataScopeFilter(
-                                    deptAlias + " = UNHEX(REPLACE(#{__ds_deptId}, '-', ''))",
+                                    deptAlias + " = #{__ds_deptId}::uuid",
                                     java.util.Map.of("__ds_deptId", deptId.toString()))
                             : new DataScopeFilter("1=0", java.util.Collections.emptyMap());
 
@@ -108,9 +115,9 @@ public class DataScopeAspect {
                             ? buildDeptAndChildrenScope(deptId, deptAlias)
                             : new DataScopeFilter("1=0", java.util.Collections.emptyMap());
 
-            case 5 -> // 仅本人数据权限
+            case 5 -> // 仅本人数据权限 (PostgreSQL UUID)
                     new DataScopeFilter(
-                            userAlias + " = UNHEX(REPLACE(#{__ds_userId}, '-', ''))",
+                            userAlias + " = #{__ds_userId}::uuid",
                             java.util.Map.of("__ds_userId", userId.toString()));
 
             default ->
@@ -120,27 +127,56 @@ public class DataScopeAspect {
 
     /**
      * 构建自定义数据权限
+     * 从 sys_role_data_permission 表查询用户的自定义权限规则
      */
     private DataScopeFilter buildCustomDataScope(UUID userId, String deptAlias, String userAlias) {
-        // TODO: 从sys_role_data_permission表查询用户的自定义权限规则
-        // 这里简化为仅本人
-        return new DataScopeFilter(
-                userAlias + " = UNHEX(REPLACE(#{__ds_userId}, '-', ''))",
-                java.util.Map.of("__ds_userId", userId.toString())
-        );
+        // 查询用户的自定义数据权限部门列表
+        List<UUID> customDepts = dataPermissionService.findCustomDeptPermissions(userId);
+
+        if (customDepts == null || customDepts.isEmpty()) {
+            // 没有自定义权限配置，降级为仅本人
+            log.debug("No custom data permission found for user {}, fallback to self only", userId);
+            return new DataScopeFilter(
+                    userAlias + " = #{__ds_userId}::uuid",
+                    java.util.Map.of("__ds_userId", userId.toString())
+            );
+        }
+
+        // 构建 IN 子句 (PostgreSQL UUID 数组)
+        Map<String, Object> params = new HashMap<>();
+        params.put("__ds_userId", userId.toString());
+
+        // 使用 PostgreSQL 的 ANY 语法配合数组，更高效
+        String deptList = customDepts.stream()
+                .map(UUID::toString)
+                .map(s -> "'" + s + "'::uuid")
+                .collect(Collectors.joining(","));
+
+        // 组合条件：部门在自定义列表中 OR 本人创建的数据
+        String clause = String.format("(%s IN (%s) OR %s = #{__ds_userId}::uuid)",
+                deptAlias, deptList, userAlias);
+
+        log.debug("Custom data scope for user {}: {} depts", userId, customDepts.size());
+        return new DataScopeFilter(clause, params);
     }
 
     /**
      * 构建部门及子部门权限
+     * 使用 PostgreSQL 递归 CTE 查询部门树
      */
     private DataScopeFilter buildDeptAndChildrenScope(UUID deptId, String deptAlias) {
-        // 使用递归CTE查询所有子部门
+        // 使用递归CTE查询所有子部门 (PostgreSQL 原生 UUID)
         String clause = """
-                %s IN (WITH RECURSIVE dept_tree AS (
-                  SELECT id FROM sys_dept WHERE id = UNHEX(REPLACE(#{__ds_deptId}, '-', ''))
-                  UNION ALL
-                  SELECT d.id FROM sys_dept d INNER JOIN dept_tree dt ON d.parent_id = dt.id
-                ) SELECT HEX(id) FROM dept_tree)
+                %s IN (
+                    WITH RECURSIVE dept_tree AS (
+                        SELECT id FROM sys_dept WHERE id = #{__ds_deptId}::uuid AND NOT deleted
+                        UNION ALL
+                        SELECT d.id FROM sys_dept d
+                        INNER JOIN dept_tree dt ON d.parent_id = dt.id
+                        WHERE NOT d.deleted
+                    )
+                    SELECT id FROM dept_tree
+                )
                 """.formatted(deptAlias);
         return new DataScopeFilter(clause, java.util.Map.of("__ds_deptId", deptId.toString()));
     }

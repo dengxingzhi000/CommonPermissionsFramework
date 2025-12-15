@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * WebAuthn凭证响应DTO
+ * WebAuthn 凭证响应DTO
  * <p>
  * 用于API响应，隐藏敏感信息（如公钥）
  * 参考Google Passkey API设计
@@ -22,9 +22,9 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "WebAuthn凭证信息")
+@Schema(description = "WebAuthn 凭证信息")
 public class WebauthnCredentialDTO {
-    @Schema(description = "凭证ID", example = "KSjKz3HHnUhFIAoS4RFCw")
+    @Schema(description = "凭证 ID", example = "KSjKz3HHnUhFIAoS4RFCw")
     private String credentialId;
 
     @Schema(description = "设备名称", example = "MacBook Pro TouchID")
@@ -33,7 +33,7 @@ public class WebauthnCredentialDTO {
     @Schema(description = "签名算法", example = "ES256")
     private String algorithm;
 
-    @Schema(description = "认证器GUID", example = "08987058-cadc-4b81-b6e1-30de50dcbe96")
+    @Schema(description = "认证器 GUID", example = "08987058-cadc-4b81-b6e1-30de50dcbe96")
     private String aaguid;
 
     @Schema(description = "传输方式", example = "usb,nfc,internal")

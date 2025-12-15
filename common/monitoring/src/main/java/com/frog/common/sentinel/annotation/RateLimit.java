@@ -20,7 +20,7 @@ public @interface RateLimit {
     String value() default "";
 
     /**
-     * QPS阈值
+     * QPS 阈值
      */
     int qps() default 100;
 

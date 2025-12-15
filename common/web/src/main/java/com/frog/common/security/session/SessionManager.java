@@ -179,27 +179,28 @@ public class SessionManager {
         log.info("Starting expired sessions cleanup");
 
         try {
-            int cleaned = 0;
+            java.util.concurrent.atomic.AtomicInteger cleaned = new java.util.concurrent.atomic.AtomicInteger();
             redisTemplate.execute(connection -> {
-                var cursor = connection.scan(
+                try (var cursor = connection.keyCommands().scan(
                         org.springframework.data.redis.core.ScanOptions.scanOptions()
                                 .match(SESSION_PREFIX + "*")
                                 .count(500)
-                                .build());
-                while (cursor.hasNext()) {
-                    byte[] key = cursor.next();
-                    Long ttl = connection.keyCommands().ttl(key);
-                    if (ttl != null && ttl < 0) {
-                        String keyStr = new String(key);
-                        String sessionId = keyStr.substring(SESSION_PREFIX.length());
-                        destroySession(sessionId);
-                        cleaned++;
+                                .build())) {
+                    while (cursor.hasNext()) {
+                        byte[] key = cursor.next();
+                        Long ttl = connection.keyCommands().ttl(key);
+                        if (ttl != null && ttl < 0) {
+                            String keyStr = new String(key);
+                            String sessionId = keyStr.substring(SESSION_PREFIX.length());
+                            destroySession(sessionId);
+                            cleaned.incrementAndGet();
+                        }
                     }
                 }
                 return null;
             }, false, true);
-            if (cleaned > 0) {
-                log.info("Cleaned {} expired sessions", cleaned);
+            if (cleaned.get() > 0) {
+                log.info("Cleaned {} expired sessions", cleaned.get());
             }
         } catch (Exception e) {
             log.error("Error cleaning expired sessions", e);

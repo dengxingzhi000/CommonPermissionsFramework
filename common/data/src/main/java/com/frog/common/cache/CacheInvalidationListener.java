@@ -22,7 +22,7 @@ public class CacheInvalidationListener implements MessageListener {
     public void onMessage(@NonNull Message message, byte[] pattern) {
         try {
             String body = new String(message.getBody(), StandardCharsets.UTF_8);
-            // 兼容Jackson对字符串的引号包装
+            // 兼容 Jackson对字符串的引号包装
             if (body.length() >= 2 && body.startsWith("\"") && body.endsWith("\"")) {
                 body = body.substring(1, body.length() - 1);
             }

@@ -51,13 +51,13 @@ public class SysPermissionApproval implements Serializable {
     @TableField("target_user_id")
     private UUID targetUserId;
 
-    @Schema(description = "角色ID列表")
+    @Schema(description = "角色ID列表(UUID数组)")
     @TableField("role_ids")
-    private String roleIds;
+    private UUID[] roleIds;
 
-    @Schema(description = "权限ID列表")
+    @Schema(description = "权限ID列表(UUID数组)")
     @TableField("permission_ids")
-    private String permissionIds;
+    private UUID[] permissionIds;
 
     @Schema(description = "生效时间")
     @TableField("effective_time")
@@ -83,9 +83,9 @@ public class SysPermissionApproval implements Serializable {
     @TableField("current_approver_id")
     private UUID currentApproverId;
 
-    @Schema(description = "审批链(JSON)")
-    @TableField("approval_chain")
-    private String approvalChain;
+    @Schema(description = "审批链(JSONB)")
+    @TableField(value = "approval_chain", typeHandler = com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler.class)
+    private java.util.List<java.util.Map<String, Object>> approvalChain;
 
     @Schema(description = "最终审批人")
     @TableField("approved_by")

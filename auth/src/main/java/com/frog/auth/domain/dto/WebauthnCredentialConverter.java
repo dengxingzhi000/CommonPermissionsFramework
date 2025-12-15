@@ -8,7 +8,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * WebAuthn凭证转换器
+ * WebAuthn 凭证转换器
  * <p>
  * 实现Entity和DTO之间的转换
  * 隐藏敏感信息，保护数据安全
@@ -23,7 +23,7 @@ public class WebauthnCredentialConverter {
      * 移除敏感信息（公钥等）
      *
      * @param entity 实体对象
-     * @return DTO对象
+     * @return DTO 对象
      */
     public WebauthnCredentialDTO toDTO(WebauthnCredential entity) {
         if (entity == null) {
@@ -48,7 +48,7 @@ public class WebauthnCredentialConverter {
      * 批量转换
      *
      * @param entities 实体列表
-     * @return DTO列表
+     * @return DTO 列表
      */
     public List<WebauthnCredentialDTO> toDTOList(List<WebauthnCredential> entities) {
         if (entities == null || entities.isEmpty()) {
@@ -63,7 +63,7 @@ public class WebauthnCredentialConverter {
      * 将注册请求转换为实体
      *
      * @param request 注册请求
-     * @param userId  用户ID
+     * @param userId  用户 ID
      * @return 实体对象
      */
     public WebauthnCredential toEntity(WebauthnRegistrationRequest request, UUID userId) {

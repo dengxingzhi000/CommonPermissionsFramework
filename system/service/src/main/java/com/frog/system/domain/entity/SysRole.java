@@ -2,14 +2,15 @@ package com.frog.system.domain.entity;
 
 import java.io.Serial;
 import java.math.BigDecimal;
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.IdType;
+
+import com.baomidou.mybatisplus.annotation.*;
+
 import java.time.LocalDateTime;
-import com.baomidou.mybatisplus.annotation.TableId;
 import java.io.Serializable;
+import java.util.Map;
 import java.util.UUID;
+
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
@@ -58,8 +59,9 @@ public class SysRole implements Serializable {
     @Schema(description = "最大审批金额")
     private BigDecimal maxApprovalAmount;
 
-    @Schema(description = "业务范围(JSON)")
-    private String businessScope;
+    @Schema(description = "业务范围(JSONB)")
+    @TableField(typeHandler = JacksonTypeHandler.class)
+    private Map<String, Object> businessScope;
 
     @Schema(description = "状态")
     private Integer status;
@@ -84,5 +86,6 @@ public class SysRole implements Serializable {
     private UUID updateBy;
 
     @Schema(description = "逻辑删除")
-    private Integer deleted;
+    @TableLogic(value = "false", delval = "true")
+    private Boolean deleted;
 }

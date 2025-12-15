@@ -7,7 +7,7 @@ import org.springframework.cloud.openfeign.FallbackFactory;
 import java.net.SocketTimeoutException;
 
 /**
- * Feign统一降级工厂基类
+ * Feign 统一降级工厂基类
  *
  * @author Deng
  * createData 2025/10/20 11:03

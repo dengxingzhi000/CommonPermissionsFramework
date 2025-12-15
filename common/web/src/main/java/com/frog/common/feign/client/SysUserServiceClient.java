@@ -31,26 +31,26 @@ public interface SysUserServiceClient {
      * 根据用户名查询用户（用于认证）
      */
     @GetMapping("/by-username/{username}")
-    ApiResponse<SecurityUser> getUserByUsername(@PathVariable("username") String username);
+    ApiResponse<SecurityUser> getUserByUsername(@PathVariable String username);
 
     /**
      * 查询用户角色
      */
     @GetMapping("/{userId}/roles")
-    ApiResponse<Set<String>> getUserRoles(@PathVariable("userId") UUID userId);
+    ApiResponse<Set<String>> getUserRoles(@PathVariable UUID userId);
 
     /**
      * 查询用户权限
      */
     @GetMapping("/{userId}/permissions")
-    ApiResponse<Set<String>> getUserPermissions(@PathVariable("userId") UUID userId);
+    ApiResponse<Set<String>> getUserPermissions(@PathVariable UUID userId);
 
     /**
      * 更新最后登录信息
      */
     @GetMapping("/{userId}/update-login")
     ApiResponse<Void> updateLastLogin(
-            @PathVariable("userId") UUID userId,
+            @PathVariable UUID userId,
             @RequestParam("ipAddress") String ipAddress,
             LocalDateTime loginTime
     );
@@ -59,7 +59,7 @@ public interface SysUserServiceClient {
      * 获取用户信息
      */
     @GetMapping("/{userId}")
-    ApiResponse<UserInfo> getUserInfo(@PathVariable("userId") UUID userId);
+    ApiResponse<UserInfo> getUserInfo(@PathVariable UUID userId);
 
     /**
      * 查询用户角色

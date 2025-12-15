@@ -61,7 +61,7 @@ public class SysAuthController {
      * 用户登录接口
      * 
      * @param request 登录请求参数
-     * @param httpRequest HTTP请求对象
+     * @param httpRequest HTTP 请求对象
      * @return 登录响应结果
      */
     @PostMapping("/login")
@@ -83,10 +83,10 @@ public class SysAuthController {
     /**
      * WebAuthn 断言挑战（Step-Up 前置）
      * 
-     * @param httpRequest HTTP请求对象
+     * @param httpRequest HTTP 请求对象
      * @param rpId Party ID
      * @param currentUser 当前安全用户
-     * @return WebAuthn挑战响应
+     * @return WebAuthn 挑战响应
      */
     @GetMapping("/webauthn/challenge")
     @PreAuthorize("isAuthenticated()")
@@ -110,10 +110,10 @@ public class SysAuthController {
     /**
      * WebAuthn 断言验证并签发升级后的访问令牌（AMR 包含 webauthn）
      * 
-     * @param request WebAuthn验证请求
-     * @param httpRequest HTTP请求对象
+     * @param request WebAuthn 验证请求
+     * @param httpRequest HTTP 请求对象
      * @param currentUser 当前安全用户
-     * @return 升级后的Token响应
+     * @return 升级后的 Token响应
      */
     @PostMapping("/webauthn/verify")
     @PreAuthorize("isAuthenticated()")
@@ -142,10 +142,10 @@ public class SysAuthController {
     /**
      * WebAuthn 注册挑战
      * 
-     * @param httpRequest HTTP请求对象
+     * @param httpRequest HTTP 请求对象
      * @param rpId Party ID
      * @param currentUser 当前安全用户
-     * @return WebAuthn注册挑战响应
+     * @return WebAuthn 注册挑战响应
      */
     @GetMapping("/webauthn/register/challenge")
     @PreAuthorize("isAuthenticated()")
@@ -169,8 +169,8 @@ public class SysAuthController {
     /**
      * WebAuthn 注册验证（保存凭据）
      * 
-     * @param request WebAuthn注册验证请求
-     * @param httpRequest HTTP请求对象
+     * @param request WebAuthn 注册验证请求
+     * @param httpRequest HTTP 请求对象
      * @param currentUser 当前安全用户
      * @return 操作结果
      */
@@ -208,7 +208,7 @@ public class SysAuthController {
     /**
      * 用户登出接口
      * 
-     * @param request HTTP请求对象
+     * @param request HTTP 请求对象
      * @return 操作结果
      */
     @PostMapping("/logout")
@@ -228,10 +228,10 @@ public class SysAuthController {
     }
 
     /**
-     * 刷新Token接口
+     * 刷新 Token接口
      * 
-     * @param request 刷新Token请求
-     * @param httpRequest HTTP请求对象
+     * @param request 刷新 Token请求
+     * @param httpRequest HTTP 请求对象
      * @return 登录响应结果
      */
     @PostMapping("/refresh")
@@ -288,7 +288,7 @@ public class SysAuthController {
     /**
      * 强制用户登出接口
      * 
-     * @param userId 用户ID
+     * @param userId 用户 ID
      * @param reason 登出原因
      * @return 操作结果
      */

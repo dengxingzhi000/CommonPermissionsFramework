@@ -61,11 +61,7 @@ public class FeignPermissionAccess implements PermissionService {
      */
     @Override
     public List<String> findPermissionsByUrl(String url, String method) {
-        Entry entry = null;
-        try {
-            // Sentinel resource protection
-            entry = SphU.entry("permission:findByUrl");
-
+        try (Entry entry = SphU.entry("permission:findByUrl")) {
             List<String> permissions = permissionServiceClient.findPermissionsByUrl(url, method);
             meterRegistry.counter("security.permissions.lookup.success").increment();
             log.debug("Permission lookup success via Feign: url={}, method={}, permissions={}",
@@ -88,10 +84,6 @@ public class FeignPermissionAccess implements PermissionService {
             // FAIL-CLOSED: Throw exception to deny access when permission check fails
             throw new PermissionServiceException(
                 "Permission service unavailable via Feign - access denied as safety measure", ex);
-        } finally {
-            if (entry != null) {
-                entry.exit();
-            }
         }
     }
 
@@ -106,11 +98,7 @@ public class FeignPermissionAccess implements PermissionService {
      */
     @Override
     public Set<String> findAllPermissionsByUserId(UUID userId) {
-        Entry entry = null;
-        try {
-            // Sentinel resource protection
-            entry = SphU.entry("permission:findByUserId");
-
+        try (Entry entry = SphU.entry("permission:findByUserId")) {
             ApiResponse<Set<String>> resp = permissionServiceClient.getUserPermissions(userId);
             Set<String> perms = resp != null ? resp.data() : null;
             meterRegistry.counter("security.permissions.user.success").increment();
@@ -134,10 +122,6 @@ public class FeignPermissionAccess implements PermissionService {
             // FAIL-CLOSED: Throw exception to deny access when permission check fails
             throw new PermissionServiceException(
                 "Permission service unavailable via Feign - access denied as safety measure", ex);
-        } finally {
-            if (entry != null) {
-                entry.exit();
-            }
         }
     }
 }

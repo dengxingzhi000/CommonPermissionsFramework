@@ -29,7 +29,7 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
             SELECT d.*, u.real_name as leader_name
             FROM sys_dept d
             LEFT JOIN sys_user u ON d.leader_id = u.id
-            WHERE d.deleted = 0
+            WHERE NOT d.deleted
             ORDER BY d.sort_order, d.create_time
             """)
     List<DeptDTO> selectDeptTree();
@@ -39,12 +39,12 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
      */
     @Select("""
             WITH RECURSIVE dept_tree AS (
-                SELECT id FROM sys_dept 
-                WHERE id = #{deptId} AND deleted = 0
+                SELECT id FROM sys_dept
+                WHERE id = #{deptId} AND NOT deleted
                 UNION ALL
                 SELECT d.id FROM sys_dept d
                 INNER JOIN dept_tree dt ON d.parent_id = dt.id
-                WHERE d.deleted = 0
+                WHERE NOT d.deleted
             )
             SELECT id FROM dept_tree
             """)
@@ -55,7 +55,7 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
      */
     @Select("""
             SELECT COUNT(*) FROM sys_user
-            WHERE dept_id = #{deptId} AND deleted = 0
+            WHERE dept_id = #{deptId} AND NOT deleted
             """)
     Integer countUsers(@Param("deptId") UUID deptId);
 
@@ -64,7 +64,7 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
      */
     @Select("""
             SELECT COUNT(*) FROM sys_dept
-            WHERE parent_id = #{deptId} AND deleted = 0
+            WHERE parent_id = #{deptId} AND NOT deleted
             """)
     Integer countChildren(@Param("deptId") UUID deptId);
 
@@ -72,12 +72,14 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
      * 检查部门编码是否存在
      */
     @Select("""
+            <script>
             SELECT COUNT(*) > 0 FROM sys_dept
-            WHERE dept_code = #{deptCode} 
-            AND deleted = 0
+            WHERE dept_code = #{deptCode}
+            AND NOT deleted
             <if test='excludeId != null'>
                 AND id != #{excludeId}
             </if>
+            </script>
             """)
     boolean existsByDeptCode(@Param("deptCode") String deptCode,
                              @Param("excludeId") UUID excludeId);
@@ -91,7 +93,7 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
      */
     @Select("""
             SELECT leader_id FROM sys_dept
-            WHERE id = #{deptId} AND deleted = 0
+            WHERE id = #{deptId} AND NOT deleted
             """)
     UUID getLeaderId(@Param("deptId") UUID deptId);
 
@@ -105,7 +107,7 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
             <foreach collection='deptIds' item='id' open='(' close=')' separator=','>
                 #{id}
             </foreach>
-            AND deleted = 0
+            AND NOT deleted
             </script>
             """)
     List<Map<UUID, String>> selectDeptNames(@Param("deptIds") List<UUID> deptIds);

@@ -40,9 +40,9 @@ public enum ResultCode {
     USER_NEED_LOGIN(1009, "需要登录"),
 
 
-    TOKEN_INVALID(1101, "Token无效"),
-    TOKEN_EXPIRED(1102, "Token已过期"),
-    TOKEN_BLACKLISTED(1103, "Token已失效"),
+    TOKEN_INVALID(1101, "Token 无效"),
+    TOKEN_EXPIRED(1102, "Token 已过期"),
+    TOKEN_BLACKLISTED(1103, "Token 已失效"),
 
     PERMISSION_DENIED(1201, "权限不足"),
     ROLE_NOT_FOUND(1202, "角色不存在"),

@@ -46,7 +46,7 @@ public class FeignRequestSignatureInterceptor implements RequestInterceptor {
     }
 
     private String calculateSignature(RequestTemplate template, String timestamp, String nonce) {
-        // 获取URI
+        // 获取 URI
         String uri = template.path();
 
         // 获取查询参数并排序

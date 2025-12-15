@@ -22,7 +22,6 @@ import java.util.UUID;
  */
 @Data
 public class UserDTOWithSensitive {
-
     private UUID id;
 
     @NotBlank(message = "用户名不能为空")

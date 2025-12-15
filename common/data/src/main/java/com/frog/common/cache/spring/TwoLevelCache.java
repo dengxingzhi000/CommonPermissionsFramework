@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -48,18 +49,22 @@ public class TwoLevelCache implements org.springframework.cache.Cache {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T get(@NonNull Object key, Class<T> type) {
         Object v = lookup(key);
-        return (v != null) ? (T) v : null;
+        if (v == null) {
+            return null;
+        }
+        if (type == null) {
+            return uncheckedCast(v);
+        }
+        return type.cast(v);
     }
 
     @Override
     public <T> T get(@NonNull Object key, @NonNull Callable<T> valueLoader) {
         Object v = lookup(key);
         if (v != null) {
-            @SuppressWarnings("unchecked") T t = (T) v;
-            return t;
+            return uncheckedCast(v);
         }
         try {
             T loaded = Objects.requireNonNull(valueLoader.call());
@@ -110,14 +115,15 @@ public class TwoLevelCache implements org.springframework.cache.Cache {
         local.invalidateAll();
         try {
             redisTemplate.execute(connection -> {
-                var cursor = connection.scan(
-                        org.springframework.data.redis.core.ScanOptions.scanOptions()
+                try (var cursor = connection.keyCommands().scan(
+                        ScanOptions.scanOptions()
                                 .match(redisKey("*"))
                                 .count(500)
-                                .build());
-                while (cursor.hasNext()) {
-                    byte[] key = cursor.next();
-                    connection.keyCommands().del(key);
+                                .build())) {
+                    while (cursor.hasNext()) {
+                        byte[] key = cursor.next();
+                        connection.keyCommands().del(key);
+                    }
                 }
                 return null;
             }, false, true);
@@ -165,5 +171,10 @@ public class TwoLevelCache implements org.springframework.cache.Cache {
 
     private String redisKey(String k) {
         return name + ":" + k;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T uncheckedCast(Object value) {
+        return (T) value;
     }
 }

@@ -23,7 +23,7 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
      */
     @Select("""
             SELECT COUNT(*) > 0 FROM sys_role
-            WHERE role_code = #{roleCode} AND deleted = 0
+            WHERE role_code = #{roleCode} AND NOT deleted
             """)
     boolean existsByRoleCode(@Param("roleCode") String roleCode);
 

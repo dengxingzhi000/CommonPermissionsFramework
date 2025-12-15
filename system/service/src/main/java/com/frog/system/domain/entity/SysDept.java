@@ -91,6 +91,7 @@ public class SysDept implements Serializable {
     private UUID updateBy;
 
     @Schema(description = "逻辑删除")
+    @TableLogic(value = "false", delval = "true")
     @TableField("deleted")
-    private Integer deleted;
+    private Boolean deleted;
 }

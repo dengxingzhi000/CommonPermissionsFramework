@@ -208,4 +208,20 @@ public interface SysPermissionApprovalMapper extends BaseMapper<SysPermissionApp
             AND expire_time < NOW()
             """)
     int updateExpiredApprovals();
+
+    /**
+     * 根据角色编码查询第一个用户ID
+     * 用于获取系统管理员或超级管理员
+     */
+    @Select("""
+            SELECT u.id FROM sys_user u
+            INNER JOIN sys_user_role ur ON u.id = ur.user_id
+            INNER JOIN sys_role r ON ur.role_id = r.id
+            WHERE r.role_code = #{roleCode}
+            AND u.status = 1 AND u.deleted = FALSE
+            AND r.status = 1 AND r.deleted = FALSE
+            ORDER BY u.create_time ASC
+            LIMIT 1
+            """)
+    UUID findFirstUserByRoleCode(@Param("roleCode") String roleCode);
 }

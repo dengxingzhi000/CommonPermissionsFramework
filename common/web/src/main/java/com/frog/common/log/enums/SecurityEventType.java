@@ -27,12 +27,12 @@ public enum SecurityEventType {
     DATA_EXPORT("数据导出", 4),
     DATA_DELETE("数据删除", 4),
 
-    API_ABUSE("API滥用", 4),
-    SQL_INJECTION_ATTEMPT("SQL注入尝试", 5),
-    XSS_ATTEMPT("XSS攻击尝试", 5),
+    API_ABUSE("API 滥用", 4),
+    SQL_INJECTION_ATTEMPT("SQL 注入尝试", 5),
+    XSS_ATTEMPT("XSS 攻击尝试", 5),
     UNAUTHORIZED_ACCESS("未授权访问", 4),
 
-    IP_BLACKLISTED("IP被拉黑", 3),
+    IP_BLACKLISTED("IP 被拉黑", 3),
     ACCOUNT_LOCKED("账户锁定", 3);
 
     private final String description;

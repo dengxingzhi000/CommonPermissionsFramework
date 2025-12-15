@@ -10,7 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * WebAuthn注册请求DTO
+ * WebAuthn 注册请求DTO
  * <p>
  * 用于注册新的WebAuthn凭证
  * 参考FIDO2规范和Google Passkey实现
@@ -22,10 +22,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "WebAuthn注册请求")
+@Schema(description = "WebAuthn 注册请求")
 public class WebauthnRegistrationRequest {
     @Schema(description = "凭证ID(base64url)", example = "KSjKz3HHnUhFIAoS4RFCw", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank(message = "凭证ID不能为空")
+    @NotBlank(message = "凭证 ID不能为空")
     @Size(min = 16, max = 1024, message = "凭证ID长度必须在16-1024之间")
     private String credentialId;
 
@@ -40,13 +40,13 @@ public class WebauthnRegistrationRequest {
              message = "不支持的签名算法")
     private String algorithm;
 
-    @Schema(description = "设备名称", example = "我的iPhone")
+    @Schema(description = "设备名称", example = "我的 iPhone")
     @Size(max = 100, message = "设备名称长度不能超过100")
     private String deviceName;
 
-    @Schema(description = "认证器GUID", example = "08987058-cadc-4b81-b6e1-30de50dcbe96")
+    @Schema(description = "认证器 GUID", example = "08987058-cadc-4b81-b6e1-30de50dcbe96")
     @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-             message = "AAGUID格式不正确")
+             message = "aaGUID 格式不正确")
     private String aaguid;
 
     @Schema(description = "传输方式(逗号分隔)", example = "internal")

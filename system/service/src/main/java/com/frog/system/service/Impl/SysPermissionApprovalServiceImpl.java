@@ -10,14 +10,17 @@ import com.frog.common.dto.approval.ApprovalProcessDTO;
 import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.domain.entity.SysPermissionApproval;
 import com.frog.system.domain.entity.SysUser;
+import com.frog.system.mapper.SysDeptMapper;
 import com.frog.system.mapper.SysPermissionApprovalMapper;
 import com.frog.system.mapper.SysUserMapper;
 import com.frog.system.service.ISysPermissionApprovalService;
+import com.frog.system.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,8 +36,16 @@ import java.util.stream.Collectors;
 public class SysPermissionApprovalServiceImpl
         extends ServiceImpl<SysPermissionApprovalMapper, SysPermissionApproval>
         implements ISysPermissionApprovalService {
+
     private final SysPermissionApprovalMapper approvalMapper;
     private final SysUserMapper userMapper;
+    private final SysDeptMapper deptMapper;
+    private final NotificationService notificationService;
+
+    /** 系统管理员角色编码 */
+    private static final String ROLE_ADMIN = "ROLE_ADMIN";
+    /** 超级管理员角色编码 */
+    private static final String ROLE_SUPER_ADMIN = "ROLE_SUPER_ADMIN";
 
     /**
      * 提交权限申请
@@ -272,6 +283,11 @@ public class SysPermissionApprovalServiceImpl
     /**
      * 构建审批链
      * 根据申请类型和申请人确定审批链路
+     *
+     * 审批规则：
+     * - 角色申请(type=1): 部门经理 -> 系统管理员
+     * - 权限申请(type=2): 部门经理 -> 系统管理员
+     * - 临时授权(type=3): 部门经理（如果是高风险权限，还需要系统管理员）
      */
     private List<UUID> buildApprovalChain(Integer approvalType, UUID applicantId) {
         List<UUID> chain = new ArrayList<>();
@@ -279,59 +295,167 @@ public class SysPermissionApprovalServiceImpl
         // 查询申请人信息
         SysUser applicant = userMapper.selectById(applicantId);
         if (applicant == null) {
+            log.warn("Cannot build approval chain: applicant not found, id={}", applicantId);
             return chain;
         }
 
-        // TODO: 根据实际业务规则构建审批链
-        // 示例：部门经理 -> 系统管理员
-
-        // 1. 添加部门经理
+        // 1. 获取部门经理（如果有）
         UUID deptManager = getDeptManager(applicant.getDeptId());
-        if (deptManager != null) {
+        if (deptManager != null && !deptManager.equals(applicantId)) {
+            // 部门经理不能审批自己的申请
             chain.add(deptManager);
+            log.debug("Added dept manager to approval chain: {}", deptManager);
         }
 
-        // 2. 添加系统管理员
-        UUID sysAdmin = getSystemAdmin();
-        if (sysAdmin != null) {
-            chain.add(sysAdmin);
+        // 2. 根据申请类型决定是否需要系统管理员
+        if (approvalType == 1 || approvalType == 2) {
+            // 角色申请和权限申请需要系统管理员
+            UUID sysAdmin = getSystemAdmin();
+            if (sysAdmin != null && !sysAdmin.equals(applicantId) && !chain.contains(sysAdmin)) {
+                chain.add(sysAdmin);
+                log.debug("Added system admin to approval chain: {}", sysAdmin);
+            }
+        } else if (approvalType == 3) {
+            // 临时授权：检查是否涉及高风险权限
+            // 如果没有部门经理，直接找系统管理员
+            if (chain.isEmpty()) {
+                UUID sysAdmin = getSystemAdmin();
+                if (sysAdmin != null && !sysAdmin.equals(applicantId)) {
+                    chain.add(sysAdmin);
+                }
+            }
         }
 
+        // 3. 如果审批链为空（没有部门经理和系统管理员），使用超级管理员
+        if (chain.isEmpty()) {
+            UUID superAdmin = getSuperAdmin();
+            if (superAdmin != null && !superAdmin.equals(applicantId)) {
+                chain.add(superAdmin);
+                log.debug("Fallback to super admin: {}", superAdmin);
+            }
+        }
+
+        log.info("Built approval chain for applicant {}: {} approvers", applicantId, chain.size());
         return chain;
     }
 
     /**
-     * 获取部门经理
+     * 获取部门负责人
      */
     private UUID getDeptManager(UUID deptId) {
-        // TODO: 从 sys_dept 表查询部门负责人
-        return null;
+        if (deptId == null) {
+            return null;
+        }
+        return deptMapper.getLeaderId(deptId);
     }
 
     /**
-     * 获取系统管理员
+     * 获取系统管理员（第一个拥有 ROLE_ADMIN 角色的用户）
      */
     private UUID getSystemAdmin() {
-        // TODO: 查询系统管理员用户
-        return null;
+        return approvalMapper.findFirstUserByRoleCode(ROLE_ADMIN);
+    }
+
+    /**
+     * 获取超级管理员（第一个拥有 ROLE_SUPER_ADMIN 角色的用户）
+     */
+    private UUID getSuperAdmin() {
+        return approvalMapper.findFirstUserByRoleCode(ROLE_SUPER_ADMIN);
     }
 
     /**
      * 发送审批通知
      */
     private void sendApprovalNotification(SysPermissionApproval approval) {
-        // TODO: 集成消息通知服务
-        log.info("Approval notification sent: id={}, approver={}",
-                approval.getId(), approval.getCurrentApproverId());
+        try {
+            UUID approverId = approval.getCurrentApproverId();
+            if (approverId == null) {
+                log.warn("No current approver to notify for approval {}", approval.getId());
+                return;
+            }
+
+            // 查询审批人信息
+            SysUser approver = userMapper.selectById(approverId);
+            if (approver == null) {
+                log.warn("Approver not found: {}", approverId);
+                return;
+            }
+
+            // 查询申请人信息
+            SysUser applicant = userMapper.selectById(approval.getApplicantId());
+            String applicantName = applicant != null ? applicant.getRealName() : "Unknown";
+
+            // 构建通知参数
+            Map<String, Object> params = new HashMap<>();
+            params.put("approvalId", approval.getId().toString());
+            params.put("applicantName", applicantName);
+            params.put("approvalType", getApprovalTypeName(approval.getApprovalType()));
+            params.put("applyReason", approval.getApplyReason());
+
+            // 发送通知
+            notificationService.sendNotification(
+                    approver.getUsername(),
+                    approver.getEmail(),
+                    "APPROVAL_PENDING",
+                    "您有新的权限审批待处理",
+                    params
+            );
+
+            log.info("Approval notification sent: id={}, approver={}",
+                    approval.getId(), approverId);
+        } catch (Exception e) {
+            log.error("Failed to send approval notification: {}", e.getMessage(), e);
+        }
     }
 
     /**
      * 发送审批结果通知
      */
     private void sendResultNotification(SysPermissionApproval approval, boolean approved) {
-        // TODO: 通知申请人审批结果
-        log.info("Approval result notification sent: id={}, result={}",
-                approval.getId(), approved ? "approved" : "rejected");
+        try {
+            // 查询申请人信息
+            SysUser applicant = userMapper.selectById(approval.getApplicantId());
+            if (applicant == null) {
+                log.warn("Applicant not found: {}", approval.getApplicantId());
+                return;
+            }
+
+            // 构建通知参数
+            Map<String, Object> params = new HashMap<>();
+            params.put("approvalId", approval.getId().toString());
+            params.put("approvalType", getApprovalTypeName(approval.getApprovalType()));
+            params.put("result", approved ? "已批准" : "已拒绝");
+            params.put("rejectReason", approval.getRejectReason());
+
+            // 发送通知
+            String templateCode = approved ? "APPROVAL_APPROVED" : "APPROVAL_REJECTED";
+            String subject = approved ? "您的权限申请已批准" : "您的权限申请被拒绝";
+
+            notificationService.sendNotification(
+                    applicant.getUsername(),
+                    applicant.getEmail(),
+                    templateCode,
+                    subject,
+                    params
+            );
+
+            log.info("Approval result notification sent: id={}, result={}",
+                    approval.getId(), approved ? "approved" : "rejected");
+        } catch (Exception e) {
+            log.error("Failed to send result notification: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 获取审批类型名称
+     */
+    private String getApprovalTypeName(Integer approvalType) {
+        return switch (approvalType) {
+            case 1 -> "角色申请";
+            case 2 -> "权限申请";
+            case 3 -> "临时授权";
+            default -> "未知类型";
+        };
     }
 
     /**

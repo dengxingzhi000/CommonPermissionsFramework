@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * WebAuthn凭证管理控制器
+ * WebAuthn 凭证管理控制器
  * <p>
  * 提供WebAuthn凭证的注册、认证和管理功能
  * 参考Google Passkey和FIDO2最佳实践
@@ -40,7 +40,7 @@ import java.util.UUID;
 @RequestMapping("/api/auth/webauthn")
 @RequiredArgsConstructor
 @Tag(
-        name = "WebAuthn凭证管理",
+        name = "WebAuthn 凭证管理",
         description = "WebAuthn生物识别/硬件密钥认证管理"
 )
 public class WebAuthnCredentialController {
@@ -74,7 +74,7 @@ public class WebAuthnCredentialController {
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "验证并注册凭证",
-            description = "验证WebAuthn注册响应并保存凭证"
+            description = "验证WebAuthn 注册响应并保存凭证"
     )
     public ApiResponse<WebauthnCredentialDTO> registerCredential(
             @Valid @RequestBody WebauthnRegistrationRequest request,
@@ -116,8 +116,8 @@ public class WebAuthnCredentialController {
     @PostMapping("/authenticate/verify")
     @PreAuthorize("isAuthenticated()")
     @Operation(
-            summary = "验证认证并升级Token",
-            description = "验证WebAuthn认证响应并升级访问令牌的AMR"
+            summary = "验证认证并升级 Token",
+            description = "验证WebAuthn 认证响应并升级访问令牌的AMR"
     )
     public ApiResponse<TokenUpgradeResponse> authenticateAndUpgradeToken(
             @Valid @RequestBody WebauthnAuthenticationRequest request,
@@ -155,7 +155,7 @@ public class WebAuthnCredentialController {
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "列出所有凭证",
-            description = "获取当前用户的所有活跃WebAuthn凭证"
+            description = "获取当前用户的所有活跃 WebAuthn凭证"
     )
     public ApiResponse<List<WebauthnCredentialDTO>> listCredentials(
             @AuthenticationPrincipal SecurityUser user
@@ -173,10 +173,10 @@ public class WebAuthnCredentialController {
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "更新设备名称",
-            description = "更新WebAuthn凭证的设备名称"
+            description = "更新 WebAuthn凭证的设备名称"
     )
     public ApiResponse<WebauthnCredentialDTO> updateDeviceName(
-            @Parameter(description = "凭证ID", required = true)
+            @Parameter(description = "凭证 ID", required = true)
             @PathVariable String credentialId,
             @Parameter(description = "新的设备名称", required = true)
             @NotBlank(message = "设备名称不能为空")
@@ -197,10 +197,10 @@ public class WebAuthnCredentialController {
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "删除凭证",
-            description = "永久删除WebAuthn凭证"
+            description = "永久删除 WebAuthn凭证"
     )
     public ApiResponse<Void> deleteCredential(
-            @Parameter(description = "凭证ID", required = true)
+            @Parameter(description = "凭证 ID", required = true)
             @PathVariable String credentialId,
             @AuthenticationPrincipal SecurityUser user) {
 
@@ -220,7 +220,7 @@ public class WebAuthnCredentialController {
             description = "停用WebAuthn凭证（软删除）"
     )
     public ApiResponse<Void> deactivateCredential(
-            @Parameter(description = "凭证ID", required = true)
+            @Parameter(description = "凭证 ID", required = true)
             @PathVariable String credentialId,
             @AuthenticationPrincipal SecurityUser user) {
 

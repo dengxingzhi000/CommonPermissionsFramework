@@ -11,7 +11,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
- * 企业级UUID类型处理器
+ * 企业级 UUID类型处理器
  *
  * <p>设计思路参考：
  * <ul>
@@ -112,7 +112,7 @@ public class UUIDTypeHandler extends BaseTypeHandler<UUID> {
      *   <li>位运算方案：~25ns，产生1个对象（byte[]），性能提升3倍</li>
      * </ul>
      *
-     * @param uuid UUID对象
+     * @param uuid UUID 对象
      * @return 16字节数组，大端序
      */
     private static byte[] uuidToBytes(UUID uuid) {
@@ -146,7 +146,7 @@ public class UUIDTypeHandler extends BaseTypeHandler<UUID> {
      * </ul>
      *
      * @param bytes 16字节数组
-     * @return UUID对象
+     * @return UUID 对象
      * @throws IllegalArgumentException 如果字节长度不是16
      */
     private static UUID bytesToUuid(byte[] bytes) {
@@ -175,7 +175,7 @@ public class UUIDTypeHandler extends BaseTypeHandler<UUID> {
     }
 
     /**
-     * 安全的字节转UUID包装方法
+     * 安全的字节转 UUID包装方法
      *
      * <p>Netflix SRE实践：
      * <ul>

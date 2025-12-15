@@ -19,7 +19,7 @@ import java.util.UUID;
 public class PermissionDTO {
     private UUID id;
 
-    @NotNull(message = "父级ID不能为空")
+    @NotNull(message = "父级 ID不能为空")
     private UUID parentId;
 
     @NotBlank(message = "权限编码不能为空")

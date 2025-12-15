@@ -5,6 +5,7 @@ import com.frog.auth.domain.dto.*;
 import com.frog.auth.domain.entity.WebauthnCredential;
 import com.frog.auth.mapper.WebauthnCredentialMapper;
 import com.frog.auth.service.IWebauthnCredentialService;
+import com.frog.auth.webauthn.WebAuthnValidator;
 import com.frog.common.dto.auth.*;
 import com.frog.common.feign.client.SysUserServiceClient;
 import com.frog.common.security.properties.JwtProperties;
@@ -32,6 +33,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
     private final JwtProperties jwtProperties;
     private final WebauthnCredentialMapper credentialMapper;
     private final WebauthnCredentialConverter credentialConverter;
+    private final WebAuthnValidator webAuthnValidator;
 
     private static final String WA_CHALLENGE_PREFIX = "webauthn:challenge:";
     private static final String WA_REG_CHALLENGE_PREFIX = "webauthn:reg:challenge:";
@@ -75,14 +77,64 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
             throw new IllegalStateException("凭证ID已存在");
         }
 
-        // TODO: 验证挑战、证明签名、RP ID等（需要接入标准WebAuthn库）
+        // 获取并验证挑战
+        String challengeKey = WA_REG_CHALLENGE_PREFIX + userId + ":" + request.getDeviceId();
+        Object expectedChallenge = redisTemplate.opsForValue().get(challengeKey);
+        if (expectedChallenge == null) {
+            throw new IllegalStateException("注册挑战已过期或不存在");
+        }
 
-        // 转换并保存凭证
-        WebauthnCredential credential = credentialConverter.toEntity(request, userId);
+        // 使用 WebAuthn4J 验证注册响应
+        WebAuthnValidator.RegistrationResult validationResult = webAuthnValidator.validateRegistration(
+                request.getClientDataJSON(),
+                request.getAttestationObject(),
+                expectedChallenge.toString()
+        );
+
+        // 删除已使用的挑战
+        redisTemplate.delete(challengeKey);
+
+        // 构建并保存凭证
+        WebauthnCredential credential = WebauthnCredential.builder()
+                .id(UUID.randomUUID())
+                .credentialId(validationResult.getCredentialIdBase64())
+                .userId(userId)
+                .publicKeyPem(Base64.getEncoder().encodeToString(
+                        webAuthnValidator.serializeCOSEKey(validationResult.publicKey())))
+                .alg(getAlgorithmName(validationResult.publicKey()))
+                .signCount(validationResult.signCount())
+                .deviceName(request.getDeviceName())
+                .aaguid(validationResult.getAaguidString())
+                .transports(request.getTransports())
+                .isActive(true)
+                .createdTime(LocalDateTime.now())
+                .updatedTime(LocalDateTime.now())
+                .build();
+
         credentialMapper.insert(credential);
 
-        log.info("Successfully registered WebAuthn credential for user={}", userId);
+        log.info("Successfully registered WebAuthn credential for user={}, credentialId={}",
+                userId, credential.getCredentialId());
         return credentialConverter.toDTO(credential);
+    }
+
+    /**
+     * 获取 COSE 公钥算法名称
+     */
+    private String getAlgorithmName(com.webauthn4j.data.attestation.authenticator.COSEKey coseKey) {
+        if (coseKey == null || coseKey.getAlgorithm() == null) {
+            return "ES256"; // 默认
+        }
+        return switch (coseKey.getAlgorithm().getValue().intValue()) {
+            case -7 -> "ES256";
+            case -35 -> "ES384";
+            case -36 -> "ES512";
+            case -257 -> "RS256";
+            case -258 -> "RS384";
+            case -259 -> "RS512";
+            case -8 -> "EdDSA";
+            default -> "UNKNOWN";
+        };
     }
 
     @Override
@@ -137,18 +189,27 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
             throw new IllegalStateException("凭证不存在或已停用");
         }
 
-        // 验证签名计数器（防克隆攻击）
+        // 验证签名计数器（防克隆攻击）- 预检查
         if (!credential.isCounterValid(request.getSignCount())) {
             log.warn("Invalid signature counter for user={}, credentialId={}, expected>{}, got={}",
                     userId, request.getCredentialId(), credential.getSignCount(), request.getSignCount());
             throw new IllegalStateException("签名计数器异常，可能存在克隆攻击");
         }
 
-        // TODO: 验证断言签名（需要接入标准WebAuthn库）
-        // 验证 authenticatorData, clientDataJSON, signature
+        // 使用 WebAuthn4J 验证断言签名
+        byte[] storedPublicKey = Base64.getDecoder().decode(credential.getPublicKeyPem());
+        WebAuthnValidator.AuthenticationResult authResult = webAuthnValidator.validateAuthentication(
+                request.getCredentialId(),
+                request.getClientDataJSON(),
+                request.getAuthenticatorData(),
+                request.getSignature(),
+                expectedChallenge.toString(),
+                storedPublicKey,
+                credential.getSignCount()
+        );
 
-        // 更新凭证使用信息
-        credentialMapper.updateSignCount(userId, request.getCredentialId(), request.getSignCount());
+        // 更新凭证使用信息（使用验证后返回的新签名计数）
+        credentialMapper.updateSignCount(userId, request.getCredentialId(), authResult.newSignCount());
 
         // 删除已使用的挑战
         redisTemplate.delete(key);
