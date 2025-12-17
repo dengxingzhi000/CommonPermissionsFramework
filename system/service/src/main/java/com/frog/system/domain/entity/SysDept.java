@@ -25,16 +25,16 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
 @TableName("sys_dept")
-@Tag(name="SysDept对象", description="部门表")
+@Tag(name="SysDept 对象", description="部门表")
 public class SysDept implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(name = "部门ID")
+    @Schema(name = "部门 ID")
     @TableId(value = "id", type = IdType.NONE)
     private UUID id;
 
-    @Schema(description = "父部门ID")
+    @Schema(description = "父部门 ID")
     @TableField("parent_id")
     private UUID parentId;
 
@@ -50,7 +50,7 @@ public class SysDept implements Serializable {
     @TableField("dept_type")
     private Integer deptType;
 
-    @Schema(description = "部门负责人ID")
+    @Schema(description = "部门负责人 ID")
     @TableField("leader_id")
     private UUID leaderId;
 
@@ -75,15 +75,15 @@ public class SysDept implements Serializable {
     private Integer status;
 
     @Schema(description = "创建时间")
-    @TableField("create_time")
+    @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
     @Schema(description = "创建人")
-    @TableField("create_by")
+    @TableField(value = "create_by", fill = FieldFill.INSERT)
     private UUID createBy;
 
     @Schema(description = "更新时间")
-    @TableField("update_time")
+    @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 
     @Schema(description = "更新人")
@@ -91,6 +91,7 @@ public class SysDept implements Serializable {
     private UUID updateBy;
 
     @Schema(description = "逻辑删除")
+    @TableLogic(value = "false", delval = "true")
     @TableField("deleted")
-    private Integer deleted;
+    private Boolean deleted;
 }

@@ -22,7 +22,7 @@ public interface ISysPermissionService extends IService<SysPermission> {
     /**
      * 判断用户是否拥有指定权限编码。
      *
-     * @param userId 用户ID
+     * @param userId 用户 ID
      * @param permissionCode 权限编码
      * @return true 表示拥有该权限；false 表示不拥有
      */
@@ -31,7 +31,7 @@ public interface ISysPermissionService extends IService<SysPermission> {
     /**
      * 判断用户是否对指定资源拥有某项权限。
      *
-     * @param userId 用户ID
+     * @param userId 用户 ID
      * @param resourceType 资源类型（如：PROJECT、DEPT 等）
      * @param resourceId 资源ID（可序列化）
      * @param permission 权限动作（如：READ、WRITE、DELETE 等）
@@ -43,7 +43,7 @@ public interface ISysPermissionService extends IService<SysPermission> {
     /**
      * 查询用户所拥有的角色编码集合。
      *
-     * @param userId 用户ID
+     * @param userId 用户 ID
      * @return 角色编码集合
      */
     Set<String> getUserRoles(UUID userId);
@@ -51,7 +51,7 @@ public interface ISysPermissionService extends IService<SysPermission> {
     /**
      * 查询用户所拥有的权限编码集合。
      *
-     * @param userId 用户ID
+     * @param userId 用户 ID
      * @return 权限编码集合
      */
     Set<String> getUserPermissions(UUID userId);
@@ -66,7 +66,7 @@ public interface ISysPermissionService extends IService<SysPermission> {
     /**
      * 根据ID获取权限详情。
      *
-     * @param id 权限ID
+     * @param id 权限 ID
      * @return 权限详情
      */
     PermissionDTO getPermissionById(UUID id);
@@ -97,7 +97,7 @@ public interface ISysPermissionService extends IService<SysPermission> {
     /**
      * 删除权限。
      *
-     * @param id 权限ID
+     * @param id 权限 ID
      */
     void deletePermission(UUID id);
 }

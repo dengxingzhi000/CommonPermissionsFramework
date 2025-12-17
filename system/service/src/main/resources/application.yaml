@@ -15,11 +15,62 @@ spring:
         enabled: true
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
+  # ========== 多数据源配置 ==========
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://192.168.18.134:5432/sys_service_db
-    username: admin
-    password: 123456
+    dynamic:
+      primary: user                    # 默认数据源
+      strict: true                     # 严格匹配，未找到则报错
+
+      # HikariCP 全局连接池配置
+      hikari:
+        minimum-idle: 5
+        maximum-pool-size: 20
+        idle-timeout: 30000
+        max-lifetime: 1800000
+        connection-timeout: 30000
+
+      datasource:
+        # 用户数据库 - sys_user, sys_user_oauth, webauthn_credential
+        user:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://${DB_HOST:192.168.18.134}:5432/db_user
+          username: ${DB_USERNAME:admin}
+          password: ${DB_PASSWORD:123456}
+
+        # 组织数据库 - sys_dept
+        org:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://${DB_HOST:192.168.18.134}:5432/db_org
+          username: ${DB_USERNAME:admin}
+          password: ${DB_PASSWORD:123456}
+
+        # 权限数据库 - sys_role, sys_permission, sys_user_role, etc.
+        permission:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://${DB_HOST:192.168.18.134}:5432/db_permission
+          username: ${DB_USERNAME:admin}
+          password: ${DB_PASSWORD:123456}
+
+        # 审批数据库 - sys_permission_approval
+        approval:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://${DB_HOST:192.168.18.134}:5432/db_approval
+          username: ${DB_USERNAME:admin}
+          password: ${DB_PASSWORD:123456}
+
+        # 审计数据库 - sys_audit_log, sys_sensitive_operation_log
+        audit:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://${DB_HOST:192.168.18.134}:5432/db_audit
+          username: ${DB_USERNAME:admin}
+          password: ${DB_PASSWORD:123456}
+
+        # 通知数据库 - sys_notification_audit, sys_notification_template, etc.
+        notify:
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://${DB_HOST:192.168.18.134}:5432/db_notify
+          username: ${DB_USERNAME:admin}
+          password: ${DB_PASSWORD:123456}
   security:
     default-password: 123456
 

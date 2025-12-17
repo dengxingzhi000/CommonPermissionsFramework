@@ -4,7 +4,7 @@ import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.frog.common.response.ApiResponse;
 
 /**
- * Sentinel异常处理器策略接口
+ * Sentinel 异常处理器策略接口
  *
  * @author Deng
  * createData 2025/10/20 10:39

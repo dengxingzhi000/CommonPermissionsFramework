@@ -5,6 +5,7 @@ import com.alibaba.csp.sentinel.SphU;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.frog.common.log.service.ISysAuditLogService;
 import com.frog.common.security.metrics.SecurityMetrics;
+import com.frog.common.security.util.FilterBypassHelper;
 import com.frog.common.security.util.HttpServletRequestUtils;
 import com.frog.common.security.util.JwtUtils;
 import com.frog.common.security.util.SecurityErrorResponseWriter;
@@ -15,14 +16,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -36,30 +36,14 @@ import java.util.UUID;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class StepUpFilter extends OncePerRequestFilter {
-
     private final StepUpEvaluator evaluator;
     private final ISysAuditLogService auditLogService;
     private final JwtUtils jwtUtils;
     private final HttpServletRequestUtils requestUtils;
     private final SecurityMetrics securityMetrics;
     private final StepUpProperties properties;
-    private final AntPathMatcher pathMatcher = new AntPathMatcher();
-
-    public StepUpFilter(StepUpEvaluator evaluator,
-                        ISysAuditLogService auditLogService,
-                        JwtUtils jwtUtils,
-                        HttpServletRequestUtils requestUtils,
-                        SecurityMetrics securityMetrics,
-                        StepUpProperties properties) {
-        this.evaluator = evaluator;
-        this.auditLogService = auditLogService;
-        this.jwtUtils = jwtUtils;
-        this.requestUtils = requestUtils;
-        this.securityMetrics = securityMetrics;
-        this.properties = properties;
-        log.info("StepUpFilter initialized with Sentinel circuit breaking support");
-    }
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
@@ -72,7 +56,7 @@ public class StepUpFilter extends OncePerRequestFilter {
         }
 
         String uri = request.getRequestURI();
-        if (matchesAny(uri, properties.getWhitelistPaths())) {
+        if (FilterBypassHelper.matchesAny(uri, properties.getWhitelistPaths())) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -86,10 +70,8 @@ public class StepUpFilter extends OncePerRequestFilter {
         }
 
         // Sentinel resource protection for step-up evaluation
-        Entry entry = null;
         StepUpRequirement requirement;
-        try {
-            entry = SphU.entry("step-up:evaluate");
+        try(Entry entry = SphU.entry("step-up:evaluate")) {
             requirement = evaluator.evaluate(request, user);
 
         } catch (BlockException ex) {
@@ -116,10 +98,6 @@ public class StepUpFilter extends OncePerRequestFilter {
             }
             throw new ServletException("Step-up evaluation failed", ex);
 
-        } finally {
-            if (entry != null) {
-                entry.exit();
-            }
         }
 
         if (requirement != StepUpRequirement.NONE) {
@@ -162,27 +140,10 @@ public class StepUpFilter extends OncePerRequestFilter {
     }
 
     private boolean shouldBypass(String uri, SecurityUser user) {
-        if (matchesAny(uri, properties.getBypassPaths())) {
-            return true;
-        }
-        if (user == null) {
-            return false;
-        }
-        if (properties.getBypassUsers().stream()
-                .anyMatch(u -> Objects.equals(u, user.getUsername()))) {
-            return true;
-        }
-        if (user.getRoles() != null && user.getRoles().stream().anyMatch(properties.getBypassRoles()::contains)) {
-            return true;
-        }
-        return user.getPermissions() != null && user.getPermissions().stream()
-                .anyMatch(properties.getBypassPermissions()::contains);
-    }
-
-    private boolean matchesAny(String uri, java.util.List<String> patterns) {
-        if (patterns == null || patterns.isEmpty()) {
-            return false;
-        }
-        return patterns.stream().anyMatch(p -> pathMatcher.match(p, uri) || uri.startsWith(p));
+        return FilterBypassHelper.shouldBypass(uri, user,
+                properties.getBypassPaths(),
+                properties.getBypassUsers(),
+                properties.getBypassRoles(),
+                properties.getBypassPermissions());
     }
 }

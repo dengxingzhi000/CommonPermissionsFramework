@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * SpringSecurity配置类
+ * SpringSecurity 配置类
  *
  * @author Deng
  * createData 2025/10/11 10:37
@@ -44,7 +44,6 @@ import java.util.List;
 )
 @RequiredArgsConstructor
 public class SecurityConfig {
-
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final SqlInjectionFilter sqlInjectionFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
@@ -57,7 +56,7 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   AuthenticationManager authenticationManager) throws Exception {
+                                                   AuthenticationManager authenticationManager) {
         http
                 // 1️⃣ 禁用 CSRF（使用 JWT）
                 .csrf(AbstractHttpConfigurer::disable)
@@ -114,8 +113,6 @@ public class SecurityConfig {
                     if (securityHeadersProperties.isReferrerPolicyEnabled()) {
                         headers.referrerPolicy(referrer -> referrer.policy(
                                 resolveReferrerPolicy(securityHeadersProperties.getReferrerPolicy())));
-                    } else {
-                        headers.referrerPolicy(HeadersConfigurer.ReferrerPolicyConfig::disable);
                     }
                 })
 
@@ -150,7 +147,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) {
         return configuration.getAuthenticationManager();
     }
 

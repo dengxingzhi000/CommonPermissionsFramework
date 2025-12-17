@@ -1,9 +1,5 @@
 package com.frog.common.redis.config;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.frog.common.cache.CacheInvalidationListener;
 import com.frog.common.cache.spring.TwoLevelCacheInvalidationListener;
 import org.springframework.cache.annotation.EnableCaching;
@@ -16,7 +12,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.cache.CacheManager;
@@ -28,7 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Redis配置类
+ * Redis 配置类
  *
  * @author Deng
  * createData 2025/10/15 14:33
@@ -45,22 +41,17 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(factory);
 
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        mapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL);
-        
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(mapper, Object.class);
+        JacksonJsonRedisSerializer<Object> serializer = new JacksonJsonRedisSerializer<>(Object.class);
 
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
 
-        // key采用String的序列化方式
+        // key 采用String的序列化方式
         template.setKeySerializer(stringSerializer);
-        // hash的key也采用String的序列化方式
+        // hash 的key也采用String的序列化方式
         template.setHashKeySerializer(stringSerializer);
-        // value序列化方式采用jackson
+        // value 序列化方式采用jackson
         template.setValueSerializer(serializer);
-        // hash的value序列化方式采用jackson
+        // hash  的value序列化方式采用jackson
         template.setHashValueSerializer(serializer);
 
         template.afterPropertiesSet();
@@ -153,12 +144,7 @@ public class RedisConfig {
                 .build();
     }
 
-    private Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        mapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL);
-        
-        return new Jackson2JsonRedisSerializer<>(mapper, Object.class);
+    private JacksonJsonRedisSerializer<Object> jackson2JsonRedisSerializer() {
+        return new JacksonJsonRedisSerializer<>(Object.class);
     }
 }

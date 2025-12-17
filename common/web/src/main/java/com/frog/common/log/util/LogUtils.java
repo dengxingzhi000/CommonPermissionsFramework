@@ -17,7 +17,6 @@ import java.util.Map;
  */
 @Slf4j
 public class LogUtils {
-
     private static final String KEY_USER_ID = "userId";
     private static final String KEY_USERNAME = "username";
     private static final String KEY_TRACE_ID = "traceId";
@@ -36,7 +35,7 @@ public class LogUtils {
     }
 
     /**
-     * 设置追踪ID
+     * 设置追踪 ID
      */
     public static void setTraceId(String traceId) {
         if (StrUtil.isNotBlank(traceId)) {
@@ -45,7 +44,7 @@ public class LogUtils {
     }
 
     /**
-     * 设置请求ID
+     * 设置请求 ID
      */
     public static void setRequestId(String requestId) {
         if (StrUtil.isNotBlank(requestId)) {
@@ -54,7 +53,7 @@ public class LogUtils {
     }
 
     /**
-     * 清除MDC
+     * 清除 MDC
      */
     public static void clear() {
         MDC.clear();

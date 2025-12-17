@@ -12,7 +12,7 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 
 /**
- * Sentinel注解切面实现
+ * Sentinel 注解切面实现
  *
  * @author Deng
  * createData 2025/10/21 16:13

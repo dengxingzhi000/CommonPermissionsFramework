@@ -92,7 +92,7 @@
 - 审计日志记录（成功和失败的认证尝试）
 
 ### 7. ✅ 数据库设计
-**文件**: `scripts/db/webauthn_credential.sql`
+**文件**: `scripts/db/001_schema.sql`
 
 **优化内容**:
 - 符合MySQL和PostgreSQL的DDL
@@ -198,7 +198,7 @@ auth/
 │
 scripts/
 └── db/
-    └── webauthn_credential.sql
+    └── 001_schema.sql
 │
 docs/
 ├── webauthn-integration.md

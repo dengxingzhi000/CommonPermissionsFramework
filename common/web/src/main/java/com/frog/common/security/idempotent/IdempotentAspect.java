@@ -98,7 +98,7 @@ public class IdempotentAspect {
         String token = request.getHeader(TOKEN_HEADER);
 
         if (token == null || token.isEmpty()) {
-            throw new BusinessException("缺少幂等性Token");
+            throw new BusinessException("缺少幂等性 Token");
         }
 
         return token;

@@ -15,7 +15,6 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class StepUpEvaluator {
-
     private final StepUpProperties properties;
     private final HttpServletRequestUtils requestUtils;
     private final SessionManager sessionManager;

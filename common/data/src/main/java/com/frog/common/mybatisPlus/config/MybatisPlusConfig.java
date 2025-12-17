@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.UUID;
 
 /**
- * MybatisPlus配置类
+ * MybatisPlus 配置类
  *
  * @author Deng
  * createData 2025/10/15 13:35
@@ -53,7 +53,7 @@ public class MybatisPlusConfig {
     public ConfigurationCustomizer configurationCustomizer() {
         return configuration -> {
             TypeHandlerRegistry typeHandlerRegistry = configuration.getTypeHandlerRegistry();
-            // 注册UUID类型处理器
+            // 注册 UUID类型处理器
             typeHandlerRegistry.register(UUID.class, UUIDTypeHandler.class);
         };
     }

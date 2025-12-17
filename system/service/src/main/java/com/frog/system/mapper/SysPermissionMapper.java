@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.system.domain.entity.SysPermission;
@@ -20,6 +21,7 @@ import java.util.UUID;
  * @since 2025-10-14
  */
 @Mapper
+@DS("permission")
 public interface SysPermissionMapper extends BaseMapper<SysPermission> {
 
     /**
@@ -30,7 +32,9 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
             INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
             INNER JOIN sys_user_role ur ON rp.role_id = ur.role_id
             WHERE ur.user_id = #{userId}
-            AND p.status = 1 AND p.deleted = 0
+            AND ur.approval_status = 2
+            AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
+            AND p.status = 1 AND NOT p.deleted
             """)
     Set<String> findAllPermissionsByUserId(@Param("userId") UUID userId);
 
@@ -40,7 +44,10 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
     @Select("""
             SELECT DISTINCT r.role_code FROM sys_role r
             INNER JOIN sys_user_role ur ON r.id = ur.role_id
-            WHERE ur.user_id = #{userId} AND r.status = 1 AND r.deleted = 0
+            WHERE ur.user_id = #{userId}
+            AND ur.approval_status = 2
+            AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
+            AND r.status = 1 AND NOT r.deleted
             """)
     Set<String> findRolesByUserId(@Param("userId") UUID userId);
 
@@ -48,18 +55,18 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
      * 查询角色权限树
      */
     @Select("""
-            SELECT * FROM sys_permission WHERE status = 1 AND deleted = 0
+            SELECT * FROM sys_permission WHERE status = 1 AND NOT deleted
             ORDER BY sort_order ASC
             """)
     List<SysPermission> findPermissionTree();
 
     /**
-     * 根据角色ID查询权限
+     * 根据角色 ID查询权限
      */
     @Select("""
             SELECT p.* FROM sys_permission p
             INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
-            WHERE rp.role_id = #{roleId} AND p.status = 1 AND p.deleted = 0
+            WHERE rp.role_id = #{roleId} AND p.status = 1 AND NOT p.deleted
             """)
     List<Permission> findPermissionsByRoleId(@Param("roleId") UUID roleId);
 
@@ -89,8 +96,10 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
             INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
             INNER JOIN sys_user_role ur ON rp.role_id = ur.role_id
             WHERE ur.user_id = #{userId}
+            AND ur.approval_status = 2
+            AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             AND p.permission_type IN (1, 2)
-            AND p.visible = 1 AND p.status = 1 AND p.deleted = 0
+            AND p.visible = true AND p.status = 1 AND NOT p.deleted
             ORDER BY p.sort_order ASC
             """)
     @Results({
@@ -108,19 +117,19 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
             SELECT * FROM sys_permission
             WHERE parent_id = #{parentId}
             AND permission_type IN (1, 2)
-            AND visible = 1 AND status = 1 AND deleted = 0
+            AND visible = true AND status = 1 AND NOT deleted
             ORDER BY sort_order ASC
             """)
     List<PermissionDTO> findChildrenPermissions(@Param("parentId") UUID parentId);
 
     /**
-     * 根据URL和方法查询需要的权限
+     * 根据 URL和方法查询需要的权限
      */
     @Select("""
             SELECT permission_code FROM sys_permission
             WHERE api_path = #{url}
             AND (http_method = #{method} OR http_method = '*')
-            AND status = 1 AND deleted = 0
+            AND status = 1 AND NOT deleted
             """)
     List<String> findPermissionsByUrl(@Param("url") String url,
                                       @Param("method") String method);
@@ -130,7 +139,7 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
      */
     @Select("""
             SELECT COUNT(*) > 0 FROM sys_permission
-            WHERE permission_code = #{permissionCode} AND deleted = 0
+            WHERE permission_code = #{permissionCode} AND NOT deleted
             """)
     boolean existsByPermissionCode(@Param("permissionCode") String permissionCode);
 

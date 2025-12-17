@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 部门DTO
+ * 部门 DTO
  *
  * @author Deng
  * createData 2025/11/7 11:15

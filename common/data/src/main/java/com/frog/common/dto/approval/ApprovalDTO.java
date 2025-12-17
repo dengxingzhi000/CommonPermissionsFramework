@@ -19,18 +19,18 @@ import java.util.UUID;
 @Builder
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-@Schema(description = "权限审批DTO")
+@Schema(description = "权限审批 DTO")
 public class ApprovalDTO {
-    @Schema(description = "审批ID")
+    @Schema(description = "审批 ID")
     private UUID id;
 
-    @Schema(description = "申请人ID")
+    @Schema(description = "申请人 ID")
     private UUID applicantId;
 
     @Schema(description = "申请类型:1-角色申请,2-权限申请,3-临时授权")
     private Integer approvalType;
 
-    @Schema(description = "目标用户ID")
+    @Schema(description = "目标用户 ID")
     private UUID targetUserId;
 
     @Schema(description = "申请理由")
@@ -54,9 +54,9 @@ public class ApprovalDTO {
     @Schema(description = "拒绝理由")
     private String rejectReason;
 
-    @Schema(description = "角色ID列表")
+    @Schema(description = "角色 ID列表")
     private List<UUID> roleIds;
 
-    @Schema(description = "权限ID列表")
+    @Schema(description = "权限 ID列表")
     private List<UUID> permissionIds;
 }

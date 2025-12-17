@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.system.domain.entity.SysPermissionApproval;
@@ -17,6 +18,7 @@ import java.util.UUID;
  * @since 2025-10-30
  */
 @Mapper
+@DS("approval")
 public interface SysPermissionApprovalMapper extends BaseMapper<SysPermissionApproval> {
 
     /**
@@ -94,7 +96,7 @@ public interface SysPermissionApprovalMapper extends BaseMapper<SysPermissionApp
             WHERE approval_type = 3
             AND approval_status = 2
             AND expire_time IS NOT NULL
-            AND expire_time BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL #{days} DAY)
+            AND expire_time BETWEEN NOW() AND NOW() + make_interval(days => #{days})
             ORDER BY expire_time ASC
             """)
     List<SysPermissionApproval> selectExpiringApprovals(@Param("days") Integer days);
@@ -169,10 +171,11 @@ public interface SysPermissionApprovalMapper extends BaseMapper<SysPermissionApp
 
     /**
      * 更新审批链
+     * 注意：approvalChain 参数应为 JSON 格式字符串，将被转换为 JSONB 类型存储
      */
     @Update("""
             UPDATE sys_permission_approval
-            SET approval_chain = #{approvalChain},
+            SET approval_chain = #{approvalChain}::jsonb,
                 update_time = NOW()
             WHERE id = #{id}
             """)
@@ -208,4 +211,10 @@ public interface SysPermissionApprovalMapper extends BaseMapper<SysPermissionApp
             AND expire_time < NOW()
             """)
     int updateExpiredApprovals();
+
+    // 注意：findFirstUserByRoleCode 方法已移至 Service 层实现
+    // 该方法涉及跨库查询（user + permission），需要通过 Service 层聚合：
+    // 1. 先通过 SysRoleMapper 查询 roleCode 对应的 roleId
+    // 2. 再通过 SysUserRoleMapper 查询该角色的 userId 列表
+    // 3. 最后通过 SysUserMapper 查询第一个有效用户
 }

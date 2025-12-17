@@ -2,6 +2,7 @@ package com.frog.common.log.interceptor;
 
 import com.frog.common.log.util.LogUtils;
 import com.frog.common.web.util.SecurityUtils;
+import jakarta.annotation.Nonnull;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -21,9 +22,9 @@ import java.util.UUID;
 public class LogInterceptor implements HandlerInterceptor {
 
     @Override
-    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-                             @NonNull Object handler) {
-        // 设置RequestId
+    public boolean preHandle(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response,
+                             @Nonnull Object handler) {
+        // 设置 RequestId
         String requestId = UUID.randomUUID().toString().replace("-", "");
         LogUtils.setRequestId(requestId);
         response.setHeader("X-Request-Id", requestId);
@@ -45,8 +46,8 @@ public class LogInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-                                @NonNull Object handler, Exception ex) {
+    public void afterCompletion(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response,
+                                @Nonnull Object handler, Exception ex) {
         try {
             Long startTime = (Long) request.getAttribute("startTime");
             if (startTime != null) {

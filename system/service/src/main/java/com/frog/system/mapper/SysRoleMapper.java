@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.system.domain.entity.SysRole;
 import org.apache.ibatis.annotations.*;
@@ -16,6 +17,7 @@ import java.util.UUID;
  * @since 2025-10-15
  */
 @Mapper
+@DS("permission")
 public interface SysRoleMapper extends BaseMapper<SysRole> {
 
     /**
@@ -23,12 +25,30 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
      */
     @Select("""
             SELECT COUNT(*) > 0 FROM sys_role
-            WHERE role_code = #{roleCode} AND deleted = 0
+            WHERE role_code = #{roleCode} AND NOT deleted
             """)
     boolean existsByRoleCode(@Param("roleCode") String roleCode);
 
     /**
-     * 查询角色权限ID列表
+     * 根据角色编码查询角色 ID
+     */
+    @Select("""
+            SELECT id FROM sys_role
+            WHERE role_code = #{roleCode} AND status = 1 AND NOT deleted
+            """)
+    UUID findIdByRoleCode(@Param("roleCode") String roleCode);
+
+    /**
+     * 根据角色编码查询角色
+     */
+    @Select("""
+            SELECT * FROM sys_role
+            WHERE role_code = #{roleCode} AND NOT deleted
+            """)
+    SysRole findByRoleCode(@Param("roleCode") String roleCode);
+
+    /**
+     * 查询角色权限 ID列表
      */
     @Select("""
             SELECT permission_id FROM sys_role_permission

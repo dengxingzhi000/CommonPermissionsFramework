@@ -42,7 +42,7 @@ public class NotificationAuditService {
                 .content(command.getContent())
                 .variablesJson(serializeVariables(command.getVariables()))
                 .errorMessage(errorMessage)
-                .createdAt(LocalDateTime.now())
+                .createTime(LocalDateTime.now())
                 .build();
         try {
             auditLogMapper.insert(notificationAuditLog);

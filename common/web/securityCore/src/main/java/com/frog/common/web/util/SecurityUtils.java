@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Security工具类
+ * Security 工具类
  *
  * @author Deng
  * createData 2025/10/14 17:37
@@ -59,7 +59,10 @@ public final class SecurityUtils {
             Authentication a = SecurityContextHolder.getContext().getAuthentication();
             if (a == null || !a.isAuthenticated()) return Optional.empty();
             Object p = a.getPrincipal();
-            if (p instanceof UserDetails u) return Optional.ofNullable(u.getUsername());
+            if (p instanceof UserDetails u) {
+                String username = u.getUsername();
+                return Optional.of(username);
+            }
             if (p instanceof Jwt jwt) return Optional.ofNullable(jwt.getClaimAsString("preferred_username"))
                     .or(() -> Optional.ofNullable(jwt.getClaimAsString("username")))
                     .or(() -> Optional.ofNullable(jwt.getSubject()));
@@ -67,7 +70,7 @@ public final class SecurityUtils {
                 String name = op.getAttribute("preferred_username");
                 if (name == null) name = op.getAttribute("username");
                 if (name == null) name = op.getName();
-                return Optional.ofNullable(name);
+                return Optional.of(name);
             }
             if (p instanceof String s && !"anonymousUser".equalsIgnoreCase(s)) return Optional.of(s);
             return Optional.empty();
@@ -77,19 +80,29 @@ public final class SecurityUtils {
             Authentication a = SecurityContextHolder.getContext().getAuthentication();
             if (a == null || !a.isAuthenticated()) return Optional.empty();
             Object p = a.getPrincipal();
-            if (p instanceof Jwt jwt) return Optional.ofNullable(jwt.getClaimAsString("userId"))
-                    .or(() -> Optional.ofNullable(jwt.getSubject()));
-            if (p instanceof OAuth2AuthenticatedPrincipal op) {
-                String uid = op.getAttribute("userId");
-                if (uid == null) uid = op.getAttribute("sub");
-                return Optional.ofNullable(uid);
-            }
-            // 自定义 SecurityUser 可在此判断并取 userId
-            try {
-                var method = p.getClass().getMethod("getUserId");
-                Object v = method.invoke(p);
-                return Optional.ofNullable(String.valueOf(v));
-            } catch (Exception ignored) { return Optional.empty(); }
+            
+            // 使用 switch 语句替换 if 语句
+            return switch (p) {
+                case null -> Optional.empty();
+                case Jwt jwt -> Optional.ofNullable(jwt.getClaimAsString("userId"))
+                        .or(() -> Optional.ofNullable(jwt.getSubject()));
+                case OAuth2AuthenticatedPrincipal op -> {
+                    String uid = op.getAttribute("userId");
+                    if (uid == null) uid = op.getAttribute("sub");
+                    yield uid != null ? Optional.of(uid) : Optional.empty();
+                }
+                default -> {
+                    // 自定义 SecurityUser 可在此判断并取 userId
+                    try {
+                        var method = p.getClass().getMethod("getUserId");
+                        Object v = method.invoke(p);
+                        String userId = String.valueOf(v);
+                        yield v != null ? Optional.of(userId) : Optional.empty();
+                    } catch (Exception ignored) {
+                        yield Optional.empty();
+                    }
+                }
+            };
         }
 
         @Override public boolean isAuthenticated() {

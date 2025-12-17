@@ -22,7 +22,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.regex.Pattern;
 
 import cn.hutool.core.util.StrUtil;
@@ -135,7 +134,6 @@ public class SqlInjectionFilter implements Filter {
         }
 
         byte[] bodyBytes = readLimited(request.getInputStream(), maxScanBytes);
-        boolean readBody = true;
 
         if (bodyBytes.length <= maxScanBytes) {
             String bodyStr = new String(bodyBytes, StandardCharsets.UTF_8);
@@ -151,10 +149,7 @@ public class SqlInjectionFilter implements Filter {
                 }
             }
         }
-        if (readBody) {
-            return new CachedBodyHttpServletRequest(request, bodyBytes);
-        }
-        return request;
+        return new CachedBodyHttpServletRequest(request, bodyBytes);
     }
 
     private DetectionState scanParameters(HttpServletRequest request,
@@ -200,30 +195,37 @@ public class SqlInjectionFilter implements Filter {
                                                    HttpServletResponse resp,
                                                    String uri,
                                                    boolean monitorOnly) throws IOException {
-        if (node == null) return DetectionState.NONE;
-
-        if (node instanceof JSONObject obj) {
-            for (String key : obj.keySet()) {
-                Object val = obj.get(key);
-                if (val instanceof CharSequence cs) {
-                    String s = cs.toString();
-                    DetectionState state = isMalicious(s, key, uri, req, resp, monitorOnly);
-                    if (state != DetectionState.NONE) {
-                        return state;
+        switch (node) {
+            case null -> {
+                return DetectionState.NONE;
+            }
+            case JSONObject obj -> {
+                for (String key : obj.keySet()) {
+                    Object val = obj.get(key);
+                    if (val instanceof CharSequence cs) {
+                        String s = cs.toString();
+                        DetectionState state = isMalicious(s, key, uri, req, resp, monitorOnly);
+                        if (state != DetectionState.NONE) {
+                            return state;
+                        }
+                    } else {
+                        DetectionState nested = containsMaliciousInJson(val, req, resp, uri, monitorOnly);
+                        if (nested != DetectionState.NONE) {
+                            return nested;
+                        }
                     }
-                } else {
+                }
+            }
+            case JSONArray arr -> {
+                for (Object val : arr) {
                     DetectionState nested = containsMaliciousInJson(val, req, resp, uri, monitorOnly);
                     if (nested != DetectionState.NONE) {
                         return nested;
                     }
                 }
             }
-        } else if (node instanceof JSONArray arr) {
-            for (Object val : arr) {
-                DetectionState nested = containsMaliciousInJson(val, req, resp, uri, monitorOnly);
-                if (nested != DetectionState.NONE) {
-                    return nested;
-                }
+            default -> {
+                // 其他类型不处理
             }
         }
         return DetectionState.NONE;

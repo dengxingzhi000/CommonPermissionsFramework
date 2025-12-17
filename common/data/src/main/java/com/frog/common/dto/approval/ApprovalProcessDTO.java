@@ -16,7 +16,7 @@ import lombok.experimental.Accessors;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-@Schema(description = "审批处理DTO")
+@Schema(description = "审批处理 DTO")
 public class ApprovalProcessDTO {
     @Schema(description = "是否批准")
     @NotNull(message = "批准状态不能为空")

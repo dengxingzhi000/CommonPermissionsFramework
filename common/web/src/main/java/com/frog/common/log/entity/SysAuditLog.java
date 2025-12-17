@@ -31,7 +31,7 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Tag(
-        name="SysAuditLog对象",
+        name="SysAuditLog 对象",
         description="操作审计日志表"
 )
 public class SysAuditLog implements Serializable {
@@ -39,11 +39,11 @@ public class SysAuditLog implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "日志ID")
+    @Schema(description = "日志 ID")
     @TableId(value = "id", type = IdType.AUTO)
     private UUID id;
 
-    @Schema(description = "操作用户ID")
+    @Schema(description = "操作用户 ID")
     private UUID userId;
 
     @Schema(description = "操作用户名")
@@ -52,7 +52,7 @@ public class SysAuditLog implements Serializable {
     @Schema(description = "操作人真实姓名")
     private String realName;
 
-    @Schema(description = "所属部门ID")
+    @Schema(description = "所属部门 ID")
     private UUID deptId;
 
     @Schema(description = "操作类型:LOGIN,LOGOUT,ADD,UPDATE,DELETE,QUERY,EXPORT,APPROVE")
@@ -64,7 +64,7 @@ public class SysAuditLog implements Serializable {
     @Schema(description = "操作描述")
     private String operationDesc;
 
-    @Schema(description = "请求URI")
+    @Schema(description = "请求 URI")
     private String requestUri;
 
     @Schema(description = "请求方法")
@@ -79,10 +79,10 @@ public class SysAuditLog implements Serializable {
     @Schema(description = "响应状态码")
     private Integer responseStatus;
 
-    @Schema(description = "操作IP")
+    @Schema(description = "操作 IP")
     private String ipAddress;
 
-    @Schema(description = "IP所在地")
+    @Schema(description = "IP 所在地")
     private String location;
 
     @Schema(description = "浏览器信息")
@@ -91,7 +91,7 @@ public class SysAuditLog implements Serializable {
     @Schema(description = "业务类型")
     private String businessType;
 
-    @Schema(description = "业务ID")
+    @Schema(description = "业务 ID")
     private String businessId;
 
     @Schema(description = "旧值(JSON)")

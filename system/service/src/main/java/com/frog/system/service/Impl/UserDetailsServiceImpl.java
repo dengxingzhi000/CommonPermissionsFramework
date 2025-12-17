@@ -2,6 +2,7 @@ package com.frog.system.service.Impl;
 
 import com.frog.common.web.domain.SecurityUser;
 import com.frog.system.mapper.SysUserMapper;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.Set;
 
 /**
- * UserDetailsService实现
+ * UserDetailsService 实现
  *
  * @author Deng
  * createData 2025/10/14 14:54
@@ -31,10 +32,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             key = "#username",
             unless = "#result == null"
     )
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    @NonNull
+    public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException {
         // 查询用户基本信息
         var user = sysUserMapper.findByUsername(username);
-        if (user == null || user.getDeleted() == 1) {
+        if (user == null || user.getDeleted()) {
             log.warn("User not found: {}", username);
             throw new UsernameNotFoundException("用户不存在或已删除: " + username);
         }
@@ -56,9 +58,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .userLevel(user.getUserLevel())
                 .roles(roles)
                 .permissions(permissions)
-                .twoFactorEnabled(user.getTwoFactorEnabled() == 1)
+                .twoFactorEnabled(user.getTwoFactorEnabled())
                 .passwordExpireTime(user.getPasswordExpireTime())
-                .forceChangePassword(user.getForceChangePassword() == 1)
+                .forceChangePassword(user.getForceChangePassword())
                 .build();
 
         log.info("User loaded: {}, Roles: {}, Permissions count: {}",

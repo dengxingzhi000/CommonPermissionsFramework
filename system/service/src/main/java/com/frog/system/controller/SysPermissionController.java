@@ -4,6 +4,8 @@ import com.frog.common.log.annotation.AuditLog;
 import com.frog.common.response.ApiResponse;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.system.service.ISysPermissionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/system/permissions")
 @RequiredArgsConstructor
+@Tag(name = "权限模块")
 public class SysPermissionController {
     private final ISysPermissionService permissionService;
 
@@ -30,6 +33,7 @@ public class SysPermissionController {
      */
     @GetMapping("/tree")
     @PreAuthorize("hasAuthority('system:permission:list')")
+    @Operation(summary = "查询权限树")
     public ApiResponse<List<PermissionDTO>> tree() {
         List<PermissionDTO> tree = permissionService.getPermissionTree();
 
@@ -41,6 +45,7 @@ public class SysPermissionController {
      */
     @PostMapping
     @PreAuthorize("hasAuthority('system:permission:add')")
+    @Operation(summary = "新增权限")
     @AuditLog(
             operation = "新增权限",
             businessType = "PERMISSION",
@@ -57,6 +62,7 @@ public class SysPermissionController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:permission:edit')")
+    @Operation(summary = "修改权限")
     @AuditLog(
             operation = "修改权限",
             businessType = "PERMISSION",
@@ -75,6 +81,7 @@ public class SysPermissionController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:permission:delete')")
+    @Operation(summary = "删除权限")
     @AuditLog(
             operation = "删除权限",
             businessType = "PERMISSION",
@@ -87,10 +94,11 @@ public class SysPermissionController {
     }
 
     /**
-     * 根据id查询权限
+     * 根据 id查询权限
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('system:permission:list')")
+    @Operation(summary = "查询权限详情")
     public ApiResponse<PermissionDTO> getById(@PathVariable UUID id) {
         PermissionDTO permissionDTO = permissionService.getPermissionById(id);
 

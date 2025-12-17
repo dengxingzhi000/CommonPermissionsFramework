@@ -9,9 +9,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * WebAuthn认证请求DTO
+ * WebAuthn 认证请求DTO
  * <p>
- * 用于验证WebAuthn凭证
+ * 用于验证 WebAuthn凭证
  *
  * @author system
  * @since 2025-11-27
@@ -20,10 +20,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "WebAuthn认证请求")
+@Schema(description = "WebAuthn 认证请求")
 public class WebauthnAuthenticationRequest {
-    @Schema(description = "凭证ID", example = "KSjKz3HHnUhFIAoS4RFCw", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank(message = "凭证ID不能为空")
+    @Schema(description = "凭证 ID", example = "KSjKz3HHnUhFIAoS4RFCw", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "凭证 ID不能为空")
     private String credentialId;
 
     @Schema(description = "客户端数据JSON(base64url)", requiredMode = Schema.RequiredMode.REQUIRED)

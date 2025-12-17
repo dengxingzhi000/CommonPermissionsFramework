@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
- * SysAuthService降级处理
+ * SysAuthService 降级处理
  *
  * @author Deng
  * createData 2025/11/6 13:47

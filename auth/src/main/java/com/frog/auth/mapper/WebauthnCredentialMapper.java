@@ -8,12 +8,12 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * WebAuthn凭证Mapper接口
+ * WebAuthn 凭证Mapper接口
  *
  * <p>该接口提供了对WebAuthn凭证数据的基本操作，包括：</p>
  * <ul>
  *   <li>查询用户的活跃凭证</li>
- *   <li>根据用户ID和凭证ID查询特定凭证</li>
+ *   <li>根据用户 ID和凭证 ID查询特定凭证</li>
  *   <li>更新凭证的签名计数和使用时间</li>
  *   <li>更新凭证关联的设备名称</li>
  *   <li>禁用或删除凭证</li>
@@ -24,7 +24,7 @@ import java.util.UUID;
 @Mapper
 public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential> {
     /**
-     * 根据用户ID查询所有活跃凭证
+     * 根据用户 ID查询所有活跃凭证
      *
      * <p>此方法用于获取指定用户的所有未被禁用的WebAuthn凭证，
      * 结果按照创建时间倒序排列（最新的在前）。</p>
@@ -40,7 +40,7 @@ public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential>
     List<WebauthnCredential> findByUserId(@Param("userId") UUID userId);
 
     /**
-     * 根据用户ID和凭证ID查询单个凭证
+     * 根据用户 ID和凭证 ID查询单个凭证
      *
      * <p>此方法用于精确查找一个特定的WebAuthn凭证，
      * 只有活跃状态（未被禁用）的凭证才会被返回。</p>

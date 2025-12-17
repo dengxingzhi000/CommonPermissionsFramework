@@ -55,16 +55,18 @@ public class ApiSignatureConfiguration {
         }
 
         if (!issues.isEmpty()) {
-            String message = String.format(
-                "API Signature Configuration Issues:\n  - %s\n\n" +
-                "REQUIRED: Set secrets via environment variables:\n" +
-                "  export API_SECRET_WEB_APP='<secure-random-string-min-32-chars>'\n" +
-                "  export API_SECRET_INTERNAL_SERVICE='<secure-random-string-min-32-chars>'\n\n" +
-                "Generate secure secrets:\n" +
-                "  openssl rand -base64 48\n" +
-                "  or use password manager",
-                String.join("\n  - ", issues)
-            );
+            String message = """
+                API Signature Configuration Issues:
+                  - %s
+                
+                REQUIRED: Set secrets via environment variables:
+                  export API_SECRET_WEB_APP='<secure-random-string-min-32-chars>'
+                  export API_SECRET_INTERNAL_SERVICE='<secure-random-string-min-32-chars>'
+                
+                Generate secure secrets:
+                  openssl rand -base64 48
+                  or use password manager
+                """.formatted(String.join("\n  - ", issues));
 
             if (isProduction) {
                 log.error("CRITICAL: {}", message);

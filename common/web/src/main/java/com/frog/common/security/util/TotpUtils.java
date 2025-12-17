@@ -12,7 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 /**
- * TOTP双因素认证工具类
+ * TOTP 双因素认证工具类
  *
  * @author Deng
  * createData 2025/11/5 17:20
@@ -52,7 +52,7 @@ public class TotpUtils {
     }
 
     /**
-     * 验证TOTP验证码
+     * 验证 TOTP验证码
      *
      * @param secret Base32编码的密钥
      * @param code 用户输入的6位验证码
@@ -66,7 +66,7 @@ public class TotpUtils {
         try {
             long currentTime = Instant.now().getEpochSecond() / TIME_STEP;
 
-            // 检查当前时间窗口和前后各WINDOW个窗口
+            // 检查当前时间窗口和前后各 WINDOW个窗口
             for (int i = -WINDOW; i <= WINDOW; i++) {
                 long time = currentTime + i;
                 String generatedCode = generateCode(secret, time);
@@ -77,10 +77,10 @@ public class TotpUtils {
                 }
             }
 
-            log.warn("TOTP验证失败");
+            log.warn("TOTP 验证失败");
             return false;
         } catch (Exception e) {
-            log.error("TOTP验证异常", e);
+            log.error("TOTP 验证异常", e);
             return false;
         }
     }

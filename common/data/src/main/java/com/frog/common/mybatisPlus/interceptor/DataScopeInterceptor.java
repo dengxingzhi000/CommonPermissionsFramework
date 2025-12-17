@@ -36,7 +36,7 @@ public class DataScopeInterceptor implements Interceptor {
         StatementHandler statementHandler = (StatementHandler) invocation.getTarget();
         MetaObject metaObject = SystemMetaObject.forObject(statementHandler);
 
-        // 获取SQL过滤条件
+        // 获取 SQL过滤条件
         var filter = DataScopeContextHolder.get();
         if (filter != null && filter.getClause() != null && !filter.getClause().isEmpty()
                 && isSafeFilter(filter.getClause()) && isSelectStatement(metaObject)) {

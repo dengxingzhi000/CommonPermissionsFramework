@@ -12,16 +12,16 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 临时角色授予DTO
+ * 临时角色授予 DTO
  *
  * @author Deng
  * createData 2025/11/3 15:57
  * @version 1.0
  */
 @Data
-@Schema(description = "临时角色授予DTO")
+@Schema(description = "临时角色授予 DTO")
 public class TemporaryRoleGrantDTO {
-    @Schema(description = "角色ID列表")
+    @Schema(description = "角色 ID列表")
     @NotNull(message = "角色列表不能为空")
     private List<UUID> roleIds;
 

@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Jwt拒绝处理器
+ * Jwt 拒绝处理器
  *
  * @author Deng
  * createData 2025/10/11 13:55

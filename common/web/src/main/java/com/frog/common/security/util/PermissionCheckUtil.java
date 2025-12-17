@@ -189,7 +189,7 @@ public class PermissionCheckUtil {
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         return authorities.stream()
                 .map(GrantedAuthority::getAuthority)
-                .filter(auth -> !auth.startsWith("ROLE_"))
+                .filter(auth -> auth != null && !auth.startsWith("ROLE_"))
                 .collect(Collectors.toSet());
     }
 
@@ -205,7 +205,7 @@ public class PermissionCheckUtil {
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         return authorities.stream()
                 .map(GrantedAuthority::getAuthority)
-                .filter(auth -> auth.startsWith("ROLE_"))
+                .filter(auth -> auth != null && auth.startsWith("ROLE_"))
                 .map(auth -> auth.substring(5)) // 移除"ROLE_"前缀
                 .collect(Collectors.toSet());
     }
@@ -213,7 +213,7 @@ public class PermissionCheckUtil {
     /**
      * 使用当前用户执行操作的通用方法(返回boolean类型)
      * @param function 要执行的操作
-     * @return 操作结果或默认值false
+     * @return 操作结果或默认值 false
      */
     private boolean executeWithUser(Function<SecurityUser, Boolean> function) {
         SecurityUser user = SecurityUtils.getCurrentUser();

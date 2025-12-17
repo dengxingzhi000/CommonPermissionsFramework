@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * Jwt配置类
+ * Jwt 配置类
  *
  * @author Deng
  * createData 2025/10/11 11:05
@@ -34,17 +34,17 @@ public class JwtProperties {
     private Long refreshExpiration = 604800000L;
 
     /**
-     * Token签发者
+     * Token 签发者
      */
     private String issuer = "nearsync-auth-service";
 
     /**
-     * Token请求头名称
+     * Token 请求头名称
      */
     private String header = "Authorization";
 
     /**
-     * Token前缀
+     * Token 前缀
      */
     private String prefix = "Bearer ";
 
@@ -68,7 +68,7 @@ public class JwtProperties {
     private Long autoRenewThreshold = 1800000L;
 
     /**
-     * 是否启用Token自动续期
+     * 是否启用 Token自动续期
      */
     private boolean autoRenewEnabled = false;
 

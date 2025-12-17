@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * WebAuthn凭证实体类
+ * WebAuthn 凭证实体类
  * <p>
  * 参考标准：
  * - W3C Web Authentication API Level 2
@@ -37,15 +37,15 @@ import java.util.UUID;
 @EqualsAndHashCode(callSuper = false, of = {"credentialId"})
 @Accessors(chain = true)
 @TableName(value = "webauthn_credential", autoResultMap = true)
-@Tag(name = "WebauthnCredential", description = "WebAuthn凭证实体")
+@Tag(name = "WebauthnCredential", description = "WebAuthn 凭证实体")
 public class WebauthnCredential implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
     /**
-     * 主键ID
+     * 主键 ID
      */
-    @Schema(description = "主键ID", example = "550e8400-e29b-41d4-a716-446655440000")
+    @Schema(description = "主键 ID", example = "550e8400-e29b-41d4-a716-446655440000")
     @TableId(value = "id", type = IdType.ASSIGN_ID)
     private UUID id;
 
@@ -58,7 +58,7 @@ public class WebauthnCredential implements Serializable {
             example = "KSjKz3HHnUhFIAoS4RFCw",
             requiredMode = Schema.RequiredMode.REQUIRED)
     @TableField(value = "credential_id")
-    @NotBlank(message = "凭证ID不能为空")
+    @NotBlank(message = "凭证 ID不能为空")
     @Size(min = 16, max = 1024, message = "凭证ID长度必须在16-1024之间")
     private String credentialId;
 
@@ -66,9 +66,9 @@ public class WebauthnCredential implements Serializable {
      * 用户ID
      * 业务外键，关联到sys_user表
      */
-    @Schema(description = "用户ID", example = "user_123456", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "用户 ID", example = "user_123456", requiredMode = Schema.RequiredMode.REQUIRED)
     @TableField(value = "user_id")
-    @NotBlank(message = "用户ID不能为空")
+    @NotBlank(message = "用户 ID不能为空")
     @Size(max = 64, message = "用户ID长度不能超过64")
     private UUID userId;
 
@@ -124,7 +124,7 @@ public class WebauthnCredential implements Serializable {
     private String deviceName;
 
     /**
-     * AAGUID (Authenticator Attestation GUID)
+     * aaGUID (Authenticator Attestation GUID)
      * 识别认证器型号的唯一标识符
      * 格式：UUID (例如：08987058-cadc-4b81-b6e1-30de50dcbe96)
      */
@@ -132,7 +132,7 @@ public class WebauthnCredential implements Serializable {
             example = "08987058-cadc-4b81-b6e1-30de50dcbe96")
     @TableField(value = "aaguid")
     @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-             message = "AAGUID格式不正确")
+             message = "aaGUID格式不正确")
     private String aaguid;
 
     /**
@@ -175,7 +175,7 @@ public class WebauthnCredential implements Serializable {
      */
     @Schema(description = "创建时间", example = "2025-11-27T10:00:00")
     @TableField(value = "created_time", fill = FieldFill.INSERT)
-    private LocalDateTime createdTime;
+    private LocalDateTime createTime;
 
     /**
      * 更新时间
@@ -183,7 +183,7 @@ public class WebauthnCredential implements Serializable {
      */
     @Schema(description = "更新时间", example = "2025-11-27T10:30:00")
     @TableField(value = "updated_time", fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedTime;
+    private LocalDateTime updateTime;
 
     /**
      * 备份恢复码哈希 (可选)
@@ -268,6 +268,6 @@ public class WebauthnCredential implements Serializable {
      */
     public void deactivate() {
         this.isActive = false;
-        this.updatedTime = LocalDateTime.now();
+        this.updateTime = LocalDateTime.now();
     }
 }

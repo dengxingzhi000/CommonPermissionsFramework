@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * 统一处理Token提取
+ * 统一处理 Token提取
  *
  * @author Deng
  * createData 2025/10/20 16:23

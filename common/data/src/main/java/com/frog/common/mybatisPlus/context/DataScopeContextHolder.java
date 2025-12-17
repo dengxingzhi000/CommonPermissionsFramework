@@ -1,7 +1,5 @@
 package com.frog.common.mybatisPlus.context;
 
-import com.frog.common.mybatisPlus.context.DataScopeFilter;
-
 /**
  * 数据权限上下文
  */

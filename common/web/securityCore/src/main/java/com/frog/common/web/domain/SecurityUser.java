@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,7 +24,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 自定义UserDetails
+ * 自定义 UserDetails
  *
  * @author Deng
  * createData 2025/10/14 14:52
@@ -62,7 +63,7 @@ public class SecurityUser implements UserDetails {
 
     @Override
     @JsonIgnore
-    public Collection<? extends GrantedAuthority> getAuthorities() {
+    public @NonNull Collection<? extends GrantedAuthority> getAuthorities() {
         // 合并角色和权限，防御空集合
         Set<GrantedAuthority> authorities = (roles != null ? roles : Collections.<String>emptySet()).stream()
                 .map(SimpleGrantedAuthority::new)
@@ -81,7 +82,9 @@ public class SecurityUser implements UserDetails {
     }
 
     @Override
-    public String getUsername() { return this.username; }
+    public @NonNull String getUsername() {
+        return this.username;
+    }
 
     @Override
     public boolean isAccountNonExpired() {

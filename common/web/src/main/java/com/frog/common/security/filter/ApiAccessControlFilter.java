@@ -5,6 +5,7 @@ import com.frog.common.log.enums.SecurityEventType;
 import com.frog.common.log.service.ISysAuditLogService;
 import com.frog.common.security.config.ApiAccessControlProperties;
 import com.frog.common.security.metrics.SecurityMetrics;
+import com.frog.common.security.util.FilterBypassHelper;
 import com.frog.common.security.util.IpUtils;
 import com.frog.common.security.util.SecurityErrorResponseWriter;
 import com.frog.common.web.domain.SecurityUser;
@@ -14,14 +15,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -40,24 +40,13 @@ import java.util.UUID;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ApiAccessControlFilter extends OncePerRequestFilter {
 
     private final PermissionService permissionService;
     private final ISysAuditLogService auditLogService;
     private final SecurityMetrics securityMetrics;
     private final ApiAccessControlProperties properties;
-    private final AntPathMatcher pathMatcher = new AntPathMatcher();
-
-    public ApiAccessControlFilter(PermissionService permissionService,
-                                  ISysAuditLogService auditLogService,
-                                  SecurityMetrics securityMetrics,
-                                  ApiAccessControlProperties properties) {
-        this.permissionService = permissionService;
-        this.auditLogService = auditLogService;
-        this.securityMetrics = securityMetrics;
-        this.properties = properties;
-        log.info("ApiAccessControlFilter initialized with PermissionService and Sentinel circuit breaking support");
-    }
 
     @Override
     protected void doFilterInternal(@Nonnull HttpServletRequest request, @Nonnull HttpServletResponse response,
@@ -85,7 +74,8 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
         }
 
         if (shouldBypass(requestUri, principal)) {
-            markBypass(response, "api-access-bypass");
+            String reason = "api-access-bypass";
+            markBypass(response, reason);
             securityMetrics.increment("security.access.bypass.config");
             filterChain.doFilter(request, response);
             return;
@@ -140,33 +130,15 @@ public class ApiAccessControlFilter extends OncePerRequestFilter {
     }
 
     private boolean isWhitelisted(String uri) {
-        return matchesAny(uri, properties.getWhitelist());
+        return FilterBypassHelper.matchesAny(uri, properties.getWhitelist());
     }
 
     private boolean shouldBypass(String uri, SecurityUser principal) {
-        if (matchesAny(uri, properties.getBypassPaths())) {
-            return true;
-        }
-        if (principal == null) {
-            return false;
-        }
-        if (properties.getBypassUsers().stream()
-                .anyMatch(u -> Objects.equals(u, principal.getUsername()))) {
-            return true;
-        }
-        Set<String> roles = principal.getRoles();
-        if (roles != null && roles.stream().anyMatch(properties.getBypassRoles()::contains)) {
-            return true;
-        }
-        Set<String> permissions = principal.getPermissions();
-        return permissions != null && permissions.stream().anyMatch(properties.getBypassPermissions()::contains);
-    }
-
-    private boolean matchesAny(String uri, List<String> patterns) {
-        if (patterns == null || patterns.isEmpty()) {
-            return false;
-        }
-        return patterns.stream().anyMatch(p -> pathMatcher.match(p, uri) || uri.startsWith(p));
+        return FilterBypassHelper.shouldBypass(uri, principal,
+                properties.getBypassPaths(),
+                properties.getBypassUsers(),
+                properties.getBypassRoles(),
+                properties.getBypassPermissions());
     }
 
     private boolean isSensitiveOperation(String method, String uri) {

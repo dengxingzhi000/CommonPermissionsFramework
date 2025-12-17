@@ -51,7 +51,7 @@ public class HttpsRedirectConfig {
         connector.setScheme("http");
         connector.setPort(properties.getHttpPort());
         connector.setSecure(false);
-        connector.setRedirectPort(properties.getRedirectPort()); // 重定向到HTTPS端口
+        connector.setRedirectPort(properties.getRedirectPort()); // 重定向到 HTTPS端口
 
         return connector;
     }

@@ -29,7 +29,7 @@ public class OAuth2LogoutController {
             @RequestHeader("Authorization") String token,
             @RequestParam(required = false) String clientId) {
 
-        // 解析Token
+        // 解析 Token
         String accessToken = token.replace("Bearer ", ""); // 去掉"Bearer "
         UUID userId = jwtUtils.getUserIdFromToken(accessToken);
 

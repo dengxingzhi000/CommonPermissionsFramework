@@ -1,13 +1,9 @@
 package com.frog.system.domain.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.*;
 
 import java.io.Serial;
 import java.time.LocalDateTime;
-import com.baomidou.mybatisplus.annotation.TableId;
 import java.io.Serializable;
 import java.util.UUID;
 
@@ -30,18 +26,18 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @TableName("sys_permission")
 @Tag(
-        name="SysPermission对象",
+        name="SysPermission 对象",
         description="权限表"
 )
 public class SysPermission implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "权限ID")
+    @Schema(description = "权限 ID")
     @TableId(value = "id", type = IdType.NONE)
     private UUID id;
 
-    @Schema(description = "父级ID")
+    @Schema(description = "父级 ID")
     private UUID parentId;
 
     @Schema(description = "权限编码")
@@ -78,16 +74,16 @@ public class SysPermission implements Serializable {
     private Integer riskLevel;
 
     @Schema(description = "是否需要审批")
-    private Integer needApproval;
+    private Boolean needApproval;
 
     @Schema(description = "是否需要双因素认证")
-    private Integer needTwoFactor;
+    private Boolean needTwoFactor;
 
     @Schema(description = "排序")
     private Integer sortOrder;
 
     @Schema(description = "是否可见")
-    private Integer visible;
+    private Boolean visible;
 
     @Schema(description = "状态")
     private Integer status;
@@ -109,5 +105,6 @@ public class SysPermission implements Serializable {
     private UUID updateBy;
 
     @Schema(description = "逻辑删除")
-    private Integer deleted;
+    @TableLogic(value = "false", delval = "true")
+    private Boolean deleted;
 }

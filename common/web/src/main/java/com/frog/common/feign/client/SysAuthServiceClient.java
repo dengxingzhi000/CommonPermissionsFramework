@@ -26,5 +26,5 @@ public interface SysAuthServiceClient {
      * 强制用户登出
      */
     @PostMapping("/force-logout/{userId}")
-    ApiResponse<Void> forceLogout(@PathVariable("userId") UUID userId, @RequestParam("reason") String reason);
+    ApiResponse<Void> forceLogout(@PathVariable UUID userId, @RequestParam("reason") String reason);
 }

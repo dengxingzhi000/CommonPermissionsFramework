@@ -16,7 +16,7 @@ import java.lang.annotation.*;
 public @interface Idempotent {
 
     /**
-     * 幂等性key的前缀
+     * 幂等性 key的前缀
      */
     String prefix() default "idempotent:";
 

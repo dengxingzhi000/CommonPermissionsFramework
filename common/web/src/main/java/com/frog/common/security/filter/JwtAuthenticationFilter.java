@@ -27,7 +27,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Jwt过滤器
+ * Jwt 过滤器
  *
  * @author Deng
  * createData 2025/10/11 13:49
@@ -47,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @Nonnull HttpServletResponse response,
                                     @Nonnull FilterChain filterChain) throws ServletException, IOException {
         try {
-            // 获取Token
+            // 获取 Token
             String token = httpServletRequestUtils.getTokenFromRequest(request);
 
             if (StringUtils.hasText(token)) {
@@ -55,7 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String currentIp = IpUtils.getClientIp(request);
                 String currentDeviceId = httpServletRequestUtils.getDeviceId(request);
 
-                // 验证Token
+                // 验证 Token
                 if (jwtUtils.validateToken(token, currentIp, currentDeviceId)) {
                     // 提取用户信息
                     UUID userId = jwtUtils.getUserIdFromToken(token);
@@ -86,7 +86,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    // 设置到Security上下文
+                    // 设置到 Security上下文
                     SecurityContextHolder.getContext().setAuthentication(authentication);
 
                     log.debug("User authenticated: traceId={}, userId={}, username={}",

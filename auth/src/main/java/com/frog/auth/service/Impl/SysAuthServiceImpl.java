@@ -82,6 +82,12 @@ public class SysAuthServiceImpl implements ISysAuthService {
             );
 
             SecurityUser user = (SecurityUser) authentication.getPrincipal();
+            
+            // 验证用户对象非空
+            if (user == null) {
+                auditLogService.recordLoginFailure(username, ipAddress, "认证失败：用户信息为空");
+                throw new BadCredentialsException("认证失败");
+            }
 
             // MFA verification (single path)
             if (Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
@@ -93,7 +99,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
             }
 
             // 4. 检查双因素认证
-            if (user.getTwoFactorEnabled() && !verifyTwoFactor(request.getTwoFactorCode(), user.getUserId())) {
+            if (Boolean.TRUE.equals(user.getTwoFactorEnabled()) && !verifyTwoFactor(request.getTwoFactorCode(), user.getUserId())) {
                 if (!totpUtils.verifyCode(user.getTwoFactorSecret(), request.getTwoFactorCode())) {
                     auditLogService.recordLoginFailure(username, ipAddress, "双因素认证失败");
                     throw new BadCredentialsException("双因素认证码错误");
@@ -228,7 +234,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
     @Override
     public LoginResponse refreshToken(String refreshToken, String deviceId, String ipAddress) {
-        if (!jwtUtils.validateRefreshToken(refreshToken)) {
+        if (!jwtUtils.isRefreshTokenInvalid(refreshToken)) {
             throw new BadCredentialsException("刷新令牌无效或已过期");
         }
 

@@ -36,35 +36,35 @@ public interface SysPermissionServiceClient {
      * 查询用户权限
      */
     @GetMapping("/user/{userId}")
-    ApiResponse<Set<String>> getUserPermissions(@PathVariable("userId") UUID userId);
+    ApiResponse<Set<String>> getUserPermissions(@PathVariable UUID userId);
 
     /**
      * 查询用户是否有指定权限
      */
     @GetMapping("/user/{userId}/has-permission")
-    ApiResponse<Boolean> hasPermission(@PathVariable("userId") UUID userId,
+    ApiResponse<Boolean> hasPermission(@PathVariable UUID userId,
                                        @RequestParam("permissionCode") String permissionCode);
 
     /**
-     * 根据ID获取权限详情
+     * 根据 ID获取权限详情
      */
     @GetMapping("/{id}")
-    ApiResponse<PermissionDTO> getPermissionById(@PathVariable("id") UUID id);
+    ApiResponse<PermissionDTO> getPermissionById(@PathVariable UUID id);
 
     /**
-     * 根据URL和HTTP方法查询权限
+     * 根据 URL和HTTP方法查询权限
      */
     @GetMapping("/find-by-url")
     List<String> findPermissionsByUrl(@RequestParam("url") String url, @RequestParam("method") String method);
 
     /**
-     * 根据用户ID查询权限
+     * 根据用户 ID查询权限
      */
     @GetMapping("/find-by-userId")
     Set<String> findAllPermissionsByUserId(@RequestParam("userId") UUID userId);
 
     /**
-     * 查询所有API权限
+     * 查询所有 API权限
      */
     //todo 待完善
     @GetMapping("/api")
