@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
 import java.io.Serial;
@@ -23,21 +24,21 @@ import java.util.UUID;
 @Accessors(chain = true)
 @TableName("sys_user_role")
 @Tag(
-        name = "SysUserRole对象",
+        name = "SysUserRole 对象",
         description = "用户角色关联表"
 )
 public class SysUserRole implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "主键ID")
+    @Schema(description = "主键 ID")
     @TableId(value = "id", type = IdType.ASSIGN_UUID)
     private UUID id;
 
-    @Schema(description = "用户ID")
+    @Schema(description = "用户 ID")
     private UUID userId;
 
-    @Schema(description = "角色ID")
+    @Schema(description = "角色 ID")
     private UUID roleId;
 
     @Schema(description = "生效时间(临时授权)")
@@ -66,6 +67,7 @@ public class SysUserRole implements Serializable {
     /**
      * 审批状态枚举
      */
+    @Getter
     public enum ApprovalStatus {
         PENDING(0, "待审批"),
         IN_PROGRESS(1, "审批中"),
@@ -78,14 +80,6 @@ public class SysUserRole implements Serializable {
         ApprovalStatus(int code, String desc) {
             this.code = code;
             this.desc = desc;
-        }
-
-        public int getCode() {
-            return code;
-        }
-
-        public String getDesc() {
-            return desc;
         }
     }
 

@@ -279,8 +279,9 @@ public class SysUserController {
      * 更新最后登录信息
      */
     @GetMapping("/{userId}/update-login")
-    ApiResponse<Void> updateLastLogin(@PathVariable("userId") UUID userId,
-                                      @RequestParam("ipAddress") String ipAddress) {
+    @Operation(summary = "更新最后登录信息")
+    public ApiResponse<Void> updateLastLogin(@PathVariable UUID userId,
+                                             @RequestParam("ipAddress") String ipAddress) {
         userService.updateLastLogin(userId, ipAddress);
 
         return ApiResponse.success();

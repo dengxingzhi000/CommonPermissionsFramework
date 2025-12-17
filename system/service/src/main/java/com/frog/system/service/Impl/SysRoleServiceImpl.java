@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.frog.common.dto.role.RoleDTO;
 import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.domain.entity.SysRole;
+import com.frog.system.event.DataSyncEventPublisher;
 import com.frog.system.mapper.SysRoleMapper;
 import com.frog.system.service.ISysRoleService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> implements ISysRoleService {
     private final SysRoleMapper roleMapper;
+    private final DataSyncEventPublisher dataSyncEventPublisher;
 
     /**
      * 分页查询角色列表
@@ -48,7 +50,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
         Page<SysRole> rolePage = roleMapper.selectPage(page, wrapper);
 
-        // 转换为DTO
+        // 转换为 DTO
         Page<RoleDTO> roleDTOPage = new Page<>(pageNum, pageSize, rolePage.getTotal());
         List<RoleDTO> roleDTOs = rolePage.getRecords().stream()
                 .map(this::convertToRoleDTO)
@@ -77,7 +79,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     }
 
     /**
-     * 根据ID查询角色
+     * 根据 ID查询角色
      */
     @Cacheable(
             value = "role",
@@ -127,6 +129,9 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                     SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
+        // Publish sync event for redundancy update
+        dataSyncEventPublisher.publishRoleCreated(role);
+
         log.info("Role created: {}, by: {}", role.getRoleCode(), SecurityUtils.getCurrentUsername());
     }
 
@@ -153,6 +158,10 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         BeanUtils.copyProperties(roleDTO, role);
 
         roleMapper.updateById(role);
+
+        // Publish sync event for redundancy update
+        SysRole updatedRole = roleMapper.selectById(role.getId());
+        dataSyncEventPublisher.publishRoleUpdated(updatedRole);
 
         log.info("Role updated: {}, by: {}", role.getRoleCode(), SecurityUtils.getCurrentUsername());
     }
@@ -188,6 +197,9 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         // 删除角色
         roleMapper.deleteById(id);
 
+        // Publish sync event for redundancy update
+        dataSyncEventPublisher.publishRoleDeleted(id);
+
         log.info("Role deleted: {}, by: {}", role.getRoleCode(), SecurityUtils.getCurrentUsername());
     }
 
@@ -220,7 +232,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     }
 
     /**
-     * 查询角色权限ID列表
+     * 查询角色权限 ID列表
      */
     @Cacheable(
             value = "rolePermissions",
@@ -229,8 +241,6 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     public List<UUID> getRolePermissionIds(UUID roleId) {
         return roleMapper.findPermissionIdsByRoleId(roleId);
     }
-
-    // ========== 私有方法 ==========
 
     private RoleDTO convertToRoleDTO(SysRole role) {
         RoleDTO roleDTO = new RoleDTO();

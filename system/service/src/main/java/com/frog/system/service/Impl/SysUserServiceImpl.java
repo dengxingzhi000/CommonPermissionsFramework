@@ -13,6 +13,7 @@ import com.frog.common.dto.user.UserDTO;
 import com.frog.common.dto.user.UserInfo;
 import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.domain.entity.SysUser;
+import com.frog.system.event.DataSyncEventPublisher;
 import com.frog.system.mapper.SysPermissionMapper;
 import com.frog.system.mapper.SysUserMapper;
 import com.frog.system.service.ISysUserService;
@@ -47,6 +48,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private final SysUserMapper userMapper;
     private final SysPermissionMapper permissionMapper;
     private final PasswordEncoder passwordEncoder;
+    private final DataSyncEventPublisher dataSyncEventPublisher;
     
     @Value("${spring.security.default-password}")
     private String defaultPassword;
@@ -65,7 +67,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         Page<SysUser> userPage = userMapper.selectPage(page, wrapper);
 
-        // 转换为DTO
+        // 转换为 DTO
         Page<UserDTO> userDTOPage = new Page<>(pageNum, pageSize, userPage.getTotal());
         List<UserDTO> userDTOs = userPage.getRecords().stream()
                 .map(this::convertToDTO)
@@ -76,7 +78,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     /**
-     * 根据ID查询用户
+     * 根据 ID查询用户
      */
     @Cacheable(
             value = "user",
@@ -148,20 +150,19 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     /**
      * 新增用户
-     *
-     * PERFORMANCE: Password encoding moved outside transaction to reduce lock time
      */
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(
             value = {"user", "userDetails", "userInfo"},
             allEntries = true
     )
     public void addUser(UserDTO userDTO) {
-        // 1. Pre-transaction validation and preparation
+        // 1. Validation
         if (userMapper.existsByUsername(userDTO.getUsername())) {
             throw new BusinessException(ResultCode.USER_EXIST.getCode(), ResultCode.USER_EXIST.getMessage());
         }
 
-        // 2. CPU-intensive operation BEFORE transaction (BCrypt hashing)
+        // 2. Password encoding
         String encodedPassword;
         if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
             encodedPassword = passwordEncoder.encode(userDTO.getPassword());
@@ -175,25 +176,20 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         user.setPassword(encodedPassword);
         user.setId(UUIDv7Util.generate());
         user.setPasswordExpireTime(LocalDateTime.now().plusDays(90));
-        user.setForceChangePassword(1);
+        user.setForceChangePassword(true);
 
-        // 4. Start transaction - only database operations inside
-        executeAddUserTransaction(user, userDTO.getRoleIds());
-
-        log.info("User created: {}, by: {}", user.getUsername(), SecurityUtils.getCurrentUsername());
-    }
-
-    /**
-     * Transaction-only method - no CPU-intensive operations allowed
-     */
-    @Transactional(rollbackFor = Exception.class)
-    protected void executeAddUserTransaction(SysUser user, List<UUID> roleIds) {
+        // 4. Database operations
         userMapper.insert(user);
 
-        if (roleIds != null && !roleIds.isEmpty()) {
-            userMapper.batchInsertUserRoles(user.getId(), roleIds,
+        if (userDTO.getRoleIds() != null && !userDTO.getRoleIds().isEmpty()) {
+            userMapper.batchInsertUserRoles(user.getId(), userDTO.getRoleIds(),
                     SecurityUtils.getCurrentUserUuid().orElse(null));
         }
+
+        // 5. Publish sync event for redundancy update
+        dataSyncEventPublisher.publishUserCreated(user);
+
+        log.info("User created: {}, by: {}", user.getUsername(), SecurityUtils.getCurrentUsername());
     }
 
     /**
@@ -225,6 +221,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             }
         }
 
+        // Publish sync event for redundancy update
+        SysUser updatedUser = userMapper.selectById(user.getId());
+        dataSyncEventPublisher.publishUserUpdated(updatedUser);
+
         log.info("User updated: {}, by: {}", user.getUsername(), SecurityUtils.getCurrentUsername());
     }
 
@@ -254,6 +254,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         userMapper.deleteById(id);
 
+        // Publish sync event for redundancy update
+        dataSyncEventPublisher.publishUserDeleted(id);
+
         log.info("User deleted: {}, by: {}", user.getUsername(), SecurityUtils.getCurrentUsername());
     }
 
@@ -274,7 +277,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         String newPassword = generateRandomPassword();
 
         user.setPassword(passwordEncoder.encode(newPassword));
-        user.setForceChangePassword(1);
+        user.setForceChangePassword(true);
 
         userMapper.updateById(user);
 
@@ -335,7 +338,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
-        user.setForceChangePassword(0);
+        user.setForceChangePassword(false);
         user.setLastPasswordChangeTime(LocalDateTime.now());
 
         LocalDateTime passwordExpireTime = LocalDateTime.now().plusDays(90);
@@ -551,13 +554,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
        userMapper.update(null, updateWrapper);
     }
 
-    // ========== 私有方法 ==========
-
     private UserDTO convertToDTO(SysUser user) {
         UserDTO userDTO = new UserDTO();
         BeanUtils.copyProperties(user, userDTO);
-        userDTO.setForceChangePassword(user.getForceChangePassword() == 1);
-        userDTO.setTwoFactorEnabled(user.getTwoFactorEnabled() == 1);
+
         return userDTO;
     }
 }

@@ -16,7 +16,6 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class SessionManager {
-
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String SESSION_PREFIX = "session:";

@@ -23,21 +23,21 @@ import java.util.UUID;
 @Accessors(chain = true)
 @TableName("sys_role_dept")
 @Tag(
-        name = "SysRoleDept对象",
+        name = "SysRoleDept 对象",
         description = "角色部门关联表"
 )
 public class SysRoleDept implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "主键ID")
+    @Schema(description = "主键 ID")
     @TableId(value = "id", type = IdType.ASSIGN_UUID)
     private UUID id;
 
-    @Schema(description = "角色ID")
+    @Schema(description = "角色 ID")
     private UUID roleId;
 
-    @Schema(description = "部门ID")
+    @Schema(description = "部门 ID")
     private UUID deptId;
 
     @Schema(description = "是否包含子部门")

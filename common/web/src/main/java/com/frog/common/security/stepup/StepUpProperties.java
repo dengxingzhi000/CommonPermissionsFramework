@@ -11,7 +11,6 @@ import java.util.List;
 @ConfigurationProperties(prefix = "security.stepup")
 @Data
 public class StepUpProperties {
-
     private boolean enabled = true;
     // 工作时间窗口（含）
     private int businessStartHour = 9;   // 09:00

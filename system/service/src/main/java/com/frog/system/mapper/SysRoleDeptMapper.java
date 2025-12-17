@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.system.domain.entity.SysRoleDept;
 import org.apache.ibatis.annotations.*;
@@ -14,10 +15,11 @@ import java.util.UUID;
  * @since 2025-12-15
  */
 @Mapper
+@DS("permission")
 public interface SysRoleDeptMapper extends BaseMapper<SysRoleDept> {
 
     /**
-     * 根据角色ID查询部门ID列表
+     * 根据角色 ID查询部门ID列表
      */
     @Select("""
             SELECT dept_id FROM sys_role_dept
@@ -34,27 +36,29 @@ public interface SysRoleDeptMapper extends BaseMapper<SysRoleDept> {
             """)
     List<SysRoleDept> findByRoleId(@Param("roleId") UUID roleId);
 
+    // 注意：findAccessibleDeptIds 方法已移至 Service 层实现
+    // 该方法涉及跨库查询（permission + org），需要通过 Service 层聚合：
+    // 1. 先通过 findByRoleId 查询角色部门关联（包含 include_children 标记）
+    // 2. 对于 include_children=true 的部门，通过 SysDeptMapper.selectDeptAndChildren 递归查询
+    // 3. 合并所有部门 ID
+
     /**
-     * 根据角色ID获取可访问的部门ID（递归包含子部门）
+     * 查询需要递归子部门的部门 ID 列表
      */
     @Select("""
-            WITH RECURSIVE dept_tree AS (
-                SELECT d.id
-                FROM sys_role_dept rd
-                JOIN sys_dept d ON rd.dept_id = d.id
-                WHERE rd.role_id = #{roleId}
-
-                UNION ALL
-
-                SELECT child.id
-                FROM sys_dept child
-                JOIN dept_tree parent ON child.parent_id = parent.id
-                JOIN sys_role_dept rd ON rd.role_id = #{roleId} AND rd.include_children = true
-                WHERE NOT child.deleted
-            )
-            SELECT DISTINCT id FROM dept_tree
+            SELECT dept_id FROM sys_role_dept
+            WHERE role_id = #{roleId} AND include_children = true
             """)
-    List<UUID> findAccessibleDeptIds(@Param("roleId") UUID roleId);
+    List<UUID> findDeptIdsWithChildren(@Param("roleId") UUID roleId);
+
+    /**
+     * 查询不需要递归子部门的部门 ID 列表
+     */
+    @Select("""
+            SELECT dept_id FROM sys_role_dept
+            WHERE role_id = #{roleId} AND include_children = false
+            """)
+    List<UUID> findDeptIdsWithoutChildren(@Param("roleId") UUID roleId);
 
     /**
      * 删除角色的所有部门关联

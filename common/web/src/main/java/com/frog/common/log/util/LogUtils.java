@@ -17,7 +17,6 @@ import java.util.Map;
  */
 @Slf4j
 public class LogUtils {
-
     private static final String KEY_USER_ID = "userId";
     private static final String KEY_USERNAME = "username";
     private static final String KEY_TRACE_ID = "traceId";

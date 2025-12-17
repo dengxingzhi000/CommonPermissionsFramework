@@ -16,7 +16,7 @@ import java.time.Duration;
 import java.util.*;
 
 /**
- * Jwt工具类
+ * Jwt 工具类
  *
  * @author Deng
  * createData 2025/10/11 11:08
@@ -68,7 +68,7 @@ public class JwtUtils {
         String token = createToken(claims, userId.toString(),
                 jwtProperties.getExpiration());
 
-        // 存储Token元数据
+        // 存储 Token元数据
         storeTokenMetadata(userId, deviceId, token, jti, ipAddress,
                 jwtProperties.getExpiration());
 
@@ -94,7 +94,7 @@ public class JwtUtils {
         String token = createToken(claims, userId.toString(),
                 jwtProperties.getExpiration());
 
-        // 存储Token元数据
+        // 存储 Token元数据
         storeTokenMetadata(userId, deviceId, token, jti, ipAddress,
                 jwtProperties.getExpiration());
 
@@ -162,14 +162,20 @@ public class JwtUtils {
         return false;
     }
 
-    public boolean validateRefreshToken(String token) {
+    /**
+     * 检查刷新令牌是否无效
+     *
+     * @param token 刷新令牌
+     * @return true 如果令牌无效，false 如果令牌有效
+     */
+    public boolean isRefreshTokenInvalid(String token) {
         try {
             Claims claims = parseToken(token);
             String tokenType = (String) claims.get("tokenType");
             Date expiration = claims.getExpiration();
-            return "refresh".equals(tokenType) && expiration.after(new Date());
+            return !"refresh".equals(tokenType) || !expiration.after(new Date());
         } catch (Exception e) {
-            return false;
+            return true;
         }
     }
 
@@ -179,7 +185,7 @@ public class JwtUtils {
     public String refreshToken(String refreshToken, Set<String> roles,
                                Set<String> permissions,
                                String deviceId, String ipAddress) {
-        if (!validateRefreshToken(refreshToken)) {
+        if (isRefreshTokenInvalid(refreshToken)) {
             throw new UnauthorizedException("Invalid refresh token");
         }
 
@@ -209,7 +215,7 @@ public class JwtUtils {
     }
 
     /**
-     * 撤销Token
+     * 撤销 Token
      */
     public void revokeToken(String token, String reason) {
         try {
@@ -224,7 +230,7 @@ public class JwtUtils {
                 // 加入黑名单
                 addToBlacklist(jti, userId, reason, ttl);
 
-                // 删除Token缓存
+                // 删除 Token缓存
                 deleteTokenCache(userId, deviceId);
 
                 // 删除指纹
@@ -239,7 +245,6 @@ public class JwtUtils {
 
     /**
      * Revokes all tokens for a given user across all devices.
-     *
      * PERFORMANCE: Uses Redis Hash instead of KEYS command for O(1) lookup.
      * Each user has a hash: jwt:user:tokens:{userId} -> { deviceId: token }
      */
@@ -275,7 +280,7 @@ public class JwtUtils {
     }
 
     /**
-     * 从Token中提取角色
+     * 从 Token中提取角色
      */
     @SuppressWarnings("unchecked")
     public Set<String> getRolesFromToken(String token) {
@@ -286,7 +291,7 @@ public class JwtUtils {
     }
 
     /**
-     * 从Token中提取权限
+     * 从 Token中提取权限
      */
     @SuppressWarnings("unchecked")
     public Set<String> getPermissionsFromToken(String token) {
@@ -404,7 +409,6 @@ public class JwtUtils {
 
     /**
      * Stores token metadata in Redis using Hash structure for efficient lookups.
-     *
      * PERFORMANCE OPTIMIZATION:
      * - User tokens stored in Hash: jwt:user:tokens:{userId} -> {deviceId: token}
      * - Allows O(1) lookup and O(N) revocation where N = devices (typically < 10)

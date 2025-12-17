@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.system.domain.entity.SysRoleDataRule;
 import org.apache.ibatis.annotations.*;
@@ -14,10 +15,11 @@ import java.util.UUID;
  * @since 2025-12-15
  */
 @Mapper
+@DS("permission")
 public interface SysRoleDataRuleMapper extends BaseMapper<SysRoleDataRule> {
 
     /**
-     * 根据角色ID查询规则ID列表
+     * 根据角色 ID查询规则ID列表
      */
     @Select("""
             SELECT rule_id FROM sys_role_data_rule

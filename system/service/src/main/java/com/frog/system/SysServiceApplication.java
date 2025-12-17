@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 /**
- * Service模块启动类
+ * Service 模块启动类
  *
  * @author Deng
  * createData 2025/11/13 13:56

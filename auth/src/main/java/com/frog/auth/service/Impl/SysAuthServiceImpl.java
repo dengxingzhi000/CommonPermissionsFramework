@@ -234,7 +234,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
     @Override
     public LoginResponse refreshToken(String refreshToken, String deviceId, String ipAddress) {
-        if (!jwtUtils.validateRefreshToken(refreshToken)) {
+        if (!jwtUtils.isRefreshTokenInvalid(refreshToken)) {
             throw new BadCredentialsException("刷新令牌无效或已过期");
         }
 

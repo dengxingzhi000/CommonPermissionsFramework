@@ -5,6 +5,7 @@ import com.frog.common.exception.BusinessException;
 import com.frog.common.util.UUIDv7Util;
 import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.domain.entity.SysDept;
+import com.frog.system.event.DataSyncEventPublisher;
 import com.frog.system.mapper.SysDeptMapper;
 import com.frog.system.service.ISysDeptService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -30,6 +31,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> implements ISysDeptService {
     private final SysDeptMapper deptMapper;
+    private final DataSyncEventPublisher dataSyncEventPublisher;
 
     /**
      * 查询部门树
@@ -87,6 +89,9 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
 
         deptMapper.insert(dept);
 
+        // Publish sync event for redundancy update
+        dataSyncEventPublisher.publishDeptCreated(dept);
+
         log.info("部门创建成功: {}, 操作人: {}", dept.getDeptName(),
                 SecurityUtils.getCurrentUsername());
     }
@@ -121,6 +126,10 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
 
         deptMapper.updateById(dept);
 
+        // Publish sync event for redundancy update
+        SysDept updatedDept = deptMapper.selectById(dept.getId());
+        dataSyncEventPublisher.publishDeptUpdated(updatedDept);
+
         log.info("部门修改成功: {}, 操作人: {}", dept.getDeptName(),
                 SecurityUtils.getCurrentUsername());
     }
@@ -149,6 +158,9 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
         }
 
         deptMapper.deleteById(id);
+
+        // Publish sync event for redundancy update
+        dataSyncEventPublisher.publishDeptDeleted(id);
 
         log.info("部门删除成功: {}, 操作人: {}", dept.getDeptName(),
                 SecurityUtils.getCurrentUsername());

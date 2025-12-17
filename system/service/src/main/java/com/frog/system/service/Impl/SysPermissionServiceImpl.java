@@ -78,7 +78,7 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
     }
 
     /**
-     * 根据URL和方法查询需要的权限
+     * 根据 URL和方法查询需要的权限
      */
     public List<String> findPermissionsByUrl(String url, String method) {
         return sysPermissionMapper.findPermissionsByUrl(url, method);
@@ -94,7 +94,7 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
     public List<PermissionDTO> getPermissionTree() {
         List<SysPermission> permissions = sysPermissionMapper.findPermissionTree();
 
-        // 转换为DTO
+        // 转换为 DTO
         List<PermissionDTO> permissionDTOs = permissions.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -104,7 +104,7 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
     }
 
     /**
-     * 根据ID查询权限
+     * 根据 ID查询权限
      */
     @Cacheable(
             value = "permission",
@@ -188,8 +188,8 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
             throw new BusinessException("该权限下还有子权限，不能删除");
         }
 
-//         检查是否有角色使用该权限
-//         注意：这里需要根据实际的表结构和关联关系来实现
+        // 检查是否有角色使用该权限
+        // 注意：这里需要根据实际的表结构和关联关系来实现
         Integer roleCount = sysPermissionMapper.countRolesByPermissionId(id);
         if (roleCount > 0) {
             throw new BusinessException("该权限已被" + roleCount + "个角色使用，不能删除");
@@ -198,21 +198,14 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
         sysPermissionMapper.deleteById(id);
     }
 
-    // ========== 私有方法 ==========
-
     private void copyPropertiesFromDTO(PermissionDTO permissionDTO, SysPermission permission) {
         BeanUtils.copyProperties(permissionDTO, permission);
-        permission.setNeedApproval(permissionDTO.getNeedApproval() ? 1 : 0);
-        permission.setNeedTwoFactor(permissionDTO.getNeedTwoFactor() ? 1 : 0);
-        permission.setVisible(permissionDTO.getVisible() ? 1 : 0);
     }
 
     private PermissionDTO convertToDTO(SysPermission permission) {
         PermissionDTO permissionDTO = new PermissionDTO();
         BeanUtils.copyProperties(permission, permissionDTO);
-        permissionDTO.setNeedApproval(permission.getNeedApproval() != null && permission.getNeedApproval() == 1);
-        permissionDTO.setNeedTwoFactor(permission.getNeedTwoFactor() != null && permission.getNeedTwoFactor() == 1);
-        permissionDTO.setVisible(permission.getVisible() != null && permission.getVisible() == 1);
+
         return permissionDTO;
     }
 

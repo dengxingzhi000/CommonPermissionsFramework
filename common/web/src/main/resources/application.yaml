@@ -1,4 +1,4 @@
-# JWT配置
+# JWT 配置
 jwt:
   secret: ${JWT_SECRET:t+gG4GvjtxpXiYSW64mTNVK2TmnwtvHNXrp0TGjrGz9sd5XzzFJ7bw83puCeMoVS8Yp+9pRl78FK0L8XI3zlcg==}
   expiration: 7200000 # 2小时
@@ -15,7 +15,7 @@ jwt:
   blacklist-cleanup-strategy: SCHEDULED
   blacklist-cleanup-interval: 24
 
-# Security配置
+# Security 配置
 security:
   # 登录安全配置
   max-login-attempts: 5
@@ -45,7 +45,7 @@ security:
     truststore-path: ${TRUSTSTORE_PATH:classpath:truststore.p12}
     truststore-password: ${TRUSTSTORE_PASSWORD:changeit}
 
-  # Feign签名配置
+  # Feign 签名配置
   feign:
     app-id: ${FEIGN_APP_ID:auth-service}
     secret-key: ${FEIGN_SECRET_KEY:your-feign-secret-key}

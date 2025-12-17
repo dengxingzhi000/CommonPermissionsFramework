@@ -1,6 +1,5 @@
 package com.frog.system.service.Impl;
 
-import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.frog.common.exception.BusinessException;
@@ -20,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -36,7 +34,6 @@ import java.util.stream.Collectors;
 public class SysPermissionApprovalServiceImpl
         extends ServiceImpl<SysPermissionApprovalMapper, SysPermissionApproval>
         implements ISysPermissionApprovalService {
-
     private final SysPermissionApprovalMapper approvalMapper;
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
@@ -68,13 +65,9 @@ public class SysPermissionApprovalServiceImpl
                 .approvalType(dto.getApprovalType())
                 .targetUserId(dto.getTargetUserId())
                 .roleIds(dto.getRoleIds() != null ?
-                        dto.getRoleIds().stream()
-                                .map(UUID::toString)
-                                .collect(Collectors.joining(",")) : null)
+                        dto.getRoleIds().toArray(new UUID[0]) : null)
                 .permissionIds(dto.getPermissionIds() != null ?
-                        dto.getPermissionIds().stream()
-                                .map(UUID::toString)
-                                .collect(Collectors.joining(",")) : null)
+                        dto.getPermissionIds().toArray(new UUID[0]) : null)
                 .effectiveTime(dto.getEffectiveTime())
                 .expireTime(dto.getExpireTime())
                 .applyReason(dto.getApplyReason())
@@ -83,12 +76,20 @@ public class SysPermissionApprovalServiceImpl
                 .build();
 
         // 3. 构建审批链
-        List<UUID> approvalChain = buildApprovalChain(dto.getApprovalType(), currentUserId);
-        approval.setApprovalChain(JSON.toJSONString(approvalChain));
+        List<UUID> approverIds = buildApprovalChain(dto.getApprovalType(), currentUserId);
+        List<Map<String, Object>> approvalChain = approverIds.stream()
+                .map(id -> {
+                    Map<String, Object> node = new HashMap<>();
+                    node.put("approverId", id.toString());
+                    node.put("status", "pending");
+                    return node;
+                })
+                .collect(Collectors.toList());
+        approval.setApprovalChain(approvalChain);
 
         // 4. 设置第一个审批人
-        if (!approvalChain.isEmpty()) {
-            approval.setCurrentApproverId(approvalChain.getFirst());
+        if (!approverIds.isEmpty()) {
+            approval.setCurrentApproverId(approverIds.getFirst());
         }
 
         // 5. 保存申请
@@ -139,16 +140,18 @@ public class SysPermissionApprovalServiceImpl
      * 处理通过
      */
     private void handleApprove(SysPermissionApproval approval, UUID approverId) {
-        // 1. 获取审批链
-        List<UUID> approvalChain = JSON.parseArray(
-                approval.getApprovalChain(), UUID.class);
+        // 1. 从审批链中提取审批人ID列表
+        List<Map<String, Object>> approvalChain = approval.getApprovalChain();
+        List<UUID> approverIds = approvalChain.stream()
+                .map(node -> UUID.fromString((String) node.get("approverId")))
+                .toList();
 
-        int currentIndex = approvalChain.indexOf(approverId);
+        int currentIndex = approverIds.indexOf(approverId);
 
         // 2. 判断是否还有下一级审批人
-        if (currentIndex < approvalChain.size() - 1) {
+        if (currentIndex < approverIds.size() - 1) {
             // 还有下一级，转给下一个审批人
-            UUID nextApprover = approvalChain.get(currentIndex + 1);
+            UUID nextApprover = approverIds.get(currentIndex + 1);
             approvalMapper.updateCurrentApprover(approval.getId(), nextApprover);
 
             log.info("Approval forwarded to next approver: id={}, next={}",
@@ -196,10 +199,8 @@ public class SysPermissionApprovalServiceImpl
         switch (approval.getApprovalType()) {
             case 1 -> // 角色申请
                     Optional.ofNullable(approval.getRoleIds())
-                            .ifPresent(roleIdsStr -> {
-                                List<UUID> roleIds = Arrays.stream(roleIdsStr.split(","))
-                                        .map(UUID::fromString)
-                                        .toList();
+                            .ifPresent(roleIdsArray -> {
+                                List<UUID> roleIds = Arrays.asList(roleIdsArray);
                                 userMapper.batchInsertUserRoles(targetUserId, roleIds,
                                         SecurityUtils.getCurrentUserUuid().orElse(null));
                             });
@@ -211,12 +212,10 @@ public class SysPermissionApprovalServiceImpl
             case 3 -> // 临时授权
                     // 临时授权在 sys_user_role 中设置过期时间
                     Optional.ofNullable(approval.getRoleIds())
-                            .ifPresent(roleIdsStr -> {
-                                List<UUID> roleIds = Arrays.stream(roleIdsStr.split(","))
-                                        .map(UUID::fromString)
-                                        .toList();
+                            .ifPresent(roleIdsArray -> {
+                                List<UUID> roleIds = Arrays.asList(roleIdsArray);
                                 // TODO: 实现带过期时间的角色授予
-                                log.debug("Temporary role grant with expiration not implemented yet");
+                                log.debug("Temporary role grant with expiration not implemented yet, roleIds: {}", roleIds);
                             });
 
             default -> throw new BusinessException("未知的审批类型: " + approval.getApprovalType());
@@ -283,7 +282,6 @@ public class SysPermissionApprovalServiceImpl
     /**
      * 构建审批链
      * 根据申请类型和申请人确定审批链路
-     *
      * 审批规则：
      * - 角色申请(type=1): 部门经理 -> 系统管理员
      * - 权限申请(type=2): 部门经理 -> 系统管理员
@@ -472,7 +470,7 @@ public class SysPermissionApprovalServiceImpl
     }
 
     /**
-     * 转换为DTO
+     * 转换为 DTO
      */
     private Page<ApprovalDTO> convertToDTO(Page<SysPermissionApproval> page) {
         Page<ApprovalDTO> dtoPage = new Page<>(
@@ -501,17 +499,13 @@ public class SysPermissionApprovalServiceImpl
                 .rejectReason(entity.getRejectReason())
                 .build();
 
-        // 解析角色和权限ID
+        // 转换角色和权限 ID数组为List
         if (entity.getRoleIds() != null) {
-            approvalDTO.setRoleIds(Arrays.stream(entity.getRoleIds().split(","))
-                    .map(UUID::fromString)
-                    .toList());
+            approvalDTO.setRoleIds(Arrays.asList(entity.getRoleIds()));
         }
 
         if (entity.getPermissionIds() != null) {
-            approvalDTO.setPermissionIds(Arrays.stream(entity.getPermissionIds().split(","))
-                    .map(UUID::fromString)
-                    .toList());
+            approvalDTO.setPermissionIds(Arrays.asList(entity.getPermissionIds()));
         }
 
         return approvalDTO;

@@ -1,9 +1,6 @@
 package com.frog.system.domain.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -59,7 +56,7 @@ public class NotificationAuditLog implements Serializable {
     @TableField("error_message")
     private String errorMessage;
 
-    @TableField("created_at")
-    private LocalDateTime createdAt;
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
+    private LocalDateTime createTime;
 }
 

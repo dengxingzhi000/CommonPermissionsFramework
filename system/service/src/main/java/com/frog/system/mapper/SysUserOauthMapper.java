@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.system.domain.entity.SysUserOauth;
 import org.apache.ibatis.annotations.*;
@@ -14,10 +15,11 @@ import java.util.UUID;
  * @since 2025-12-15
  */
 @Mapper
+@DS("user")
 public interface SysUserOauthMapper extends BaseMapper<SysUserOauth> {
 
     /**
-     * 根据OAuth提供商和OpenID查询绑定信息
+     * 根据 OAuth提供商和OpenID查询绑定信息
      */
     @Select("""
             SELECT * FROM sys_user_oauth
@@ -26,7 +28,7 @@ public interface SysUserOauthMapper extends BaseMapper<SysUserOauth> {
     SysUserOauth findByProviderAndOpenid(@Param("provider") String provider, @Param("openid") String openid);
 
     /**
-     * 根据用户ID查询所有OAuth绑定
+     * 根据用户 ID查询所有OAuth绑定
      */
     @Select("""
             SELECT * FROM sys_user_oauth
@@ -35,7 +37,7 @@ public interface SysUserOauthMapper extends BaseMapper<SysUserOauth> {
     List<SysUserOauth> findByUserId(@Param("userId") UUID userId);
 
     /**
-     * 根据用户ID和提供商查询绑定信息
+     * 根据用户 ID和提供商查询绑定信息
      */
     @Select("""
             SELECT * FROM sys_user_oauth
@@ -63,7 +65,7 @@ public interface SysUserOauthMapper extends BaseMapper<SysUserOauth> {
     int updateLastLoginTime(@Param("id") UUID id);
 
     /**
-     * 解绑OAuth账号
+     * 解绑 OAuth账号
      */
     @Update("""
             UPDATE sys_user_oauth

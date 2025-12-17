@@ -1,6 +1,6 @@
 package com.frog.system.mapper;
 
-import com.frog.common.dto.dept.DeptDTO;
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.frog.system.domain.entity.SysDept;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
@@ -12,30 +12,31 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * <p>
  * 部门表 Mapper 接口
- * </p>
+ * <p>
+ * 注意：此 Mapper 只处理 db_org 库中的 sys_dept 表
+ * 需要获取部门负责人信息时，请在 Service 层聚合查询
  *
  * @author author
  * @since 2025-11-07
  */
 @Mapper
+@DS("org")
 public interface SysDeptMapper extends BaseMapper<SysDept> {
 
     /**
-     * 查询部门树（包含负责人姓名）
+     * 查询所有部门列表（不包含负责人信息）
+     * 负责人信息需要在 Service 层通过 SysUserMapper 聚合
      */
     @Select("""
-            SELECT d.*, u.real_name as leader_name
-            FROM sys_dept d
-            LEFT JOIN sys_user u ON d.leader_id = u.id
-            WHERE NOT d.deleted
-            ORDER BY d.sort_order, d.create_time
+            SELECT * FROM sys_dept
+            WHERE NOT deleted
+            ORDER BY sort_order, create_time
             """)
-    List<DeptDTO> selectDeptTree();
+    List<SysDept> selectDeptList();
 
     /**
-     * 递归查询部门及其所有子部门
+     * 递归查询部门及其所有子部门 ID
      */
     @Select("""
             WITH RECURSIVE dept_tree AS (
@@ -51,13 +52,26 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
     List<UUID> selectDeptAndChildren(@Param("deptId") UUID deptId);
 
     /**
-     * 统计部门下的用户数
+     * 递归查询多个部门及其所有子部门 ID
      */
     @Select("""
-            SELECT COUNT(*) FROM sys_user
-            WHERE dept_id = #{deptId} AND NOT deleted
+            <script>
+            WITH RECURSIVE dept_tree AS (
+                SELECT id FROM sys_dept
+                WHERE id IN
+                <foreach collection='deptIds' item='deptId' open='(' close=')' separator=','>
+                    #{deptId}
+                </foreach>
+                AND NOT deleted
+                UNION ALL
+                SELECT d.id FROM sys_dept d
+                INNER JOIN dept_tree dt ON d.parent_id = dt.id
+                WHERE NOT d.deleted
+            )
+            SELECT DISTINCT id FROM dept_tree
+            </script>
             """)
-    Integer countUsers(@Param("deptId") UUID deptId);
+    List<UUID> selectDeptsAndChildren(@Param("deptIds") List<UUID> deptIds);
 
     /**
      * 统计子部门数
@@ -89,7 +103,7 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
     }
 
     /**
-     * 查询部门负责人ID
+     * 查询部门负责人 ID
      */
     @Select("""
             SELECT leader_id FROM sys_dept
@@ -110,5 +124,87 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
             AND NOT deleted
             </script>
             """)
-    List<Map<UUID, String>> selectDeptNames(@Param("deptIds") List<UUID> deptIds);
+    List<Map<String, Object>> selectDeptNames(@Param("deptIds") List<UUID> deptIds);
+
+    /**
+     * 根据部门 ID查询部门信息
+     */
+    @Select("""
+            SELECT * FROM sys_dept
+            WHERE id = #{deptId} AND NOT deleted
+            """)
+    SysDept selectByDeptId(@Param("deptId") UUID deptId);
+
+    /**
+     * 查询顶级部门列表
+     */
+    @Select("""
+            SELECT * FROM sys_dept
+            WHERE parent_id IS NULL AND NOT deleted
+            ORDER BY sort_order, create_time
+            """)
+    List<SysDept> selectTopDepts();
+
+    /**
+     * 查询指定部门的直接子部门
+     */
+    @Select("""
+            SELECT * FROM sys_dept
+            WHERE parent_id = #{parentId} AND NOT deleted
+            ORDER BY sort_order, create_time
+            """)
+    List<SysDept> selectChildDepts(@Param("parentId") UUID parentId);
+
+    /**
+     * 批量查询部门负责人 ID 映射
+     */
+    @Select("""
+            <script>
+            SELECT id as dept_id, leader_id FROM sys_dept
+            WHERE id IN
+            <foreach collection='deptIds' item='id' open='(' close=')' separator=','>
+                #{id}
+            </foreach>
+            AND NOT deleted AND leader_id IS NOT NULL
+            </script>
+            """)
+    List<Map<String, Object>> selectLeaderIds(@Param("deptIds") List<UUID> deptIds);
+
+    // ==================== 冗余字段同步（数据一致性） ====================
+
+    /**
+     * 更新负责人冗余信息
+     * 当 db_user.sys_user 变更时调用（更新该用户作为负责人的所有部门）
+     */
+    @Update("""
+            UPDATE sys_dept
+            SET leader_name = #{leaderName},
+                leader_phone = #{leaderPhone}
+            WHERE leader_id = #{leaderId}
+            """)
+    int updateLeaderRedundancy(@Param("leaderId") UUID leaderId,
+                               @Param("leaderName") String leaderName,
+                               @Param("leaderPhone") String leaderPhone);
+
+    /**
+     * 查询部门树（包含冗余的负责人信息，无需跨库）
+     */
+    @Select("""
+            SELECT id, parent_id, dept_code, dept_name, dept_type,
+                   leader_id, leader_name, leader_phone,
+                   phone, email, isolation_level, sort_order, status
+            FROM sys_dept
+            WHERE NOT deleted
+            ORDER BY sort_order, create_time
+            """)
+    List<SysDept> selectDeptTreeWithLeader();
+
+    /**
+     * 查询所有有负责人的部门（用于初始化同步）
+     */
+    @Select("""
+            SELECT id as dept_id, leader_id FROM sys_dept
+            WHERE NOT deleted AND leader_id IS NOT NULL
+            """)
+    List<Map<String, Object>> selectAllLeaderIds();
 }

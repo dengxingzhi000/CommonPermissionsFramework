@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
 import java.io.Serial;
@@ -15,7 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * OAuth第三方登录绑定表
+ * OAuth 第三方登录绑定表
  *
  * @author Deng
  * @since 2025-12-15
@@ -25,18 +26,18 @@ import java.util.UUID;
 @Accessors(chain = true)
 @TableName(value = "sys_user_oauth", autoResultMap = true)
 @Tag(
-        name = "SysUserOauth对象",
-        description = "OAuth第三方登录绑定表"
+        name = "SysUserOauth 对象",
+        description = "OAuth 第三方登录绑定表"
 )
 public class SysUserOauth implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "主键ID")
+    @Schema(description = "主键 ID")
     @TableId(value = "id", type = IdType.ASSIGN_UUID)
     private UUID id;
 
-    @Schema(description = "用户ID")
+    @Schema(description = "用户 ID")
     private UUID userId;
 
     @Schema(description = "OAuth提供商:google,github,apple,wechat,dingtalk,feishu")
@@ -48,13 +49,13 @@ public class SysUserOauth implements Serializable {
     @Schema(description = "OAuth联合ID(用于同一平台多应用)")
     private String oauthUnionId;
 
-    @Schema(description = "OAuth邮箱")
+    @Schema(description = "OAuth 邮箱")
     private String oauthEmail;
 
-    @Schema(description = "OAuth昵称")
+    @Schema(description = "OAuth 昵称")
     private String oauthNickname;
 
-    @Schema(description = "OAuth头像URL")
+    @Schema(description = "OAuth 头像URL")
     private String oauthAvatar;
 
     @Schema(description = "访问令牌")
@@ -86,8 +87,9 @@ public class SysUserOauth implements Serializable {
     private Boolean deleted;
 
     /**
-     * OAuth提供商枚举
+     * OAuth 提供商枚举
      */
+    @Getter
     public enum Provider {
         GOOGLE("google"),
         GITHUB("github"),
@@ -100,10 +102,6 @@ public class SysUserOauth implements Serializable {
 
         Provider(String code) {
             this.code = code;
-        }
-
-        public String getCode() {
-            return code;
         }
     }
 }

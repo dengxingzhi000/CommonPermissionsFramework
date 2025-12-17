@@ -20,6 +20,7 @@
 - [数据库](./database.md) - 数据库结构和迁移
 
 ### 特性文档
+- [读写分离](./read-write-separation.md) - 主从分离与负载均衡
 - [消息集成](./messaging.md) - Kafka/RabbitMQ 集成
 - [缓存系统](./caching.md) - 多级缓存使用指南
 - [监控追踪](./monitoring.md) - SkyWalking、Prometheus 等
@@ -66,4 +67,4 @@
 
 ---
 
-**最后更新**: 2025-12-11
+**最后更新**: 2025-12-16

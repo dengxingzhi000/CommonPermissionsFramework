@@ -22,14 +22,14 @@ public interface ISysPermissionApprovalService extends IService<SysPermissionApp
      * 提交审批申请，用于发起权限审批流程。
      *
      * @param dto 审批申请数据
-     * @return 审批单ID
+     * @return 审批单 ID
      */
     UUID submitApproval(ApprovalDTO dto);
 
     /**
      * 处理审批流程（审核、通过/驳回等）。
      *
-     * @param approvalId 审批单ID
+     * @param approvalId 审批单 ID
      * @param dto 审批处理数据（动作、意见等）
      */
     void processApproval(UUID approvalId, ApprovalProcessDTO dto);
@@ -37,7 +37,7 @@ public interface ISysPermissionApprovalService extends IService<SysPermissionApp
     /**
      * 撤回我发起的审批申请。
      *
-     * @param approvalId 审批单ID
+     * @param approvalId 审批单 ID
      */
     void withdrawApproval(UUID approvalId);
 
@@ -53,7 +53,7 @@ public interface ISysPermissionApprovalService extends IService<SysPermissionApp
     /**
      * 获取审批单详情。
      *
-     * @param approvalId 审批单ID
+     * @param approvalId 审批单 ID
      * @return 审批单详情
      */
     ApprovalDTO getApprovalDetail(UUID approvalId);

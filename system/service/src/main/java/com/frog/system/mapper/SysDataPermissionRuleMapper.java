@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.system.domain.entity.SysDataPermissionRule;
 import org.apache.ibatis.annotations.*;
@@ -14,6 +15,7 @@ import java.util.UUID;
  * @since 2025-12-15
  */
 @Mapper
+@DS("permission")
 public interface SysDataPermissionRuleMapper extends BaseMapper<SysDataPermissionRule> {
 
     /**
@@ -36,7 +38,7 @@ public interface SysDataPermissionRuleMapper extends BaseMapper<SysDataPermissio
     List<SysDataPermissionRule> findByResourceType(@Param("resourceType") String resourceType);
 
     /**
-     * 根据角色ID查询关联的规则
+     * 根据角色 ID查询关联的规则
      */
     @Select("""
             SELECT r.* FROM sys_data_permission_rule r

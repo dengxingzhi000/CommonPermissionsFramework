@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.system.domain.entity.SysPermission;
@@ -20,6 +21,7 @@ import java.util.UUID;
  * @since 2025-10-14
  */
 @Mapper
+@DS("permission")
 public interface SysPermissionMapper extends BaseMapper<SysPermission> {
 
     /**
@@ -59,7 +61,7 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
     List<SysPermission> findPermissionTree();
 
     /**
-     * 根据角色ID查询权限
+     * 根据角色 ID查询权限
      */
     @Select("""
             SELECT p.* FROM sys_permission p
@@ -121,7 +123,7 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
     List<PermissionDTO> findChildrenPermissions(@Param("parentId") UUID parentId);
 
     /**
-     * 根据URL和方法查询需要的权限
+     * 根据 URL和方法查询需要的权限
      */
     @Select("""
             SELECT permission_code FROM sys_permission

@@ -3,6 +3,7 @@ package com.frog.common.uaa.service;
 import com.frog.common.response.ApiResponse;
 import com.frog.common.web.domain.SecurityUser;
 import com.frog.common.feign.client.SysUserServiceClient;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -28,8 +29,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final SysUserServiceClient systemUserClient;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // 从system服务获取用户信息
+    @NonNull
+    public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException {
+        // 从 system服务获取用户信息
         ApiResponse<SecurityUser> result = systemUserClient.getUserByUsername(username);
 
         if (result == null || result.data() == null) {

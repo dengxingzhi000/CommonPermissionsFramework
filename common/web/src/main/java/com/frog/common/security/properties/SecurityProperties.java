@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * Security的一些基本配置
+ * Security 的一些基本配置
  *
  * @author Deng
  * createData 2025/10/14 14:45

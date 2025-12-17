@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
 import java.io.Serial;
@@ -26,18 +27,18 @@ import java.util.UUID;
 @Accessors(chain = true)
 @TableName(value = "sys_sensitive_operation_log", autoResultMap = true)
 @Tag(
-        name = "SysSensitiveOperationLog对象",
+        name = "SysSensitiveOperationLog 对象",
         description = "敏感操作日志表"
 )
 public class SysSensitiveOperationLog implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "主键ID")
+    @Schema(description = "主键 ID")
     @TableId(value = "id", type = IdType.ASSIGN_UUID)
     private UUID id;
 
-    @Schema(description = "用户ID")
+    @Schema(description = "用户 ID")
     private UUID userId;
 
     @Schema(description = "用户名")
@@ -61,7 +62,7 @@ public class SysSensitiveOperationLog implements Serializable {
     @Schema(description = "目标表名")
     private String targetTable;
 
-    @Schema(description = "影响的记录ID列表")
+    @Schema(description = "影响的记录 ID列表")
     @TableField(typeHandler = UuidArrayTypeHandler.class)
     private UUID[] targetIds;
 
@@ -72,13 +73,13 @@ public class SysSensitiveOperationLog implements Serializable {
     @Schema(description = "是否需要审批")
     private Boolean approvalRequired;
 
-    @Schema(description = "审批ID")
+    @Schema(description = "审批 ID")
     private UUID approvalId;
 
     @Schema(description = "风险评分:1-10")
     private Integer riskScore;
 
-    @Schema(description = "IP地址")
+    @Schema(description = "IP 地址")
     private String ipAddress;
 
     @Schema(description = "用户代理")
@@ -97,6 +98,7 @@ public class SysSensitiveOperationLog implements Serializable {
     /**
      * 操作类型枚举
      */
+    @Getter
     public enum OperationType {
         EXPORT("EXPORT", "数据导出"),
         BULK_UPDATE("BULK_UPDATE", "批量更新"),
@@ -111,19 +113,12 @@ public class SysSensitiveOperationLog implements Serializable {
             this.code = code;
             this.desc = desc;
         }
-
-        public String getCode() {
-            return code;
-        }
-
-        public String getDesc() {
-            return desc;
-        }
     }
 
     /**
      * 敏感数据类型枚举
      */
+    @Getter
     public enum SensitiveDataType {
         PERSONAL_INFO("PERSONAL_INFO", "个人信息"),
         FINANCIAL("FINANCIAL", "财务信息"),
@@ -136,14 +131,6 @@ public class SysSensitiveOperationLog implements Serializable {
         SensitiveDataType(String code, String desc) {
             this.code = code;
             this.desc = desc;
-        }
-
-        public String getCode() {
-            return code;
-        }
-
-        public String getDesc() {
-            return desc;
         }
     }
 }

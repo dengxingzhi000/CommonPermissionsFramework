@@ -26,18 +26,18 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @TableName("sys_permission")
 @Tag(
-        name="SysPermission对象",
+        name="SysPermission 对象",
         description="权限表"
 )
 public class SysPermission implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "权限ID")
+    @Schema(description = "权限 ID")
     @TableId(value = "id", type = IdType.NONE)
     private UUID id;
 
-    @Schema(description = "父级ID")
+    @Schema(description = "父级 ID")
     private UUID parentId;
 
     @Schema(description = "权限编码")

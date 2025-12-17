@@ -1,5 +1,6 @@
 package com.frog.system.mapper;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.frog.system.domain.entity.SysSensitiveOperationLog;
@@ -16,10 +17,11 @@ import java.util.UUID;
  * @since 2025-12-15
  */
 @Mapper
+@DS("audit")
 public interface SysSensitiveOperationLogMapper extends BaseMapper<SysSensitiveOperationLog> {
 
     /**
-     * 根据用户ID查询敏感操作日志
+     * 根据用户 ID查询敏感操作日志
      */
     @Select("""
             SELECT * FROM sys_sensitive_operation_log

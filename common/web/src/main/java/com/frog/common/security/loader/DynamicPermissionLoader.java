@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicLong;
 @RequiredArgsConstructor
 @Slf4j
 public class DynamicPermissionLoader {
-
     private final SysPermissionServiceClient permissionServiceClient;
     private final CacheManager cacheManager;
     private final ApplicationEventPublisher eventPublisher;
@@ -47,16 +46,11 @@ public class DynamicPermissionLoader {
     @PostConstruct
     public void initFromCache() {
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Set<String>> cached = multiLevelCache.get(PERM_MAPPING_CACHE_KEY, Map.class);
-            if (cached != null && !cached.isEmpty()) {
+            Object rawCached = multiLevelCache.get(PERM_MAPPING_CACHE_KEY, Map.class);
+            if (rawCached instanceof Map<?, ?> rawMap && !rawMap.isEmpty()) {
                 urlPermissionCache.clear();
-                Map<String, Set<String>> normalized = new HashMap<>();
-                for (Map.Entry<String, Set<String>> e : cached.entrySet()) {
-                    normalized.put(e.getKey(), new HashSet<>(e.getValue()));
-                }
-                urlPermissionCache.putAll(normalized);
-                
+                urlPermissionCache.putAll(normalizePermissionMap(rawMap));
+
                 // 初始化版本号
                 permissionVersion.set(1L);
                 log.info("Initialized dynamic permission cache from MultiLevelCache, size={}",
@@ -68,13 +62,35 @@ public class DynamicPermissionLoader {
     }
 
     /**
+     * 将原始缓存数据转换为类型安全的权限映射
+     *
+     * @param rawMap 从缓存获取的原始 Map
+     * @return 类型安全的权限映射 (URL -> 权限集合)
+     */
+    private static Map<String, Set<String>> normalizePermissionMap(Map<?, ?> rawMap) {
+        Map<String, Set<String>> normalized = new HashMap<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            if (entry.getKey() instanceof String key && entry.getValue() instanceof Collection<?> values) {
+                Set<String> permSet = new HashSet<>();
+                for (Object val : values) {
+                    if (val instanceof String strVal) {
+                        permSet.add(strVal);
+                    }
+                }
+                normalized.put(key, permSet);
+            }
+        }
+        return normalized;
+    }
+
+    /**
      * 初始化加载权限配置
      */
     public void loadPermissions() {
         log.info("Loading dynamic permissions...");
 
         try {
-            // 查询所有API类型的权限
+            // 查询所有 API类型的权限
             List<Map<String, Object>> apiPermissions = permissionServiceClient
                     .findApiPermissions();
 
@@ -132,7 +148,7 @@ public class DynamicPermissionLoader {
     }
 
     /**
-     * 检查URL是否需要权限
+     * 检查 URL是否需要权限
      */
     public boolean requiresPermission(String method, String url) {
         String key = buildKey(method, url);
@@ -140,7 +156,7 @@ public class DynamicPermissionLoader {
     }
 
     /**
-     * 获取URL所需的权限
+     * 获取 URL所需的权限
      */
     public Set<String> getRequiredPermissions(String method, String url) {
         String key = buildKey(method, url);
@@ -263,7 +279,7 @@ public class DynamicPermissionLoader {
     }
 
     /**
-     * 构建缓存key
+     * 构建缓存 key
      */
     private String buildKey(String method, String path) {
         return (method != null ? method : "*") + ":" + path;
@@ -316,8 +332,8 @@ public class DynamicPermissionLoader {
     private long estimateMemorySize() {
         long size = 0;
         for (Map.Entry<String, Set<String>> entry : urlPermissionCache.entrySet()) {
-            size += entry.getKey().length() * 2L; // String占用
-            size += entry.getValue().size() * 50L; // Set元素估算
+            size += entry.getKey().length() * 2L; // String 占用
+            size += entry.getValue().size() * 50L; // Set 元素估算
         }
         return size;
     }

@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.experimental.Accessors;
 
 import java.io.Serial;
@@ -26,14 +27,14 @@ import java.util.UUID;
 @Accessors(chain = true)
 @TableName(value = "sys_data_permission_rule", autoResultMap = true)
 @Tag(
-        name = "SysDataPermissionRule对象",
+        name = "SysDataPermissionRule 对象",
         description = "数据权限规则表"
 )
 public class SysDataPermissionRule implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "主键ID")
+    @Schema(description = "主键 ID")
     @TableId(value = "id", type = IdType.ASSIGN_UUID)
     private UUID id;
 
@@ -53,7 +54,7 @@ public class SysDataPermissionRule implements Serializable {
     @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> ruleConfig;
 
-    @Schema(description = "SQL条件表达式")
+    @Schema(description = "SQL 条件表达式")
     private String sqlCondition;
 
     @Schema(description = "可见字段列表")
@@ -97,9 +98,10 @@ public class SysDataPermissionRule implements Serializable {
     /**
      * 规则类型枚举
      */
+    @Getter
     public enum RuleType {
         ALL(1, "全部数据"),
-        CUSTOM_SQL(2, "自定义SQL"),
+        CUSTOM_SQL(2, "自定义 SQL"),
         DEPT(3, "本部门"),
         DEPT_AND_CHILDREN(4, "本部门及以下"),
         SELF(5, "仅本人");
@@ -110,14 +112,6 @@ public class SysDataPermissionRule implements Serializable {
         RuleType(int code, String desc) {
             this.code = code;
             this.desc = desc;
-        }
-
-        public int getCode() {
-            return code;
-        }
-
-        public String getDesc() {
-            return desc;
         }
     }
 }

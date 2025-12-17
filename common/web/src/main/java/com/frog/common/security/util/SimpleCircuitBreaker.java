@@ -10,7 +10,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Minimal circuit breaker to fail open after repeated errors.
  */
 public class SimpleCircuitBreaker {
-
     private final boolean enabled;
     private final int failureThreshold;
     private final Duration openDuration;

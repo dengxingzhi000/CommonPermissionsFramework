@@ -14,7 +14,7 @@ import lombok.experimental.Accessors;
 
 /**
  * <p>
- * 用户表(UUIDv7主键)
+ * 用户表(UUID主键)
  * </p>
  *
  * @author author
@@ -25,14 +25,14 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 @TableName("sys_user")
 @Schema(
-        name="SysUser对象",
-        description="用户表(UUIDv7主键)"
+        name="SysUser 对象",
+        description="用户表(UUID主键)"
 )
 public class SysUser implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "用户ID(UUIDv7, BINARY存储)")
+    @Schema(description = "用户ID(UUID存储)")
     @TableId(
             value = "id",
             type = IdType.NONE
@@ -63,7 +63,7 @@ public class SysUser implements Serializable {
     @TableField("phone")
     private String phone;
 
-    @Schema(description = "头像URL")
+    @Schema(description = "头像 URL")
     @TableField("avatar")
     private String avatar;
 
@@ -71,7 +71,7 @@ public class SysUser implements Serializable {
     @TableField("status")
     private Integer status;
 
-    @Schema(description = "部门ID")
+    @Schema(description = "部门 ID")
     @TableField("dept_id")
     private UUID deptId;
 
@@ -111,7 +111,7 @@ public class SysUser implements Serializable {
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
-    @Schema(description = "创建人ID")
+    @Schema(description = "创建人 ID")
     @TableField(value = "create_by", fill = FieldFill.INSERT)
     private UUID createBy;
 
@@ -119,7 +119,7 @@ public class SysUser implements Serializable {
     @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 
-    @Schema(description = "更新人ID")
+    @Schema(description = "更新人 ID")
     @TableField(value = "update_by", fill = FieldFill.INSERT_UPDATE)
     private UUID updateBy;
 
@@ -127,7 +127,7 @@ public class SysUser implements Serializable {
     @TableField("last_login_time")
     private LocalDateTime lastLoginTime;
 
-    @Schema(description = "最后登录IP")
+    @Schema(description = "最后登录 IP")
     @TableField("last_login_ip")
     private String lastLoginIp;
 

@@ -20,7 +20,6 @@ import java.io.IOException;
  */
 public class SensitiveJsonSerializer extends JsonSerializer<String>
         implements ContextualSerializer {
-
     private SensitiveType type;
     private boolean enabled = true;
 

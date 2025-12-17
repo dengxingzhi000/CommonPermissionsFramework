@@ -28,18 +28,18 @@ import lombok.experimental.Accessors;
 @Builder
 @TableName("sys_permission_approval")
 @Tag(
-        name="SysPermissionApproval对象",
+        name="SysPermissionApproval 对象",
         description="权限申请审批表"
 )
 public class SysPermissionApproval implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @Schema(description = "审批ID")
+    @Schema(description = "审批 ID")
     @TableId(value = "id", type = IdType.NONE)
     private UUID id;
 
-    @Schema(description = "申请人ID")
+    @Schema(description = "申请人 ID")
     @TableField("applicant_id")
     private UUID applicantId;
 
@@ -47,7 +47,7 @@ public class SysPermissionApproval implements Serializable {
     @TableField("approval_type")
     private Integer approvalType;
 
-    @Schema(description = "目标用户ID")
+    @Schema(description = "目标用户 ID")
     @TableField("target_user_id")
     private UUID targetUserId;
 
@@ -79,7 +79,7 @@ public class SysPermissionApproval implements Serializable {
     @TableField("approval_status")
     private Integer approvalStatus;
 
-    @Schema(description = "当前审批人ID")
+    @Schema(description = "当前审批人 ID")
     @TableField("current_approver_id")
     private UUID currentApproverId;
 

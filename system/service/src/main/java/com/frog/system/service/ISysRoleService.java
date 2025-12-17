@@ -38,7 +38,7 @@ public interface ISysRoleService extends IService<SysRole> {
     /**
      * 根据角色ID获取角色详情。
      *
-     * @param id 角色ID
+     * @param id 角色 ID
      * @return 角色详情
      */
     RoleDTO getRoleById(UUID id);
@@ -60,23 +60,23 @@ public interface ISysRoleService extends IService<SysRole> {
     /**
      * 删除角色。
      *
-     * @param id 角色ID
+     * @param id 角色 ID
      */
     void deleteRole(UUID id);
 
     /**
      * 为角色授予权限。
      *
-     * @param roleId        角色ID
-     * @param permissionIds 权限ID列表
+     * @param roleId        角色 ID
+     * @param permissionIds 权限 ID列表
      */
     void grantPermissions(UUID roleId, List<UUID> permissionIds);
 
     /**
      * 获取角色已绑定的权限ID列表。
      *
-     * @param roleId 角色ID
-     * @return 权限ID列表
+     * @param roleId 角色 ID
+     * @return 权限 ID列表
      */
     List<UUID> getRolePermissionIds(UUID roleId);
 }

@@ -7,7 +7,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
- * IP工具类
+ * IP 工具类
  *
  * @author Deng
  * createData 2025/10/15 14:39
@@ -20,7 +20,7 @@ public class IpUtils {
     private static final String LOCALHOST_IP_16 = "0:0:0:0:0:0:0:1";
 
     /**
-     * 获取客户端真实IP
+     * 获取客户端真实 IP
      */
     public static String getClientIp(HttpServletRequest request) {
         String ip = request.getHeader("X-Forwarded-For");
@@ -58,7 +58,7 @@ public class IpUtils {
         if (ip == null || ip.isEmpty() || UNKNOWN.equalsIgnoreCase(ip)) {
             ip = request.getRemoteAddr();
             if (LOCALHOST_IP.equals(ip) || LOCALHOST_IP_16.equals(ip)) {
-                // 根据网卡取本机配置的IP
+                // 根据网卡取本机配置的 IP
                 try {
                     InetAddress inet = InetAddress.getLocalHost();
                     ip = inet.getHostAddress();
@@ -77,7 +77,7 @@ public class IpUtils {
     }
 
     /**
-     * 判断是否为内网IP
+     * 判断是否为内网 IP
      */
     public static boolean isInternalIp(String ip) {
         if (ip == null || ip.isEmpty()) {

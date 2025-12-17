@@ -2,6 +2,7 @@ package com.frog.system.evaluator;
 
 import com.frog.common.web.domain.SecurityUser;
 import com.frog.system.service.ISysPermissionService;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.PermissionEvaluator;
@@ -27,9 +28,9 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
      * 判断用户是否有指定权限
      */
     @Override
-    public boolean hasPermission(Authentication authentication, Object targetDomainObject,
-                                 Object permission) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof SecurityUser user)) {
+    public boolean hasPermission(@NonNull Authentication authentication, @NonNull Object targetDomainObject,
+                                 @NonNull Object permission) {
+        if (!(authentication.getPrincipal() instanceof SecurityUser user)) {
             return false;
         }
 
@@ -48,9 +49,9 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
      * 判断用户是否有指定资源的权限（基于资源ID）
      */
     @Override
-    public boolean hasPermission(Authentication authentication, Serializable targetId,
-                                 String targetType, Object permission) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof SecurityUser user)) {
+    public boolean hasPermission(@NonNull Authentication authentication, @NonNull Serializable targetId,
+                                 @NonNull String targetType, @NonNull Object permission) {
+        if (!(authentication.getPrincipal() instanceof SecurityUser user)) {
             return false;
         }
 

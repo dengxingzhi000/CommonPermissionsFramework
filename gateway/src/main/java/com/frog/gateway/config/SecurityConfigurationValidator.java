@@ -81,13 +81,15 @@ public class SecurityConfigurationValidator {
                 log.error("CRITICAL SECURITY ERROR: {}", errorMessage);
                 throw new IllegalStateException(errorMessage);
             } else {
-                log.warn("\n\n" +
-                        "================================================================================\n" +
-                        "  SECURITY WARNING: Missing configuration (acceptable in dev mode)\n" +
-                        "  {}\n" +
-                        "  These MUST be set via environment variables in production!\n" +
-                        "================================================================================\n",
-                        errorMessage);
+                String warningMessage = """
+                    
+                    ================================================================================
+                      SECURITY WARNING: Missing configuration (acceptable in dev mode)
+                      {}
+                      These MUST be set via environment variables in production!
+                    ================================================================================
+                    """;
+                log.warn(warningMessage, errorMessage);
             }
         } else {
             log.info("✓ All critical security configurations are properly set");
@@ -137,17 +139,18 @@ public class SecurityConfigurationValidator {
      * Builds detailed error message for missing configurations.
      */
     private String buildErrorMessage(List<String> missingConfigs) {
-        return String.format(
-                "Missing %d required security configuration(s):\n  - %s\n\n" +
-                        "SOLUTION: Set these via environment variables:\n" +
-                        "  export API_SECRET_WEB_APP='your-secret-here'\n" +
-                        "  export API_SECRET_INTERNAL_SERVICE='your-secret-here'\n" +
-                        "  export IDENTITY_SIGNATURE_SECRET='your-secret-here'\n" +
-                        "  export KEYSTORE_PASSWORD='your-password-here'\n" +
-                        "  export TRUSTSTORE_PASSWORD='your-password-here'\n\n" +
-                        "For production deployment, use HashiCorp Vault, AWS Secrets Manager, or equivalent.",
-                missingConfigs.size(),
-                String.join("\n  - ", missingConfigs)
-        );
+        return """
+            Missing %d required security configuration(s):
+              - %s
+            
+            SOLUTION: Set these via environment variables:
+              export API_SECRET_WEB_APP='your-secret-here'
+              export API_SECRET_INTERNAL_SERVICE='your-secret-here'
+              export IDENTITY_SIGNATURE_SECRET='your-secret-here'
+              export KEYSTORE_PASSWORD='your-password-here'
+              export TRUSTSTORE_PASSWORD='your-password-here'
+            
+            For production deployment, use HashiCorp Vault, AWS Secrets Manager, or equivalent.
+            """.formatted(missingConfigs.size(), String.join("\n  - ", missingConfigs));
     }
 }

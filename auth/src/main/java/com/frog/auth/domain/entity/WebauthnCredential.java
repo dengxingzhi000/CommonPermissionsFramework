@@ -175,7 +175,7 @@ public class WebauthnCredential implements Serializable {
      */
     @Schema(description = "创建时间", example = "2025-11-27T10:00:00")
     @TableField(value = "created_time", fill = FieldFill.INSERT)
-    private LocalDateTime createdTime;
+    private LocalDateTime createTime;
 
     /**
      * 更新时间
@@ -183,7 +183,7 @@ public class WebauthnCredential implements Serializable {
      */
     @Schema(description = "更新时间", example = "2025-11-27T10:30:00")
     @TableField(value = "updated_time", fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedTime;
+    private LocalDateTime updateTime;
 
     /**
      * 备份恢复码哈希 (可选)
@@ -268,6 +268,6 @@ public class WebauthnCredential implements Serializable {
      */
     public void deactivate() {
         this.isActive = false;
-        this.updatedTime = LocalDateTime.now();
+        this.updateTime = LocalDateTime.now();
     }
 }
