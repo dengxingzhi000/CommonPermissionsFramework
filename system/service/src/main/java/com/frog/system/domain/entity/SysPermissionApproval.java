@@ -106,4 +106,30 @@ public class SysPermissionApproval implements Serializable {
     @Schema(description = "更新时间")
     @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+
+    // ==================== 冗余字段 ====================
+
+    @Schema(description = "申请人姓名（冗余字段）")
+    @TableField("applicant_name")
+    private String applicantName;
+
+    @Schema(description = "申请人部门名称（冗余字段）")
+    @TableField("applicant_dept_name")
+    private String applicantDeptName;
+
+    @Schema(description = "目标用户姓名（冗余字段）")
+    @TableField("target_user_name")
+    private String targetUserName;
+
+    @Schema(description = "审批人姓名（冗余字段）")
+    @TableField("approver_name")
+    private String approverName;
+
+    @Schema(description = "角色名称数组（冗余字段）")
+    @TableField(value = "role_names", typeHandler = com.frog.common.mybatisPlus.handler.StringArrayTypeHandler.class)
+    private String[] roleNames;
+
+    @Schema(description = "权限名称数组（冗余字段）")
+    @TableField(value = "permission_names", typeHandler = com.frog.common.mybatisPlus.handler.StringArrayTypeHandler.class)
+    private String[] permissionNames;
 }

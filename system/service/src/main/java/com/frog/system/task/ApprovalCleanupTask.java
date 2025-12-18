@@ -2,7 +2,7 @@ package com.frog.system.task;
 
 import com.frog.system.domain.entity.SysPermissionApproval;
 import com.frog.system.mapper.SysPermissionApprovalMapper;
-import com.frog.system.mapper.SysUserMapper;
+import com.frog.system.mapper.SysUserRoleMapper;
 import com.frog.system.notification.NotificationService;
 import com.frog.system.notification.model.NotificationChannel;
 import com.frog.system.notification.model.NotificationCommand;
@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 /**
  * 审批和临时权限清理定时任务
  *
@@ -23,7 +24,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class ApprovalCleanupTask {
-    private final SysUserMapper userMapper;
+    private final SysUserRoleMapper userRoleMapper;
     private final SysPermissionApprovalMapper approvalMapper;
     private final NotificationService notificationService;
 
@@ -35,7 +36,7 @@ public class ApprovalCleanupTask {
         log.info("Starting expired temporary roles update task");
 
         try {
-            int updated = userMapper.updateExpiredRolesStatus();
+            int updated = userRoleMapper.updateExpiredRolesStatus();
             if (updated > 0) {
                 log.info("Updated {} expired temporary role assignments", updated);
             }
@@ -74,21 +75,20 @@ public class ApprovalCleanupTask {
         log.info("Starting expiring temporary roles notification task");
 
         try {
-            var expiringRoles = userMapper.findExpiringRoles(7);
+            List<Map<String, Object>> expiringRoles = userRoleMapper.findExpiringRolesForNotification(7);
 
             if (!expiringRoles.isEmpty()) {
                 log.info("Found {} temporary roles expiring in 7 days", expiringRoles.size());
 
-                for (var role : expiringRoles) {
+                for (Map<String, Object> role : expiringRoles) {
                     String username = (String) role.get("username");
-                    String email = (String) role.get("email");
                     String roleName = (String) role.get("role_name");
                     Object expireTime = role.get("expire_time");
 
                     log.info("Temporary role expiring soon: user={}, role={}, expireTime={}",
                             username, roleName, expireTime);
 
-                    sendExpiringNotification(username, email, roleName, expireTime);
+                    sendExpiringNotification(username, null, roleName, expireTime);
                 }
             }
         } catch (Exception e) {
@@ -132,7 +132,7 @@ public class ApprovalCleanupTask {
 
         try {
             // 清理过期超过30天的临时角色记录
-            int deletedRoles = userMapper.deleteExpiredRoles();
+            int deletedRoles = userRoleMapper.deleteExpiredRoles();
             log.info("Cleaned up {} expired temporary role records", deletedRoles);
 
             // TODO: 清理过期的审批记录（如果需要）

@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class KafkaDataSyncPublisher implements DataSyncPublisher {
-
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final DataSyncProperties properties;

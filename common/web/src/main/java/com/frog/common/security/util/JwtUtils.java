@@ -2,6 +2,7 @@ package com.frog.common.security.util;
 
 import com.frog.common.exception.UnauthorizedException;
 import com.frog.common.security.properties.JwtProperties;
+import com.frog.common.util.UUIDv7Util;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -81,11 +82,11 @@ public class JwtUtils {
     public String generateAccessToken(UUID userId, String username,
                                       Set<String> roles, Set<String> permissions,
                                       String deviceId, String ipAddress,
-                                      java.util.List<String> amr) {
-        String jti = java.util.UUID.randomUUID().toString();
+                                      List<String> amr) {
+        String jti = UUIDv7Util.generate().toString();
         String tokenType = "access";
 
-        java.util.Map<String, Object> claims = buildClaims(
+        Map<String, Object> claims = buildClaims(
                 userId, username, roles, permissions,
                 tokenType, deviceId, ipAddress, jti
         );
@@ -105,7 +106,7 @@ public class JwtUtils {
      * 生成刷新令牌
      */
     public String generateRefreshToken(UUID userId, String username, String deviceId) {
-        String jti = UUID.randomUUID().toString();
+        String jti = UUIDv7Util.generate().toString();
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);

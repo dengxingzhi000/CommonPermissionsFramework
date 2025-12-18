@@ -94,4 +94,14 @@ public class SysDept implements Serializable {
     @TableLogic(value = "false", delval = "true")
     @TableField("deleted")
     private Boolean deleted;
+
+    // ==================== 冗余字段（来自 db_user.sys_user）====================
+
+    @Schema(description = "负责人姓名（冗余字段）")
+    @TableField("leader_name")
+    private String leaderName;
+
+    @Schema(description = "负责人电话（冗余字段）")
+    @TableField("leader_phone")
+    private String leaderPhone;
 }

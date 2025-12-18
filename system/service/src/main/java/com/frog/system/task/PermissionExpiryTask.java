@@ -1,6 +1,6 @@
 package com.frog.system.task;
 
-import com.frog.system.mapper.SysUserMapper;
+import com.frog.system.mapper.SysUserRoleMapper;
 import com.frog.system.notification.NotificationService;
 import com.frog.system.notification.model.NotificationChannel;
 import com.frog.system.notification.model.NotificationCommand;
@@ -23,7 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class PermissionExpiryTask {
-    private final SysUserMapper userMapper;
+    private final SysUserRoleMapper userRoleMapper;
     private final NotificationService notificationService;
 
     /**
@@ -35,7 +35,7 @@ public class PermissionExpiryTask {
 
         try {
             // 1. 查询已过期的角色
-            List<Map<String, Object>> expiredRoles = userMapper.findExpiredRoles();
+            List<Map<String, Object>> expiredRoles = userRoleMapper.findExpiredRolesForCleanup();
 
             if (!expiredRoles.isEmpty()) {
                 log.warn("Found {} expired roles", expiredRoles.size());
@@ -49,7 +49,7 @@ public class PermissionExpiryTask {
                 }
 
                 // 2. 更新过期角色状态（不直接删除，便于审计）
-                int updatedCount = userMapper.updateExpiredRolesStatus();
+                int updatedCount = userRoleMapper.updateExpiredRolesStatus();
                 log.info("Updated {} expired role assignments", updatedCount);
 
                 // 3. 发送过期通知（TODO: 集成邮件/短信服务）
@@ -72,7 +72,7 @@ public class PermissionExpiryTask {
 
         try {
             // 查询7天内即将过期的角色
-            List<Map<String, Object>> expiringRoles = userMapper.findExpiringRoles(7);
+            List<Map<String, Object>> expiringRoles = userRoleMapper.findExpiringRolesForNotification(7);
 
             if (!expiringRoles.isEmpty()) {
                 log.info("Found {} roles expiring in 7 days", expiringRoles.size());
@@ -106,7 +106,7 @@ public class PermissionExpiryTask {
 
         try {
             // 删除过期超过30天的角色分配记录
-            int deletedCount = userMapper.deleteExpiredRoles();
+            int deletedCount = userRoleMapper.deleteExpiredRoles();
             log.info("Cleaned up {} expired role assignments", deletedCount);
 
         } catch (Exception e) {

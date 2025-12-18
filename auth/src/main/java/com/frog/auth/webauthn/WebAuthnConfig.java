@@ -48,4 +48,31 @@ public class WebAuthnConfig {
      * required, preferred, discouraged
      */
     private String residentKey = "preferred";
+
+    // ==================== 超时与生命周期配置 ====================
+
+    /**
+     * 认证挑战过期时间（秒）
+     * 默认 120 秒（2 分钟）
+     */
+    private long challengeExpirySeconds = 120L;
+
+    /**
+     * 注册挑战过期时间（秒）
+     * 默认 300 秒（5 分钟），注册流程通常需要更长时间
+     */
+    private long registrationChallengeExpirySeconds = 300L;
+
+    /**
+     * 凭证不活跃阈值（天）
+     * 超过此天数未使用的凭证将被标记为不健康
+     * 默认 90 天
+     */
+    private long credentialInactiveDays = 90L;
+
+    /**
+     * 认证尝试日志保留时间（天）
+     * 默认 30 天
+     */
+    private long authAttemptRetentionDays = 30L;
 }

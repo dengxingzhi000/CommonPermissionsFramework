@@ -13,11 +13,6 @@ server:
     trust-store-type: PKCS12
 
 spring:
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
-    deserialization:
-      adjust-dates-to-context-time-zone: false
   application:
     name: auth-service
   config:
@@ -183,3 +178,10 @@ dubbo:
     address: nacos://${spring.cloud.nacos.server-addr}
   consumer:
     timeout: 3000
+
+webauthn:
+  rp:
+    challenge-expiry-seconds: 120          # 认证挑战过期时间（默认 2 分钟）
+    registration-challenge-expiry-seconds: 300  # 注册挑战过期时间（默认 5 分钟）
+    credential-inactive-days: 90           # 凭证不活跃阈值（默认 90 天）
+    auth-attempt-retention-days: 30        # 认证日志保留时间（默认 30 天）

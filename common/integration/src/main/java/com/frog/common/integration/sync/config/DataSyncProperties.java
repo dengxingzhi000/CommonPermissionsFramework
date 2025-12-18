@@ -16,7 +16,6 @@ import java.util.Map;
 @Data
 @ConfigurationProperties(prefix = "datasync")
 public class DataSyncProperties {
-
     /**
      * 是否启用数据同步
      */

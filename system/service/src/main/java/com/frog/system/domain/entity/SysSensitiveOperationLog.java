@@ -95,6 +95,16 @@ public class SysSensitiveOperationLog implements Serializable {
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
+    // ==================== 冗余字段 ====================
+
+    @Schema(description = "用户真实姓名（冗余字段）")
+    @TableField("real_name")
+    private String realName;
+
+    @Schema(description = "部门名称（冗余字段）")
+    @TableField("dept_name")
+    private String deptName;
+
     /**
      * 操作类型枚举
      */

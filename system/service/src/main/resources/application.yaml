@@ -91,7 +91,6 @@ mybatis-plus:
       logic-delete-value: 1
       # 逻辑未删除值
       logic-not-delete-value: 0
-  # MyBatis原生配置
   configuration:
     # 开启驼峰命名转换
     map-underscore-to-camel-case: true

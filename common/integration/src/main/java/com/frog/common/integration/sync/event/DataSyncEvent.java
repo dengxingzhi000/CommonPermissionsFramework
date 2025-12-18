@@ -27,7 +27,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DataSyncEvent implements Serializable {
-
     @Serial
     private static final long serialVersionUID = 1L;
 

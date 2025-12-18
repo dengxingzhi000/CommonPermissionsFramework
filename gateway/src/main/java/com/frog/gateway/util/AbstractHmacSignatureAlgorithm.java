@@ -26,7 +26,6 @@ import java.util.stream.Stream;
  * @version 1.0
  */
 public abstract class AbstractHmacSignatureAlgorithm implements SignatureAlgorithm {
-
     private static final DefaultDataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory();
 
     @Override

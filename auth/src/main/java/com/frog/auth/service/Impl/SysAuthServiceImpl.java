@@ -89,19 +89,11 @@ public class SysAuthServiceImpl implements ISysAuthService {
                 throw new BadCredentialsException("认证失败");
             }
 
-            // MFA verification (single path)
+            // 4. 检查双因素认证（MFA）
             if (Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
                 if (!verifyTwoFactor(user.getTwoFactorSecret(), request.getTwoFactorCode(), user.getUserId())) {
-                    auditLogService.recordLoginFailure(username, ipAddress, "MFA verification failed");
-                    businessMetrics.recordLoginAttempt(false, "mfa");
-                    throw new BadCredentialsException("Invalid MFA code");
-                }
-            }
-
-            // 4. 检查双因素认证
-            if (Boolean.TRUE.equals(user.getTwoFactorEnabled()) && !verifyTwoFactor(request.getTwoFactorCode(), user.getUserId())) {
-                if (!totpUtils.verifyCode(user.getTwoFactorSecret(), request.getTwoFactorCode())) {
                     auditLogService.recordLoginFailure(username, ipAddress, "双因素认证失败");
+                    businessMetrics.recordLoginAttempt(false, "mfa");
                     throw new BadCredentialsException("双因素认证码错误");
                 }
             }
@@ -139,7 +131,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
             auditLogService.recordLogin(user.getUserId(), username, ipAddress, true, "登录成功");
 
             // 10. 记录登录成功指标
-            clearLoginAttempts(username);
             businessMetrics.recordLogin(true, deviceId);
 
             log.info("User login success: {}, IP: {}, Device: {}", username, ipAddress, deviceId);

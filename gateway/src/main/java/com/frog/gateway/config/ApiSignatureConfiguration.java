@@ -21,7 +21,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 @EnableConfigurationProperties(ApiSignatureProperties.class)
 public class ApiSignatureConfiguration {
-
     private final ApiSignatureProperties properties;
 
     @Value("${spring.profiles.active:dev}")

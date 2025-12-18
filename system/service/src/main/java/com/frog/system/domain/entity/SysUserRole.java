@@ -64,6 +64,20 @@ public class SysUserRole implements Serializable {
     @TableField(value = "create_by", fill = FieldFill.INSERT)
     private UUID createBy;
 
+    // ==================== 冗余字段（来自 db_user.sys_user）====================
+
+    @Schema(description = "用户名（冗余字段）")
+    @TableField("username")
+    private String username;
+
+    @Schema(description = "真实姓名（冗余字段）")
+    @TableField("real_name")
+    private String realName;
+
+    @Schema(description = "用户状态（冗余字段）")
+    @TableField("user_status")
+    private Integer userStatus;
+
     /**
      * 审批状态枚举
      */

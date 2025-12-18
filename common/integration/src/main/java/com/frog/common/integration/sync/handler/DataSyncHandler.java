@@ -12,7 +12,6 @@ import lombok.Getter;
  * @since 2025-12-16
  */
 public interface DataSyncHandler {
-
     /**
      * 获取处理的聚合类型
      *

@@ -221,10 +221,10 @@ public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
     int terminateTemporaryRole(@Param("userId") UUID userId, @Param("roleId") UUID roleId);
 
     /**
-     * 查询即将过期的角色（用于提醒，返回 user_id 列表）
+     * 查询即将过期的角色（用于提醒，返回用户和角色信息）
      */
     @Select("""
-            SELECT DISTINCT ur.user_id, ur.role_id, r.role_name, ur.expire_time
+            SELECT DISTINCT ur.user_id, ur.username, ur.role_id, r.role_name, ur.expire_time
             FROM sys_user_role ur
             INNER JOIN sys_role r ON ur.role_id = r.id
             WHERE ur.expire_time IS NOT NULL
@@ -234,10 +234,10 @@ public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
     List<Map<String, Object>> findExpiringRolesForNotification(@Param("days") Integer days);
 
     /**
-     * 查询已过期的角色（用于清理）
+     * 查询已过期的角色（用于清理，包含用户信息）
      */
     @Select("""
-            SELECT DISTINCT ur.user_id, ur.role_id, r.role_name, ur.expire_time
+            SELECT DISTINCT ur.user_id, ur.username, ur.role_id, r.role_name, ur.expire_time
             FROM sys_user_role ur
             INNER JOIN sys_role r ON ur.role_id = r.id
             WHERE ur.expire_time < NOW()

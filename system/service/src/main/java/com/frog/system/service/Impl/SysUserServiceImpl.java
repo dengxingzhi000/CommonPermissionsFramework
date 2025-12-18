@@ -16,6 +16,8 @@ import com.frog.system.domain.entity.SysUser;
 import com.frog.system.event.DataSyncEventPublisher;
 import com.frog.system.mapper.SysPermissionMapper;
 import com.frog.system.mapper.SysUserMapper;
+import com.frog.system.mapper.SysUserRoleMapper;
+import com.frog.system.service.CrossDatabaseQueryService;
 import com.frog.system.service.ISysUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,10 +48,12 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements ISysUserService {
     private final SysUserMapper userMapper;
+    private final SysUserRoleMapper userRoleMapper;
     private final SysPermissionMapper permissionMapper;
+    private final CrossDatabaseQueryService crossDbService;
     private final PasswordEncoder passwordEncoder;
     private final DataSyncEventPublisher dataSyncEventPublisher;
-    
+
     @Value("${spring.security.default-password}")
     private String defaultPassword;
 
@@ -93,7 +97,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         UserDTO userDTO = convertToDTO(user);
 
         // PERFORMANCE: Single query to fetch both role IDs and names (fixes N+1 issue)
-        List<Map<String, Object>> roles = userMapper.findUserRolesWithNames(id);
+        // 跨库查询 db_permission
+        List<Map<String, Object>> roles = userRoleMapper.findUserRolesWithNames(id);
 
         if (!roles.isEmpty()) {
             List<UUID> roleIds = roles.stream()
@@ -134,9 +139,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .userLevel(user.getUserLevel())
                 .build();
 
-        // 查询角色和权限
-        Set<String> roles = userMapper.findRolesByUserId(userId);
-        Set<String> permissions = userMapper.findEffectivePermissionsByUserId(userId);
+        // 查询角色和权限（跨库查询 db_permission）
+        Set<String> roles = userRoleMapper.findRoleCodesByUserId(userId);
+        Set<String> permissions = userRoleMapper.findPermissionCodesByUserId(userId);
 
         userInfo.setRoles(roles);
         userInfo.setPermissions(permissions);
@@ -181,8 +186,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 4. Database operations
         userMapper.insert(user);
 
+        // 跨库操作：插入用户角色关联（db_permission）
         if (userDTO.getRoleIds() != null && !userDTO.getRoleIds().isEmpty()) {
-            userMapper.batchInsertUserRoles(user.getId(), userDTO.getRoleIds(),
+            userRoleMapper.batchInsert(user.getId(), userDTO.getRoleIds(),
                     SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
@@ -213,10 +219,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         userMapper.updateById(user);
 
+        // 跨库操作：更新用户角色关联（db_permission）
         if (userDTO.getRoleIds() != null) {
-            userMapper.deleteUserRoles(user.getId());
+            userRoleMapper.deleteByUserId(user.getId());
             if (!userDTO.getRoleIds().isEmpty()) {
-                userMapper.batchInsertUserRoles(user.getId(), userDTO.getRoleIds(),
+                userRoleMapper.batchInsert(user.getId(), userDTO.getRoleIds(),
                         SecurityUtils.getCurrentUserUuid().orElse(null));
             }
         }
@@ -363,10 +370,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return;
         }
 
-        userMapper.deleteUserRoles(userId);
+        // 跨库操作：更新用户角色关联（db_permission）
+        userRoleMapper.deleteByUserId(userId);
 
         if (roleIds != null && !roleIds.isEmpty()) {
-            userMapper.batchInsertUserRoles(userId, roleIds, SecurityUtils.getCurrentUserUuid().orElse(null));
+            userRoleMapper.batchInsert(userId, roleIds, SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
         log.info("Roles granted to user: {}, roles: {}, by: {}",
@@ -428,8 +436,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException("生效时间不能晚于过期时间");
         }
 
+        // 跨库操作：插入临时用户角色关联（db_permission）
         if (roleIds != null && !roleIds.isEmpty()) {
-            userMapper.batchInsertTemporaryUserRoles(
+            userRoleMapper.batchInsertTemporary(
                     userId, roleIds,
                     effectiveTime != null ? effectiveTime : LocalDateTime.now(),
                     expireTime,
@@ -451,7 +460,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             key = "#userId"
     )
     public void extendTemporaryRole(UUID userId, UUID roleId, LocalDateTime newExpireTime) {
-        if (!userMapper.hasTemporaryRole(userId, roleId)) {
+        // 跨库查询 db_permission
+        if (!userRoleMapper.hasTemporaryRole(userId, roleId)) {
             throw new BusinessException("用户不存在该临时角色或已过期");
         }
 
@@ -459,7 +469,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException("新的过期时间不能早于当前时间");
         }
 
-        int updated = userMapper.extendTemporaryRole(userId, roleId, newExpireTime);
+        int updated = userRoleMapper.extendTemporaryRole(userId, roleId, newExpireTime);
         if (updated == 0) {
             throw new BusinessException("延长临时角色失败");
         }
@@ -478,7 +488,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             key = "#userId"
     )
     public void terminateTemporaryRole(UUID userId, UUID roleId) {
-        int updated = userMapper.terminateTemporaryRole(userId, roleId);
+        // 跨库操作 db_permission
+        int updated = userRoleMapper.terminateTemporaryRole(userId, roleId);
         if (updated == 0) {
             throw new BusinessException("终止临时角色失败，可能该角色不存在或已过期");
         }
@@ -496,15 +507,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             key = "#userId"
     )
     public List<Map<String, Object>> getUserTemporaryRoles(UUID userId) {
-        return userMapper.findTemporaryRolesByUserId(userId);
+        // 跨库查询 db_permission
+        return userRoleMapper.findTemporaryRolesByUserId(userId);
     }
 
     /**
      * 检查用户是否有访问某个部门的权限
+     * <p>
+     * 跨库查询：需要查询 db_permission 和 db_org
      */
     @Override
     public boolean canAccessDept(UUID userId, UUID deptId) {
-        return userMapper.hasAccessToDept(userId, deptId);
+        return crossDbService.hasAccessToDept(userId, deptId);
     }
 
     /**
@@ -516,30 +530,33 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             key = "#userId"
     )
     public Integer getUserDataScope(UUID userId) {
-        Integer dataScope = userMapper.getUserDataScope(userId);
+        // 跨库查询 db_permission
+        Integer dataScope = userRoleMapper.getUserDataScope(userId);
         return dataScope != null ? dataScope : 5;
     }
 
     /**
      * 统计用户信息
+     * <p>
+     * 跨库查询 db_permission
      */
     @Override
     public Map<String, Object> getUserStatistics(UUID userId) {
         Map<String, Object> stats = new HashMap<>();
 
-        Integer roleCount = userMapper.countUserRoles(userId);
+        Integer roleCount = userRoleMapper.countUserRoles(userId);
         stats.put("roleCount", roleCount);
 
-        Integer tempRoleCount = userMapper.countTemporaryRoles(userId);
+        Integer tempRoleCount = userRoleMapper.countTemporaryRoles(userId);
         stats.put("temporaryRoleCount", tempRoleCount);
 
-        Integer expiringCount = userMapper.countExpiringRoles(userId, 7);
+        Integer expiringCount = userRoleMapper.countExpiringRoles(userId, 7);
         stats.put("expiringRoleCount", expiringCount);
 
-        Integer dataScope = userMapper.getUserDataScope(userId);
+        Integer dataScope = userRoleMapper.getUserDataScope(userId);
         stats.put("dataScope", dataScope != null ? dataScope : 5);
 
-        BigDecimal maxApprovalAmount = userMapper.getMaxApprovalAmount(userId);
+        BigDecimal maxApprovalAmount = userRoleMapper.getMaxApprovalAmount(userId);
         stats.put("maxApprovalAmount", maxApprovalAmount);
 
         return stats;

@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -76,7 +77,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
                      @Param("lockedUntil") LocalDateTime lockedUntil);
 
     /**
-     * 根据用户ID列表批量查询用户基本信息
+     * 根据用户 ID列表批量查询用户基本信息
      */
     @Select("""
             <script>
@@ -91,7 +92,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     List<SysUser> selectBasicInfoByIds(@Param("userIds") List<UUID> userIds);
 
     /**
-     * 根据部门ID查询用户ID列表
+     * 根据部门 ID查询用户ID列表
      */
     @Select("""
             SELECT id FROM sys_user
@@ -100,11 +101,39 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     List<UUID> findUserIdsByDeptId(@Param("deptId") UUID deptId);
 
     /**
-     * 获取用户的部门ID
+     * 获取用户的部门 ID
      */
     @Select("""
             SELECT dept_id FROM sys_user
             WHERE id = #{userId} AND NOT deleted
             """)
     UUID getUserDeptId(@Param("userId") UUID userId);
+
+    /**
+     * 批量统计多个部门的用户数量
+     * <p>
+     * 用于优化 getDeptTree 等需要统计多个部门用户数的场景
+     */
+    @Select("""
+            <script>
+            SELECT dept_id, COUNT(*) as user_count FROM sys_user
+            WHERE dept_id IN
+            <foreach collection='deptIds' item='deptId' open='(' close=')' separator=','>
+                #{deptId}
+            </foreach>
+            AND NOT deleted
+            GROUP BY dept_id
+            </script>
+            """)
+    @MapKey("dept_id")
+    Map<UUID, Map<String, Object>> countUsersByDeptIds(@Param("deptIds") List<UUID> deptIds);
+
+    /**
+     * 统计单个部门的用户数
+     */
+    @Select("""
+            SELECT COUNT(*) FROM sys_user
+            WHERE dept_id = #{deptId} AND NOT deleted
+            """)
+    int countUsersByDeptId(@Param("deptId") UUID deptId);
 }
