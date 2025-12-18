@@ -4,8 +4,11 @@ import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
 import jakarta.validation.constraints.*;
@@ -36,8 +39,17 @@ import java.util.UUID;
 @Data
 @EqualsAndHashCode(callSuper = false, of = {"credentialId"})
 @Accessors(chain = true)
-@TableName(value = "webauthn_credential", autoResultMap = true)
-@Tag(name = "WebauthnCredential", description = "WebAuthn 凭证实体")
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@TableName(
+        value = "webauthn_credential",
+        autoResultMap = true
+)
+@Tag(
+        name = "WebauthnCredential",
+        description = "WebAuthn 凭证实体"
+)
 public class WebauthnCredential implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
@@ -131,22 +143,19 @@ public class WebauthnCredential implements Serializable {
     @Schema(description = "认证器GUID(识别设备型号)",
             example = "08987058-cadc-4b81-b6e1-30de50dcbe96")
     @TableField(value = "aaguid")
-    @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-             message = "aaGUID格式不正确")
-    private String aaguid;
+    private UUID aaguid;
 
     /**
      * 传输方式 (Transports)
      * 认证器支持的通信协议
      * 可选值：usb, nfc, ble, internal, hybrid
-     * 存储格式：逗号分隔或JSON数组
+     * 存储格式：PostgreSQL TEXT[] 数组
      */
     @Schema(description = "支持的传输方式",
-            example = "usb,nfc,internal",
+            example = "[\"usb\", \"internal\"]",
             allowableValues = {"usb", "nfc", "ble", "internal", "hybrid"})
-    @TableField(value = "transports")
-    @Size(max = 100, message = "传输方式长度不能超过100")
-    private String transports;
+    @TableField(value = "transports", typeHandler = com.frog.common.mybatisPlus.handler.StringArrayTypeHandler.class)
+    private String[] transports;
 
     /**
      * 凭证状态
@@ -184,49 +193,6 @@ public class WebauthnCredential implements Serializable {
     @Schema(description = "更新时间", example = "2025-11-27T10:30:00")
     @TableField(value = "updated_time", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
-
-    /**
-     * 备份恢复码哈希 (可选)
-     * 用于认证器丢失时的账户恢复
-     * 建议使用bcrypt或argon2加密存储
-     */
-    @Schema(description = "备份恢复码哈希(可选)", hidden = true)
-    @TableField(value = "backup_eligible")
-    @JsonIgnore
-    private Boolean backupEligible;
-
-    /**
-     * 备份状态 (可选)
-     * 标识凭证是否已同步到云端
-     * 对应WebAuthn的BE (Backup Eligible) 和 BS (Backup State) flags
-     */
-    @Schema(description = "备份状态(是否同步云端)", example = "false")
-    @TableField(value = "backup_state")
-    private Boolean backupState;
-
-    /**
-     * 认证器附着类型
-     * - platform: 平台认证器 (如TouchID, Windows Hello)
-     * - cross-platform: 跨平台认证器 (如YubiKey, 安全密钥)
-     */
-    @Schema(description = "认证器类型",
-            example = "platform",
-            allowableValues = {"platform", "cross-platform"})
-    @TableField(value = "authenticator_attachment")
-    @Pattern(regexp = "^(platform|cross-platform)$", message = "认证器类型不正确")
-    private String authenticatorAttachment;
-
-    /**
-     * 用户验证方法
-     * - required: 必须用户验证 (PIN/生物识别)
-     * - preferred: 优先用户验证
-     * - discouraged: 不推荐用户验证
-     */
-    @Schema(description = "用户验证方法",
-            example = "required",
-            allowableValues = {"required", "preferred", "discouraged"})
-    @TableField(value = "user_verification")
-    private String userVerification;
 
     /**
      * 检查凭证是否可用

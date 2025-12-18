@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.UUID;
 
 /**
- * SysAuth服务Feign客户端
+ * SysAuth 服务Feign客户端
  *
  * @author Deng
  * createData 2025/11/6 13:37

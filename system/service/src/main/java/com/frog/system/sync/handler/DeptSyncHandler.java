@@ -1,13 +1,11 @@
 package com.frog.system.sync.handler;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
 import com.frog.common.integration.sync.event.DataSyncEvent;
 import com.frog.common.integration.sync.handler.DataSyncHandler;
+import com.frog.system.sync.executor.DeptSyncExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
@@ -27,13 +25,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DeptSyncHandler implements DataSyncHandler {
 
+    private final DeptSyncExecutor syncExecutor;
+
     @Override
     public String getAggregateType() {
         return "Dept";
     }
 
     @Override
-    public void handle(DataSyncEvent event) throws DataSyncException {
+    public void handle(DataSyncEvent event) throws DataSyncHandler.DataSyncException {
         UUID deptId = UUID.fromString(event.getPrimaryId());
         Map<String, Object> data = event.getAfterData();
 
@@ -41,40 +41,19 @@ public class DeptSyncHandler implements DataSyncHandler {
 
         try {
             switch (event.getEventType()) {
-                case INSERT, UPDATE -> {
-                    String deptName = (String) data.get("deptName");
-                    syncToAuditDb(deptId, deptName);
-                    syncToApprovalDb(deptId, deptName);
-                }
-                case DELETE -> {
-                    // 部门删除时，冗余字段保留历史值（审计需要）
-                    log.info("[DeptSync] Dept deleted, keeping redundant data for audit: {}", deptId);
-                }
+                case INSERT, UPDATE -> syncDeptName(deptId, data);
+                case DELETE -> log.info("[DeptSync] Dept deleted, keeping redundant data for audit: {}", deptId);
                 default -> log.warn("[DeptSync] Unknown event type: {}", event.getEventType());
             }
         } catch (Exception e) {
-            throw new DataSyncException("Failed to sync dept: " + deptId, e, true);
+            throw new DataSyncHandler.DataSyncException("Failed to sync dept: " + deptId, e, true);
         }
     }
 
-    /**
-     * 同步部门信息到 audit 库
-     */
-    @DS("audit")
-    @Transactional
-    public void syncToAuditDb(UUID deptId, String deptName) {
-        // 更新审计日志中的部门名称
-        // 注意：审计日志通常不更新历史记录，这里只是示例
-        log.debug("[DeptSync] Would update audit logs for dept: {}, name: {}", deptId, deptName);
-    }
-
-    /**
-     * 同步部门信息到 approval 库
-     */
-    @DS("approval")
-    @Transactional
-    public void syncToApprovalDb(UUID deptId, String deptName) {
-        // 更新审批记录中的部门名称
-        log.debug("[DeptSync] Would update approval records for dept: {}, name: {}", deptId, deptName);
+    private void syncDeptName(UUID deptId, Map<String, Object> data) {
+        String deptName = (String) data.get("deptName");
+        // 通过独立的 Bean 调用，确保 @Transactional 和 @DS 生效
+        syncExecutor.syncToAuditDb(deptId, deptName);
+        syncExecutor.syncToApprovalDb(deptId, deptName);
     }
 }

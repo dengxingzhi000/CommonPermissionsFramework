@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * WebAuthn 凭证响应DTO
@@ -34,7 +35,7 @@ public class WebauthnCredentialDTO {
     private String algorithm;
 
     @Schema(description = "认证器 GUID", example = "08987058-cadc-4b81-b6e1-30de50dcbe96")
-    private String aaguid;
+    private UUID aaguid;
 
     @Schema(description = "传输方式", example = "usb,nfc,internal")
     private String transports;

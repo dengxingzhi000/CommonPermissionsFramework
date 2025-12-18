@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 public class DataReconciliationTask {
-
     private final DataSyncProperties properties;
     private final Map<String, DataSyncHandler> handlers = new ConcurrentHashMap<>();
 

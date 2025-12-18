@@ -220,40 +220,8 @@ public class CrossDatabaseQueryService {
      * @return 即将过期的角色信息列表
      */
     public List<Map<String, Object>> findExpiringRolesWithUserInfo(Integer days) {
-        // 1. 从 permission 库查询即将过期的角色
         List<Map<String, Object>> expiringRoles = userRoleMapper.findExpiringRolesForNotification(days);
-        if (expiringRoles == null || expiringRoles.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        // 2. 收集用户 ID
-        Set<UUID> userIds = expiringRoles.stream()
-                .map(m -> (UUID) m.get("user_id"))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        // 3. 从 user 库查询用户信息
-        Map<UUID, SysUser> userMap = new HashMap<>();
-        if (!userIds.isEmpty()) {
-            List<SysUser> users = userMapper.selectBasicInfoByIds(new ArrayList<>(userIds));
-            userMap = users.stream()
-                    .collect(Collectors.toMap(SysUser::getId, u -> u, (a, b) -> a));
-        }
-
-        // 4. 组装结果
-        Map<UUID, SysUser> finalUserMap = userMap;
-        return expiringRoles.stream()
-                .map(m -> {
-                    Map<String, Object> result = new HashMap<>(m);
-                    UUID userId = (UUID) m.get("user_id");
-                    SysUser user = finalUserMap.get(userId);
-                    if (user != null) {
-                        result.put("username", user.getUsername());
-                        result.put("email", user.getEmail());
-                    }
-                    return result;
-                })
-                .collect(Collectors.toList());
+        return enrichRolesWithUserInfo(expiringRoles, true);
     }
 
     /**
@@ -264,35 +232,49 @@ public class CrossDatabaseQueryService {
      * @return 已过期的角色信息列表
      */
     public List<Map<String, Object>> findExpiredRolesWithUserInfo() {
-        // 1. 从 permission 库查询已过期的角色
         List<Map<String, Object>> expiredRoles = userRoleMapper.findExpiredRolesForCleanup();
-        if (expiredRoles == null || expiredRoles.isEmpty()) {
+        return enrichRolesWithUserInfo(expiredRoles, false);
+    }
+
+    /**
+     * 为角色列表补充用户信息
+     *
+     * @param roles        角色列表
+     * @param includeEmail 是否包含邮箱字段
+     * @return 包含用户信息的角色列表
+     */
+    private List<Map<String, Object>> enrichRolesWithUserInfo(
+            List<Map<String, Object>> roles, boolean includeEmail) {
+        if (roles == null || roles.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 2. 收集用户 ID
-        Set<UUID> userIds = expiredRoles.stream()
+        // 1. 收集用户 ID
+        Set<UUID> userIds = roles.stream()
                 .map(m -> (UUID) m.get("user_id"))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        // 3. 从 user 库查询用户信息
-        Map<UUID, SysUser> userMap = new HashMap<>();
+        // 2. 从 user 库批量查询用户信息
+        Map<UUID, SysUser> userMap = Collections.emptyMap();
         if (!userIds.isEmpty()) {
             List<SysUser> users = userMapper.selectBasicInfoByIds(new ArrayList<>(userIds));
             userMap = users.stream()
                     .collect(Collectors.toMap(SysUser::getId, u -> u, (a, b) -> a));
         }
 
-        // 4. 组装结果
+        // 3. 组装结果
         Map<UUID, SysUser> finalUserMap = userMap;
-        return expiredRoles.stream()
+        return roles.stream()
                 .map(m -> {
                     Map<String, Object> result = new HashMap<>(m);
                     UUID userId = (UUID) m.get("user_id");
                     SysUser user = finalUserMap.get(userId);
                     if (user != null) {
                         result.put("username", user.getUsername());
+                        if (includeEmail) {
+                            result.put("email", user.getEmail());
+                        }
                     }
                     return result;
                 })

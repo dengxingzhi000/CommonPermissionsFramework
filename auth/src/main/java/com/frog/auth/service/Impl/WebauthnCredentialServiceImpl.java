@@ -5,6 +5,7 @@ import com.frog.auth.domain.dto.*;
 import com.frog.auth.domain.entity.WebauthnCredential;
 import com.frog.auth.mapper.WebauthnCredentialMapper;
 import com.frog.auth.service.IWebauthnCredentialService;
+import com.frog.auth.webauthn.WebAuthnConfig;
 import com.frog.auth.webauthn.WebAuthnValidator;
 import com.frog.common.dto.auth.*;
 import com.frog.common.feign.client.SysUserServiceClient;
@@ -34,15 +35,14 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
     private final WebauthnCredentialMapper credentialMapper;
     private final WebauthnCredentialConverter credentialConverter;
     private final WebAuthnValidator webAuthnValidator;
+    private final WebAuthnConfig webAuthnConfig;
 
     private static final String WA_CHALLENGE_PREFIX = "webauthn:challenge:";
     private static final String WA_REG_CHALLENGE_PREFIX = "webauthn:reg:challenge:";
     private static final String WA_CREDENTIAL_PREFIX = "webauthn:cred:";
     private static final String WA_AUTH_ATTEMPT_PREFIX = "webauthn:auth:attempt:";
+
     private static final int WEBAUTHN_CHALLENGE_BYTE_LENGTH = 32;
-    private static final long CHALLENGE_EXPIRY_SECONDS = 120L;
-    private static final long REG_CHALLENGE_EXPIRY_SECONDS = 300L;
-    private static final long CREDENTIAL_INACTIVE_DAYS = 90L;
 
     @Override
     public WebAuthnRegisterChallengeResponse generateRegistrationChallenge(
@@ -51,12 +51,13 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
 
         String challenge = base64Url(randomBytes());
         String key = WA_REG_CHALLENGE_PREFIX + userId + ":" + deviceId;
-        redisTemplate.opsForValue().set(key, challenge, REG_CHALLENGE_EXPIRY_SECONDS, TimeUnit.SECONDS);
+        long regChallengeExpiry = webAuthnConfig.getRegistrationChallengeExpirySeconds();
+        redisTemplate.opsForValue().set(key, challenge, regChallengeExpiry, TimeUnit.SECONDS);
 
         return WebAuthnRegisterChallengeResponse.builder()
                 .challenge(challenge)
                 .rpId(rpId)
-                .timeout(REG_CHALLENGE_EXPIRY_SECONDS * 1000)
+                .timeout(regChallengeExpiry * 1000)
                 .user(Map.of(
                         "id", userId,
                         "name", username,
@@ -74,7 +75,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         // 检查凭证是否已存在
         WebauthnCredential existing = credentialMapper.findByUserIdAndCredId(userId, request.getCredentialId());
         if (existing != null) {
-            throw new IllegalStateException("凭证ID已存在");
+            throw new IllegalStateException("凭证 ID已存在");
         }
 
         // 获取并验证挑战
@@ -104,11 +105,9 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
                 .alg(getAlgorithmName(validationResult.publicKey()))
                 .signCount(validationResult.signCount())
                 .deviceName(request.getDeviceName())
-                .aaguid(validationResult.getAaguidString())
-                .transports(request.getTransports())
+                .aaguid(validationResult.getAaguid())
+                .transports(request.getTransports() != null ? request.getTransports().split(",") : null)
                 .isActive(true)
-                .createdTime(LocalDateTime.now())
-                .updatedTime(LocalDateTime.now())
                 .build();
 
         credentialMapper.insert(credential);
@@ -120,21 +119,30 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
 
     /**
      * 获取 COSE 公钥算法名称
+     * COSE Algorithm 参考: https://www.iana.org/assignments/cose/cose.xhtml#algorithms
      */
     private String getAlgorithmName(com.webauthn4j.data.attestation.authenticator.COSEKey coseKey) {
         if (coseKey == null || coseKey.getAlgorithm() == null) {
             return "ES256"; // 默认
         }
-        return switch (coseKey.getAlgorithm().getValue().intValue()) {
-            case -7 -> "ES256";
-            case -35 -> "ES384";
-            case -36 -> "ES512";
-            case -257 -> "RS256";
-            case -258 -> "RS384";
-            case -259 -> "RS512";
-            case -8 -> "EdDSA";
-            default -> "UNKNOWN";
-        };
+        long algValue = coseKey.getAlgorithm().getValue();
+        if (algValue == -7L) {
+            return "ES256";
+        } else if (algValue == -35L) {
+            return "ES384";
+        } else if (algValue == -36L) {
+            return "ES512";
+        } else if (algValue == -257L) {
+            return "RS256";
+        } else if (algValue == -258L) {
+            return "RS384";
+        } else if (algValue == -259L) {
+            return "RS512";
+        } else if (algValue == -8L) {
+            return "EdDSA";
+        } else {
+            return "UNKNOWN";
+        }
     }
 
     @Override
@@ -144,7 +152,8 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
 
         String challenge = base64Url(randomBytes());
         String key = WA_CHALLENGE_PREFIX + userId + ":" + deviceId;
-        redisTemplate.opsForValue().set(key, challenge, CHALLENGE_EXPIRY_SECONDS, TimeUnit.SECONDS);
+        long challengeExpiry = webAuthnConfig.getChallengeExpirySeconds();
+        redisTemplate.opsForValue().set(key, challenge, challengeExpiry, TimeUnit.SECONDS);
 
         // 获取用户所有活跃凭证
         List<WebauthnCredential> creds = credentialMapper.findByUserId(userId);
@@ -154,7 +163,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
                     cred.put("id", c.getCredentialId());
                     cred.put("type", "public-key");
                     if (c.getTransports() != null) {
-                        cred.put("transports", Arrays.asList(c.getTransports().split(",")));
+                        cred.put("transports", Arrays.asList(c.getTransports()));
                     }
                     return cred;
                 })
@@ -163,7 +172,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         return WebAuthnChallengeResponse.builder()
                 .challenge(challenge)
                 .rpId(rpId)
-                .timeout(CHALLENGE_EXPIRY_SECONDS * 1000)
+                .timeout(challengeExpiry * 1000)
                 .allowCredentials(allowCredentials)
                 .userVerification("preferred")
                 .build();
@@ -180,7 +189,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         String key = WA_CHALLENGE_PREFIX + userId + ":" + deviceId;
         Object expectedChallenge = redisTemplate.opsForValue().get(key);
         if (expectedChallenge == null) {
-            throw new IllegalStateException("WebAuthn挑战已过期或不存在");
+            throw new IllegalStateException("WebAuthn 挑战已过期或不存在");
         }
 
         // 获取凭证
@@ -218,7 +227,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         Set<String> roles = userServiceClient.findRolesByUserId(userId).data();
         Set<String> permissions = userServiceClient.findPermissionsByUserId(userId).data();
 
-        // 签发带AMR的访问令牌
+        // 签发带 AMR的访问令牌
         List<String> amr = Arrays.asList("pwd", "webauthn");
         String accessToken = jwtUtils.generateAccessToken(
                 userId, username, roles, permissions, deviceId, ipAddress, amr);
@@ -263,7 +272,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
             throw new IllegalStateException("凭证不存在或停用失败");
         }
 
-        // 清理Redis缓存
+        // 清理 Redis缓存
         String cacheKey = WA_CREDENTIAL_PREFIX + userId + ":" + credentialId;
         redisTemplate.delete(cacheKey);
     }
@@ -278,7 +287,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
             throw new IllegalStateException("凭证不存在或删除失败");
         }
 
-        // 清理Redis缓存
+        // 清理 Redis缓存
         String cacheKey = WA_CREDENTIAL_PREFIX + userId + ":" + credentialId;
         redisTemplate.delete(cacheKey);
     }
@@ -290,7 +299,8 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         List<WebauthnCredential> credentials = credentialMapper.findByUserId(userId);
         List<WebauthnCredential> unhealthy = new ArrayList<>();
 
-        LocalDateTime inactiveThreshold = LocalDateTime.now().minusDays(CREDENTIAL_INACTIVE_DAYS);
+        long inactiveDays = webAuthnConfig.getCredentialInactiveDays();
+        LocalDateTime inactiveThreshold = LocalDateTime.now().minusDays(inactiveDays);
 
         for (WebauthnCredential credential : credentials) {
             boolean isUnhealthy = false;
@@ -299,7 +309,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
             if (credential.getLastUsedAt() != null &&
                 credential.getLastUsedAt().isBefore(inactiveThreshold)) {
                 log.warn("Credential {} for user {} has been inactive for over {} days",
-                        credential.getCredentialId(), userId, CREDENTIAL_INACTIVE_DAYS);
+                        credential.getCredentialId(), userId, inactiveDays);
                 isUnhealthy = true;
             }
 
@@ -326,7 +336,7 @@ public class WebauthnCredentialServiceImpl extends ServiceImpl<WebauthnCredentia
         attempt.put("timestamp", LocalDateTime.now().toString());
 
         redisTemplate.opsForHash().putAll(key, attempt);
-        redisTemplate.expire(key, 30, TimeUnit.DAYS);
+        redisTemplate.expire(key, webAuthnConfig.getAuthAttemptRetentionDays(), TimeUnit.DAYS);
 
         if (!success) {
             log.warn("Failed WebAuthn authentication attempt for user={}, credentialId={}, ip={}",

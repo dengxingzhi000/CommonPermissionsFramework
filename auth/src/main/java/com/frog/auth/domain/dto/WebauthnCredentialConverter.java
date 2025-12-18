@@ -35,12 +35,12 @@ public class WebauthnCredentialConverter {
                 .deviceName(entity.getDeviceName())
                 .algorithm(entity.getAlg())
                 .aaguid(entity.getAaguid())
-                .transports(entity.getTransports())
-                .authenticatorAttachment(entity.getAuthenticatorAttachment())
+                .transports(entity.getTransports() != null ? String.join(",", entity.getTransports()) : null)
+                .authenticatorAttachment(null) // Not stored in database
                 .isActive(entity.getIsActive())
-                .backupState(entity.getBackupState())
+                .backupState(null) // Not stored in database
                 .lastUsedAt(entity.getLastUsedAt())
-                .createdTime(entity.getCreatedTime())
+                .createdTime(entity.getCreateTime())
                 .build();
     }
 
@@ -79,11 +79,7 @@ public class WebauthnCredentialConverter {
         entity.setSignCount(0L); // 初始计数器
         entity.setDeviceName(request.getDeviceName());
         entity.setAaguid(request.getAaguid());
-        entity.setTransports(request.getTransports());
-        entity.setAuthenticatorAttachment(request.getAuthenticatorAttachment());
-        entity.setUserVerification(request.getUserVerification());
-        entity.setBackupState(request.getBackupState());
-        entity.setBackupEligible(request.getBackupEligible());
+        entity.setTransports(request.getTransports() != null ? request.getTransports().split(",") : null);
         entity.setIsActive(true); // 默认启用
 
         return entity;

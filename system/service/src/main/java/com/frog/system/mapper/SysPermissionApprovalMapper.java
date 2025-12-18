@@ -28,7 +28,7 @@ public interface SysPermissionApprovalMapper extends BaseMapper<SysPermissionApp
             <script>
             SELECT * FROM sys_permission_approval
             WHERE 1=1
-            <if test='applicantId != null'>
+            <if test='applicantId != null and applicantId != ""'>
                 AND applicant_id = #{applicantId}
             </if>
             <if test='approvalStatus != null'>

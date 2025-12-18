@@ -26,7 +26,7 @@ public interface SignatureAlgorithm {
     /**
      * 计算请求签名
      *
-     * @param request   HTTP请求对象
+     * @param request   HTTP 请求对象
      * @param appId     应用标识
      * @param timestamp 时间戳
      * @param nonce     随机数
@@ -38,7 +38,7 @@ public interface SignatureAlgorithm {
     /**
      * 验证请求签名
      *
-     * @param request   HTTP请求对象
+     * @param request   HTTP 请求对象
      * @param signature 待验证的签名
      * @param appId     应用标识
      * @param timestamp 时间戳

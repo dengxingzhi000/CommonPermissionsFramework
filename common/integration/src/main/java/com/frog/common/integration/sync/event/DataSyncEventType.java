@@ -7,7 +7,6 @@ package com.frog.common.integration.sync.event;
  * @since 2025-12-16
  */
 public enum DataSyncEventType {
-
     /**
      * 新增
      */

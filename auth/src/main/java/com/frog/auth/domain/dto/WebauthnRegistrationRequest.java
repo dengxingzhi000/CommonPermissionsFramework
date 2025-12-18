@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 /**
  * WebAuthn 注册请求DTO
  * <p>
@@ -29,8 +31,19 @@ public class WebauthnRegistrationRequest {
     @Size(min = 16, max = 1024, message = "凭证ID长度必须在16-1024之间")
     private String credentialId;
 
-    @Schema(description = "公钥(PEM格式)", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotBlank(message = "公钥不能为空")
+    @Schema(description = "客户端数据JSON(base64url)", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "clientDataJSON 不能为空")
+    private String clientDataJSON;
+
+    @Schema(description = "证明对象(base64url)", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "attestationObject 不能为空")
+    private String attestationObject;
+
+    @Schema(description = "设备 ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "设备 ID不能为空")
+    private String deviceId;
+
+    @Schema(description = "公钥(PEM格式，可选，用于简化路径)")
     @Size(max = 2048, message = "公钥长度不能超过2048")
     private String publicKeyPem;
 
@@ -45,9 +58,7 @@ public class WebauthnRegistrationRequest {
     private String deviceName;
 
     @Schema(description = "认证器 GUID", example = "08987058-cadc-4b81-b6e1-30de50dcbe96")
-    @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-             message = "aaGUID 格式不正确")
-    private String aaguid;
+    private UUID aaguid;
 
     @Schema(description = "传输方式(逗号分隔)", example = "internal")
     @Size(max = 100, message = "传输方式长度不能超过100")

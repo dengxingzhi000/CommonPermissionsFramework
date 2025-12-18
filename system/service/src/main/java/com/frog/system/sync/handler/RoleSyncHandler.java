@@ -1,12 +1,11 @@
 package com.frog.system.sync.handler;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
 import com.frog.common.integration.sync.event.DataSyncEvent;
 import com.frog.common.integration.sync.handler.DataSyncHandler;
+import com.frog.system.sync.executor.RoleSyncExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
@@ -25,13 +24,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RoleSyncHandler implements DataSyncHandler {
 
+    private final RoleSyncExecutor syncExecutor;
+
     @Override
     public String getAggregateType() {
         return "Role";
     }
 
     @Override
-    public void handle(DataSyncEvent event) throws DataSyncException {
+    public void handle(DataSyncEvent event) throws DataSyncHandler.DataSyncException {
         UUID roleId = UUID.fromString(event.getPrimaryId());
         Map<String, Object> data = event.getAfterData();
 
@@ -39,37 +40,18 @@ public class RoleSyncHandler implements DataSyncHandler {
 
         try {
             switch (event.getEventType()) {
-                case INSERT, UPDATE -> {
-                    String roleName = (String) data.get("roleName");
-                    String roleCode = (String) data.get("roleCode");
-                    syncToApprovalDb(roleId, roleName, roleCode);
-                }
-                case DELETE -> {
-                    // 角色删除时，更新相关审批记录
-                    markRoleDeletedInApprovalDb(roleId);
-                }
+                case INSERT, UPDATE -> syncRoleInfo(roleId, data);
+                case DELETE -> syncExecutor.markRoleDeletedInApprovalDb(roleId);
                 default -> log.warn("[RoleSync] Unknown event type: {}", event.getEventType());
             }
         } catch (Exception e) {
-            throw new DataSyncException("Failed to sync role: " + roleId, e, true);
+            throw new DataSyncHandler.DataSyncException("Failed to sync role: " + roleId, e, true);
         }
     }
 
-    /**
-     * 同步角色信息到 approval 库
-     */
-    @DS("approval")
-    @Transactional
-    public void syncToApprovalDb(UUID roleId, String roleName, String roleCode) {
-        // 更新包含该角色的审批记录的 role_names 数组
-        // 这里需要处理 PostgreSQL 的数组类型
-        log.debug("[RoleSync] Would update approval records for role: {}, name: {}",
-                roleId, roleName);
-    }
-
-    @DS("approval")
-    @Transactional
-    public void markRoleDeletedInApprovalDb(UUID roleId) {
-        log.debug("[RoleSync] Would mark role as deleted in approval db: {}", roleId);
+    private void syncRoleInfo(UUID roleId, Map<String, Object> data) {
+        String roleName = (String) data.get("roleName");
+        String roleCode = (String) data.get("roleCode");
+        syncExecutor.syncToApprovalDb(roleId, roleName, roleCode);
     }
 }

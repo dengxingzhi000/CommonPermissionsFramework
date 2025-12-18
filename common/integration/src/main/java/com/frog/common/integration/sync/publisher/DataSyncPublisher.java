@@ -11,7 +11,6 @@ import java.util.List;
  * @since 2025-12-16
  */
 public interface DataSyncPublisher {
-
     /**
      * 同步发布事件
      *

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 import java.util.Map;
@@ -81,6 +82,25 @@ public interface SysDeptMapper extends BaseMapper<SysDept> {
             WHERE parent_id = #{deptId} AND NOT deleted
             """)
     Integer countChildren(@Param("deptId") UUID deptId);
+
+    /**
+     * 批量统计多个部门的子部门数量
+     * <p>
+     * 用于优化 getDeptTree 等需要统计多个部门子部门数的场景，避免 N+1 查询
+     */
+    @Select("""
+            <script>
+            SELECT parent_id, COUNT(*) as child_count FROM sys_dept
+            WHERE parent_id IN
+            <foreach collection='deptIds' item='deptId' open='(' close=')' separator=','>
+                #{deptId}
+            </foreach>
+            AND NOT deleted
+            GROUP BY parent_id
+            </script>
+            """)
+    @MapKey("parent_id")
+    Map<UUID, Map<String, Object>> countChildrenByDeptIds(@Param("deptIds") List<UUID> deptIds);
 
     /**
      * 检查部门编码是否存在

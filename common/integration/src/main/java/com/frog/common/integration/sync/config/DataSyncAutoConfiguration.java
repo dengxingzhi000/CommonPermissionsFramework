@@ -44,7 +44,12 @@ import java.util.Map;
 @Configuration
 @EnableScheduling
 @EnableConfigurationProperties(DataSyncProperties.class)
-@ConditionalOnProperty(prefix = "datasync", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(
+        prefix = "datasync",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class DataSyncAutoConfiguration {
 
     @Bean

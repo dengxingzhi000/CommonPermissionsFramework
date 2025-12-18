@@ -12,6 +12,7 @@ import com.frog.system.domain.entity.SysUser;
 import com.frog.system.mapper.SysDeptMapper;
 import com.frog.system.mapper.SysPermissionApprovalMapper;
 import com.frog.system.mapper.SysUserMapper;
+import com.frog.system.mapper.SysUserRoleMapper;
 import com.frog.system.service.ISysPermissionApprovalService;
 import com.frog.system.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class SysPermissionApprovalServiceImpl
         implements ISysPermissionApprovalService {
     private final SysPermissionApprovalMapper approvalMapper;
     private final SysUserMapper userMapper;
+    private final SysUserRoleMapper userRoleMapper;
     private final SysDeptMapper deptMapper;
     private final NotificationService notificationService;
 
@@ -192,30 +194,39 @@ public class SysPermissionApprovalServiceImpl
 
     /**
      * 执行权限授予
+     * <p>
+     * 注意：角色关联存储在 db_permission 库，需使用 SysUserRoleMapper
      */
     private void grantPermissions(SysPermissionApproval approval) {
         UUID targetUserId = approval.getTargetUserId();
+        UUID currentUserId = SecurityUtils.getCurrentUserUuid().orElse(null);
 
         switch (approval.getApprovalType()) {
-            case 1 -> // 角色申请
+            case 1 -> // 角色申请（永久授权）
                     Optional.ofNullable(approval.getRoleIds())
                             .ifPresent(roleIdsArray -> {
                                 List<UUID> roleIds = Arrays.asList(roleIdsArray);
-                                userMapper.batchInsertUserRoles(targetUserId, roleIds,
-                                        SecurityUtils.getCurrentUserUuid().orElse(null));
+                                userRoleMapper.batchInsert(targetUserId, roleIds, currentUserId);
+                                log.info("Permanent roles granted: userId={}, roleIds={}", targetUserId, roleIds);
                             });
 
             case 2 -> // 权限申请
                     // TODO: 实现直接权限授予逻辑（如果需要）
                     log.debug("Direct permission grant not implemented yet");
 
-            case 3 -> // 临时授权
-                    // 临时授权在 sys_user_role 中设置过期时间
+            case 3 -> // 临时授权（带过期时间）
                     Optional.ofNullable(approval.getRoleIds())
                             .ifPresent(roleIdsArray -> {
                                 List<UUID> roleIds = Arrays.asList(roleIdsArray);
-                                // TODO: 实现带过期时间的角色授予
-                                log.debug("Temporary role grant with expiration not implemented yet, roleIds: {}", roleIds);
+                                userRoleMapper.batchInsertTemporary(
+                                        targetUserId,
+                                        roleIds,
+                                        approval.getEffectiveTime(),
+                                        approval.getExpireTime(),
+                                        currentUserId
+                                );
+                                log.info("Temporary roles granted: userId={}, roleIds={}, expireTime={}",
+                                        targetUserId, roleIds, approval.getExpireTime());
                             });
 
             default -> throw new BusinessException("未知的审批类型: " + approval.getApprovalType());

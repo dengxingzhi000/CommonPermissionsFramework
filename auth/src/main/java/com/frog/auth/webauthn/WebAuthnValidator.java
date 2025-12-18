@@ -1,8 +1,9 @@
 package com.frog.auth.webauthn;
 
 import com.webauthn4j.WebAuthnManager;
-import com.webauthn4j.authenticator.AuthenticatorImpl;
 import com.webauthn4j.converter.util.ObjectConverter;
+import com.webauthn4j.credential.CredentialRecord;
+import com.webauthn4j.credential.CredentialRecordImpl;
 import com.webauthn4j.data.AuthenticationData;
 import com.webauthn4j.data.AuthenticationParameters;
 import com.webauthn4j.data.AuthenticationRequest;
@@ -12,18 +13,20 @@ import com.webauthn4j.data.RegistrationRequest;
 import com.webauthn4j.data.attestation.AttestationObject;
 import com.webauthn4j.data.attestation.authenticator.AAGUID;
 import com.webauthn4j.data.attestation.authenticator.AttestedCredentialData;
+import com.webauthn4j.data.attestation.authenticator.AuthenticatorData;
 import com.webauthn4j.data.attestation.authenticator.COSEKey;
 import com.webauthn4j.data.client.Origin;
 import com.webauthn4j.data.client.challenge.Challenge;
 import com.webauthn4j.data.client.challenge.DefaultChallenge;
 import com.webauthn4j.server.ServerProperty;
-import com.webauthn4j.validator.exception.ValidationException;
+import com.webauthn4j.verifier.exception.VerificationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Base64;
-import java.util.List;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * WebAuthn 验证器
@@ -71,7 +74,7 @@ public class WebAuthnValidator {
             RegistrationResult result = buildRegistrationResult(registrationData);
             log.debug("WebAuthn registration validated successfully");
             return result;
-        } catch (ValidationException e) {
+        } catch (VerificationException e) {
             log.warn("WebAuthn registration validation failed: {}", e.getMessage());
             throw new IllegalStateException("WebAuthn 注册验证失败", e);
         } catch (RuntimeException e) {
@@ -111,10 +114,15 @@ public class WebAuthnValidator {
                     storedPublicKey,
                     storedSignCount
             );
-            long newSignCount = authenticationData.getAuthenticatorData().getSignCount();
+
+            AuthenticatorData<?> authData = authenticationData.getAuthenticatorData();
+            if (authData == null) {
+                throw new IllegalStateException("AuthenticatorData is null in authentication response");
+            }
+            long newSignCount = authData.getSignCount();
             log.debug("WebAuthn authentication validated successfully, newSignCount={}", newSignCount);
             return new AuthenticationResult(newSignCount, true);
-        } catch (ValidationException e) {
+        } catch (VerificationException e) {
             log.warn("WebAuthn authentication validation failed: {}", e.getMessage());
             throw new IllegalStateException("WebAuthn 认证验证失败", e);
         } catch (RuntimeException e) {
@@ -125,9 +133,12 @@ public class WebAuthnValidator {
 
     /**
      * 将 COSE 公钥序列化为字节数组
+     *
+     * @param coseKey COSE 公钥，不能为 null
+     * @return 序列化后的字节数组
      */
     public byte[] serializeCOSEKey(COSEKey coseKey) {
-        Objects.requireNonNull(coseKey, "coseKey");
+        Objects.requireNonNull(coseKey, "coseKey must not be null");
         return objectConverter.getCborConverter().writeValueAsBytes(coseKey);
     }
 
@@ -147,20 +158,29 @@ public class WebAuthnValidator {
         );
 
         RegistrationData registrationData = webAuthnManager.parse(registrationRequest);
-        webAuthnManager.validate(registrationData, registrationParameters);
+        webAuthnManager.verify(registrationData, registrationParameters);
         return registrationData;
     }
 
     private RegistrationResult buildRegistrationResult(RegistrationData registrationData) {
         AttestationObject attestationObject = registrationData.getAttestationObject();
-        AttestedCredentialData credentialData = attestationObject.getAuthenticatorData().getAttestedCredentialData();
+        if (attestationObject == null) {
+            throw new IllegalStateException("AttestationObject is null");
+        }
+
+        AuthenticatorData<?> authData = attestationObject.getAuthenticatorData();
+
+        AttestedCredentialData credentialData = authData.getAttestedCredentialData();
         if (credentialData == null) {
             throw new IllegalStateException("No attested credential data found");
         }
+
+        COSEKey coseKey = credentialData.getCOSEKey();
+
         return new RegistrationResult(
                 credentialData.getCredentialId(),
-                credentialData.getCOSEKey(),
-                attestationObject.getAuthenticatorData().getSignCount(),
+                coseKey,
+                authData.getSignCount(),
                 credentialData.getAaguid()
         );
     }
@@ -190,26 +210,51 @@ public class WebAuthnValidator {
                 signatureBytes
         );
 
-        COSEKey coseKey = objectConverter.getCborConverter().readValue(storedPublicKey, COSEKey.class);
+        CredentialRecord credentialRecord = createCredentialRecord(credentialIdBytes, storedPublicKey, storedSignCount);
+
+        AuthenticationParameters authenticationParameters = new AuthenticationParameters(
+                serverProperty,
+                credentialRecord,
+                Collections.singletonList(credentialIdBytes),
+                webAuthnConfig.isUserVerificationRequired()
+        );
+
+        AuthenticationData authenticationData = webAuthnManager.parse(authenticationRequest);
+        webAuthnManager.verify(authenticationData, authenticationParameters);
+        return authenticationData;
+    }
+
+    private CredentialRecord createCredentialRecord(byte[] credentialIdBytes, byte[] storedPublicKey, long storedSignCount) {
+        COSEKey coseKey = deserializeStoredPublicKey(storedPublicKey);
         AttestedCredentialData attestedCredentialData = new AttestedCredentialData(
                 ZERO_AAGUID,
                 credentialIdBytes,
                 coseKey
         );
-        AuthenticatorImpl authenticatorWithKey = new AuthenticatorImpl(attestedCredentialData, null, storedSignCount);
 
-        AuthenticationParameters authenticationParameters = new AuthenticationParameters(
-                serverProperty,
-                authenticatorWithKey,
-                List.of(credentialIdBytes),
-                webAuthnConfig.isUserVerificationRequired()
+        return new CredentialRecordImpl(
+                null,           // attestationStatement
+                null,           // uvInitialized
+                null,           // backupEligible
+                null,           // backupState
+                storedSignCount,
+                attestedCredentialData,
+                null,           // authenticatorExtensions
+                null,           // clientData
+                null,           // clientExtensions
+                null            // transports
         );
-
-        AuthenticationData authenticationData = webAuthnManager.parse(authenticationRequest);
-        webAuthnManager.validate(authenticationData, authenticationParameters);
-        return authenticationData;
     }
 
+    private COSEKey deserializeStoredPublicKey(byte[] storedPublicKey) {
+        COSEKey coseKey = objectConverter.getCborConverter().readValue(storedPublicKey, COSEKey.class);
+        if (coseKey == null) {
+            throw new IllegalStateException("Failed to deserialize stored public key");
+        }
+        return coseKey;
+    }
+
+    @SuppressWarnings("deprecation") // ServerProperty 构造器已废弃，但无替代 API
     private ServerProperty buildServerProperty(String expectedChallenge) {
         String rpOrigin = requireNonBlank(webAuthnConfig.getOrigin(), "webauthn.rp.origin");
         String rpId = requireNonBlank(webAuthnConfig.getId(), "webauthn.rp.id");
@@ -258,8 +303,14 @@ public class WebAuthnValidator {
             return credentialId == null ? null : BASE64_URL_ENCODER.encodeToString(credentialId);
         }
 
-        public String getAaguidString() {
-            return aaguid != null ? aaguid.toString() : null;
+        /**
+         * 获取 AAGUID 作为 java.util.UUID
+         */
+        public UUID getAaguid() {
+            if (aaguid == null || aaguid.equals(new AAGUID(new byte[16]))) {
+                return null;
+            }
+            return UUID.fromString(aaguid.toString());
         }
     }
 

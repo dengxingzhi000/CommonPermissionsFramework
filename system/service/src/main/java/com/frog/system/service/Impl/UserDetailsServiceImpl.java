@@ -2,6 +2,7 @@ package com.frog.system.service.Impl;
 
 import com.frog.common.web.domain.SecurityUser;
 import com.frog.system.mapper.SysUserMapper;
+import com.frog.system.mapper.SysUserRoleMapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ import java.util.Set;
 @Slf4j
 public class UserDetailsServiceImpl implements UserDetailsService {
     private final SysUserMapper sysUserMapper;
+    private final SysUserRoleMapper sysUserRoleMapper;
 
     @Override
     @Cacheable(
@@ -34,18 +36,18 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     )
     @NonNull
     public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException {
-        // 查询用户基本信息
+        // 1. 从 db_user 库查询用户基本信息
         var user = sysUserMapper.findByUsername(username);
         if (user == null || user.getDeleted()) {
             log.warn("User not found: {}", username);
             throw new UsernameNotFoundException("用户不存在或已删除: " + username);
         }
 
-        // 查询用户角色
-        Set<String> roles = sysUserMapper.findRolesByUserId(user.getId());
+        // 2. 从 db_permission 库查询用户角色（跨库查询）
+        Set<String> roles = sysUserRoleMapper.findRoleCodesByUserId(user.getId());
 
-        // 查询用户权限（包括角色权限）
-        Set<String> permissions = sysUserMapper.findEffectivePermissionsByUserId(user.getId());
+        // 3. 从 db_permission 库查询用户权限（跨库查询）
+        Set<String> permissions = sysUserRoleMapper.findPermissionCodesByUserId(user.getId());
 
         SecurityUser securityUser = SecurityUser.builder()
                 .userId(user.getId())

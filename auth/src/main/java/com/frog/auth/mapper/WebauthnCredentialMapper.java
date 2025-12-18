@@ -33,8 +33,8 @@ public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential>
      * @return 用户的所有活跃凭证列表，如果不存在则返回空列表
      */
     @Select("""
-            SELECT * FROM webauthn_credential 
-            WHERE user_id = #{userId} AND is_active = TRUE 
+            SELECT * FROM webauthn_credential
+            WHERE user_id = #{userId} AND is_active = TRUE
             ORDER BY created_time DESC
             """)
     List<WebauthnCredential> findByUserId(@Param("userId") UUID userId);
@@ -50,8 +50,8 @@ public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential>
      * @return 匹配的凭证信息，如果不存在则返回null
      */
     @Select("""
-            SELECT * FROM webauthn_credential 
-            WHERE user_id = #{userId} AND credential_id = #{credentialId} AND is_active = TRUE 
+            SELECT * FROM webauthn_credential
+            WHERE user_id = #{userId} AND credential_id = #{credentialId} AND is_active = TRUE
             LIMIT 1
             """)
     WebauthnCredential findByUserIdAndCredId(@Param("userId") UUID userId,
@@ -66,16 +66,15 @@ public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential>
      * @param userId 用户ID，不能为空
      * @param credentialId 凭证ID，不能为空
      * @param signCount 新的签名计数，通常比之前的值大
-     * @return 影响的行数，正常情况下应为1
      */
     @Update("""
-            UPDATE webauthn_credential 
-            SET sign_count = #{signCount}, last_used_at = NOW() 
+            UPDATE webauthn_credential
+            SET sign_count = #{signCount}, last_used_at = NOW()
             WHERE user_id = #{userId} AND credential_id = #{credentialId}
             """)
-    int updateSignCount(@Param("userId") UUID userId,
-                        @Param("credentialId") String credentialId,
-                        @Param("signCount") Long signCount);
+    void updateSignCount(@Param("userId") UUID userId,
+                         @Param("credentialId") String credentialId,
+                         @Param("signCount") Long signCount);
 
     /**
      * 更新设备名称
@@ -88,8 +87,8 @@ public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential>
      * @return 影响的行数，正常情况下应为1
      */
     @Update("""
-            UPDATE webauthn_credential 
-            SET device_name = #{deviceName} 
+            UPDATE webauthn_credential
+            SET device_name = #{deviceName}
             WHERE user_id = #{userId} AND credential_id = #{credentialId}
             """)
     int updateDeviceName(@Param("userId") UUID userId,
@@ -107,8 +106,8 @@ public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential>
      * @return 影响的行数，正常情况下应为1
      */
     @Update("""
-            UPDATE webauthn_credential 
-            SET is_active = FALSE 
+            UPDATE webauthn_credential
+            SET is_active = FALSE
             WHERE user_id = #{userId} AND credential_id = #{credentialId}
             """)
     int disableCredential(@Param("userId") UUID userId,
@@ -125,11 +124,11 @@ public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential>
      * @return 影响的行数，正常情况下应为1
      */
     @Delete("""
-            DELETE FROM webauthn_credential 
+            DELETE FROM webauthn_credential
             WHERE user_id = #{userId} AND credential_id = #{credentialId}
             """)
     int deleteByUserIdAndCredId(@Param("userId") UUID userId,
-                                 @Param("credentialId") String credentialId);
+                                @Param("credentialId") String credentialId);
 
     /**
      * 列出用户所有活跃凭证(按最后使用时间排序)
@@ -141,8 +140,8 @@ public interface WebauthnCredentialMapper extends BaseMapper<WebauthnCredential>
      * @return 用户的所有活跃凭证列表，按使用频率排序，如果不存在则返回空列表
      */
     @Select("""
-            SELECT * FROM webauthn_credential 
-            WHERE user_id = #{userId} AND is_active = TRUE 
+            SELECT * FROM webauthn_credential
+            WHERE user_id = #{userId} AND is_active = TRUE
             ORDER BY last_used_at DESC NULLS LAST, created_time DESC
             """)
     List<WebauthnCredential> listActiveCredentials(@Param("userId") UUID userId);

@@ -1,18 +1,15 @@
 package com.frog.system.sync.handler;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
 import com.frog.common.integration.sync.event.DataSyncEvent;
-import com.frog.common.integration.sync.event.DataSyncEventType;
 import com.frog.common.integration.sync.handler.DataSyncHandler;
 import com.frog.common.integration.sync.reconciliation.DataReconciliationTask;
 import com.frog.system.domain.entity.SysUser;
-import com.frog.system.mapper.SysDeptMapper;
 import com.frog.system.mapper.SysUserMapper;
 import com.frog.system.mapper.SysUserRoleMapper;
+import com.frog.system.sync.executor.UserSyncExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,7 +32,7 @@ public class UserSyncHandler implements DataSyncHandler,
 
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
-    private final SysDeptMapper deptMapper;
+    private final UserSyncExecutor syncExecutor;
 
     @Override
     public String getAggregateType() {
@@ -43,24 +40,20 @@ public class UserSyncHandler implements DataSyncHandler,
     }
 
     @Override
-    public void handle(DataSyncEvent event) throws DataSyncException {
+    public void handle(DataSyncEvent event) throws DataSyncHandler.DataSyncException {
         UUID userId = UUID.fromString(event.getPrimaryId());
         Map<String, Object> data = event.getAfterData();
 
-        log.debug("[UserSync] Handling event: userId={}, type={}",
-                userId, event.getEventType());
+        log.debug("[UserSync] Handling event: userId={}, type={}", userId, event.getEventType());
 
         try {
             switch (event.getEventType()) {
-                case INSERT, UPDATE -> {
-                    syncToPermissionDb(userId, data);
-                    syncToOrgDb(userId, data);
-                }
-                case DELETE -> markDeletedInPermissionDb(userId);
+                case INSERT, UPDATE -> syncUserInfo(userId, data);
+                case DELETE -> syncExecutor.markDeletedInPermissionDb(userId);
                 default -> log.warn("[UserSync] Unknown event type: {}", event.getEventType());
             }
         } catch (Exception e) {
-            throw new DataSyncException("Failed to sync user: " + userId, e, true);
+            throw new DataSyncHandler.DataSyncException("Failed to sync user: " + userId, e, true);
         }
     }
 
@@ -70,43 +63,16 @@ public class UserSyncHandler implements DataSyncHandler,
         SysUser user = userMapper.selectById(userId);
         if (user != null) {
             Map<String, Object> data = buildUserData(user);
-            syncToPermissionDb(userId, data);
-            syncToOrgDb(userId, data);
+            syncUserInfo(userId, data);
         }
     }
 
     /**
-     * 同步用户信息到 permission 库
+     * 通过独立的 Bean 同步用户信息，确保 @Transactional 和 @DS 生效
      */
-    @DS("permission")
-    @Transactional
-    public void syncToPermissionDb(UUID userId, Map<String, Object> data) {
-        String username = (String) data.get("username");
-        String realName = (String) data.get("realName");
-        Integer status = (Integer) data.get("status");
-
-        int updated = userRoleMapper.updateUserRedundancy(userId, username, realName, status);
-        log.debug("[UserSync] Updated {} rows in sys_user_role for user: {}", updated, userId);
-    }
-
-    /**
-     * 同步用户信息到 org 库（负责人信息）
-     */
-    @DS("org")
-    @Transactional
-    public void syncToOrgDb(UUID userId, Map<String, Object> data) {
-        String realName = (String) data.get("realName");
-        String phone = (String) data.get("phone");
-
-        int updated = deptMapper.updateLeaderRedundancy(userId, realName, phone);
-        log.debug("[UserSync] Updated {} rows in sys_dept for leader: {}", updated, userId);
-    }
-
-    @DS("permission")
-    @Transactional
-    public void markDeletedInPermissionDb(UUID userId) {
-        userRoleMapper.updateUserStatus(userId, 0);
-        log.debug("[UserSync] Marked user as deleted in permission db: {}", userId);
+    private void syncUserInfo(UUID userId, Map<String, Object> data) {
+        syncExecutor.syncToPermissionDb(userId, data);
+        syncExecutor.syncToOrgDb(userId, data);
     }
 
     private Map<String, Object> buildUserData(SysUser user) {
@@ -152,7 +118,7 @@ public class UserSyncHandler implements DataSyncHandler,
                     inconsistentCount++;
                     if (autoFix) {
                         try {
-                            markDeletedInPermissionDb(userId);
+                            syncExecutor.markDeletedInPermissionDb(userId);
                             fixedCount++;
                         } catch (Exception e) {
                             failedCount++;

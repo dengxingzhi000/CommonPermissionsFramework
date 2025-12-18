@@ -7,6 +7,7 @@ import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.domain.entity.SysDept;
 import com.frog.system.event.DataSyncEventPublisher;
 import com.frog.system.mapper.SysDeptMapper;
+import com.frog.system.mapper.SysUserMapper;
 import com.frog.system.service.ISysDeptService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -31,25 +32,60 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> implements ISysDeptService {
     private final SysDeptMapper deptMapper;
+    private final SysUserMapper userMapper;
     private final DataSyncEventPublisher dataSyncEventPublisher;
 
     /**
      * 查询部门树
+     * <p>
+     * 注意：此方法使用冗余字段获取负责人信息（无需跨库）
+     * 用户数统计通过批量跨库查询 db_user 实现（性能优化）
      */
     @Override
     @Cacheable(value = "deptTree", key = "'all'")
     public List<DeptDTO> getDeptTree() {
-        // 查询所有部门
-        List<DeptDTO> allDepts = deptMapper.selectDeptTree();
+        // 1. 从 org 库查询所有部门（使用冗余字段包含负责人信息）
+        List<SysDept> depts = deptMapper.selectDeptTreeWithLeader();
 
-        // 统计每个部门的用户数和子部门数
-        for (DeptDTO dept : allDepts) {
-            dept.setUserCount(deptMapper.countUsers(dept.getId()));
-            dept.setChildCount(deptMapper.countChildren(dept.getId()));
+        // 2. 收集所有部门 ID，用于批量统计用户数
+        List<UUID> deptIds = depts.stream().map(SysDept::getId).toList();
+
+        // 3. 从 user 库批量统计每个部门的用户数（单次跨库查询，性能优化）
+        Map<UUID, Integer> userCountMap = new HashMap<>();
+        if (!deptIds.isEmpty()) {
+            Map<UUID, Map<String, Object>> countResult = userMapper.countUsersByDeptIds(deptIds);
+            if (countResult != null) {
+                countResult.forEach((deptId, row) -> {
+                    Object count = row.get("user_count");
+                    userCountMap.put(deptId, count != null ? ((Number) count).intValue() : 0);
+                });
+            }
         }
 
-        // 构建树形结构
-        return buildTree(allDepts);
+        // 4. 批量统计每个部门的子部门数（避免 N+1 查询）
+        Map<UUID, Integer> childCountMap = new HashMap<>();
+        if (!deptIds.isEmpty()) {
+            Map<UUID, Map<String, Object>> childCountResult = deptMapper.countChildrenByDeptIds(deptIds);
+            if (childCountResult != null) {
+                childCountResult.forEach((parentId, row) -> {
+                    Object count = row.get("child_count");
+                    childCountMap.put(parentId, count != null ? ((Number) count).intValue() : 0);
+                });
+            }
+        }
+
+        // 5. 转换为 DTO 并填充统计信息
+        List<DeptDTO> allDepts = depts.stream().map(dept -> {
+            DeptDTO dto = new DeptDTO();
+            BeanUtils.copyProperties(dept, dto);
+            dto.setLeaderName(dept.getLeaderName());  // 使用冗余字段
+            dto.setUserCount(userCountMap.getOrDefault(dept.getId(), 0));
+            dto.setChildCount(childCountMap.getOrDefault(dept.getId(), 0));
+            return dto;
+        }).toList();
+
+        // 6. 构建树形结构
+        return buildTree(new ArrayList<>(allDepts));
     }
 
     /**
@@ -151,9 +187,9 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
             throw new BusinessException("该部门下还有子部门，不能删除");
         }
 
-        // 检查是否有用户
-        if (hasUsers(id)) {
-            Integer userCount = deptMapper.countUsers(id);
+        // 检查是否有用户（跨库查询 db_user）
+        int userCount = countUsersByDeptId(id);
+        if (userCount > 0) {
             throw new BusinessException("该部门下还有 " + userCount + " 个用户，不能删除");
         }
 
@@ -168,11 +204,12 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
 
     /**
      * 检查部门下是否有用户
+     * <p>
+     * 跨库查询 db_user
      */
     @Override
     public boolean hasUsers(UUID deptId) {
-        Integer count = deptMapper.countUsers(deptId);
-        return count != null && count > 0;
+        return countUsersByDeptId(deptId) > 0;
     }
 
     /**
@@ -182,6 +219,15 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     public boolean hasChildren(UUID deptId) {
         Integer count = deptMapper.countChildren(deptId);
         return count != null && count > 0;
+    }
+
+    /**
+     * 统计部门下的用户数
+     * <p>
+     * 跨库查询 db_user（使用 COUNT 查询，比获取 ID 列表更高效）
+     */
+    private int countUsersByDeptId(UUID deptId) {
+        return userMapper.countUsersByDeptId(deptId);
     }
 
     // ========== 私有方法 ==========

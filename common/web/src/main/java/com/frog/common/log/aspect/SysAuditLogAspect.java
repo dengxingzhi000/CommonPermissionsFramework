@@ -32,7 +32,6 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @Slf4j
 public class SysAuditLogAspect {
-
     private final SysAuditLogMapper sysAuditLogMapper;
     private final ObjectMapper objectMapper;
 

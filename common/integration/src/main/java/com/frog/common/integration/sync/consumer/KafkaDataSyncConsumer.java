@@ -29,7 +29,6 @@ import org.springframework.kafka.support.Acknowledgment;
 @Slf4j
 @RequiredArgsConstructor
 public class KafkaDataSyncConsumer {
-
     private final RetryableEventProcessor processor;
     private final ObjectMapper objectMapper;
     private final Tracer tracer;
