@@ -68,4 +68,15 @@ public interface SysRoleDataRuleMapper extends BaseMapper<SysRoleDataRule> {
             WHERE role_id = #{roleId} AND rule_id = #{ruleId}
             """)
     boolean exists(@Param("roleId") UUID roleId, @Param("ruleId") UUID ruleId);
+
+    /**
+     * 删除角色数据权限规则关联
+     * <p>
+     * 用于删除角色时清理数据权限规则关联
+     */
+    @Delete("""
+            DELETE FROM sys_role_data_rule
+            WHERE role_id = #{roleId}
+            """)
+    int deleteRoleDataRules(@Param("roleId") UUID roleId);
 }

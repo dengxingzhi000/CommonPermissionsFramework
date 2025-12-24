@@ -14,7 +14,7 @@ public interface DataPermissionService {
 
     /**
      * 查询用户的自定义数据权限部门列表
-     * 从 sys_role_data_permission 表查询用户通过角色获得的可访问部门
+     * 从 sys_role_dept 表查询用户通过角色获得的可访问部门
      *
      * @param userId 用户 ID
      * @return 可访问的部门 ID列表

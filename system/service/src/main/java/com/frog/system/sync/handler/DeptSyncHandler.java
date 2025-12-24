@@ -24,7 +24,6 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class DeptSyncHandler implements DataSyncHandler {
-
     private final DeptSyncExecutor syncExecutor;
 
     @Override

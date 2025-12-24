@@ -1,6 +1,7 @@
 package com.frog.common.feign.fallback;
 
 
+import com.frog.common.dto.permission.ApiPermissionDTO;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.common.feign.client.SysPermissionServiceClient;
 import com.frog.common.feign.factory.BaseFallbackFactory;
@@ -38,14 +39,9 @@ public class PermissionServiceClientFallbackFactory extends BaseFallbackFactory<
 
             @Override
             public ApiResponse<Set<String>> getUserPermissions(UUID userId) {
-                log.error("调用权限服务查询用户权限失败: userId={}, 原因: {}", userId, errorMsg, cause);
+                log.error("SECURITY: User permission lookup failed via Sentinel fallback - DENYING ACCESS. " +
+                         "userId={}, error: {}", userId, errorMsg, cause);
                 return ApiResponse.success(Collections.emptySet());
-            }
-
-            @Override
-            public ApiResponse<Boolean> hasPermission(UUID userId, String permissionCode) {
-                log.error("调用权限服务检查用户权限失败: userId={}, permissionCode={}, 原因: {}", userId, permissionCode, errorMsg, cause);
-                return ApiResponse.success(Boolean.FALSE);
             }
 
             @Override
@@ -64,17 +60,8 @@ public class PermissionServiceClientFallbackFactory extends BaseFallbackFactory<
             }
 
             @Override
-            public Set<String> findAllPermissionsByUserId(UUID userId) {
-                log.error("SECURITY: User permission lookup failed via Sentinel fallback - DENYING ACCESS. " +
-                         "userId={}, error: {}", userId, errorMsg, cause);
-                // FAIL-CLOSED: Throw exception to deny access when permission check fails
-                throw new AccessDeniedException(
-                    "Permission service unavailable (Sentinel circuit open) - access denied as safety measure");
-            }
-
-            @Override
-            public List<Map<String, Object>> findApiPermissions() {
-                log.error("调用权限服务查询接口权限失败: 错误信息: {}", errorMsg, cause);
+            public List<ApiPermissionDTO> findApiPermissions() {
+                log.error("调用权限服务查询API权限失败: 错误信息: {}", errorMsg, cause);
                 return Collections.emptyList();
             }
         };

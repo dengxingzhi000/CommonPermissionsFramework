@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class LegacyHmacSignatureAlgorithm extends AbstractHmacSignatureAlgorithm {
-
     private static final String VERSION = "HMAC-SHA256-V1";
 
     @Override

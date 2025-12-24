@@ -21,7 +21,7 @@ public record ApiResponse<T>(
     }
 
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(200, "Success", data, System.currentTimeMillis());
+        return success("Success", data);
     }
 
     public static <T> ApiResponse<T> success(String message, T data) {

@@ -20,7 +20,6 @@ import java.util.Map;
  */
 @RequiredArgsConstructor
 public class ReadWriteHealthIndicator implements HealthIndicator {
-
     private final SlaveHealthChecker healthChecker;
     private final ReadWriteAutoConfiguration.ReadWriteDataSourceProvider dataSourceProvider;
 

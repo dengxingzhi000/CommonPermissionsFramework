@@ -1,6 +1,5 @@
 package com.frog.common.web.metrics;
 
-import com.frog.common.cache.MultiLevelCache;
 import com.frog.common.cache.spring.TwoLevelCache;
 import com.frog.common.cache.spring.TwoLevelCacheManager;
 import io.micrometer.core.instrument.Gauge;
@@ -15,7 +14,7 @@ import java.util.Map;
 public class CacheMetricsConfig {
 
     @Bean
-    public MeterBinder cacheMeters(TwoLevelCacheManager manager, MultiLevelCache multiLevelCache) {
+    public MeterBinder cacheMeters(TwoLevelCacheManager manager) {
         return registry -> {
             // TwoLevelCache per-cache metrics
             for (Map.Entry<String, TwoLevelCache> e : manager.currentCaches().entrySet()) {
@@ -27,31 +26,18 @@ public class CacheMetricsConfig {
                         .tag("cache", cacheName)
                         .register(registry);
 
-                FunctionCounter.builder("cache.local.hits", cache, c -> 
+                FunctionCounter.builder("cache.local.hits", cache, c ->
                                 (double) c.getLocalStats().hitCount())
                         .description("TwoLevel local cache hits")
                         .tag("cache", cacheName)
                         .register(registry);
 
-                FunctionCounter.builder("cache.local.misses", cache, c -> 
+                FunctionCounter.builder("cache.local.misses", cache, c ->
                                 (double) c.getLocalStats().missCount())
                         .description("TwoLevel local cache misses")
                         .tag("cache", cacheName)
                         .register(registry);
             }
-
-            // MultiLevelCache general metrics
-            Gauge.builder("multilevel.local.size", multiLevelCache, MultiLevelCache::localSize)
-                    .description("MultiLevel L1 size")
-                    .register(registry);
-            FunctionCounter.builder("multilevel.local.hits", multiLevelCache, c -> 
-                            (double) c.localStats().hitCount())
-                    .description("MultiLevel L1 hits")
-                    .register(registry);
-            FunctionCounter.builder("multilevel.local.misses", multiLevelCache, c -> 
-                            (double) c.localStats().missCount())
-                    .description("MultiLevel L1 misses")
-                    .register(registry);
         };
     }
 }

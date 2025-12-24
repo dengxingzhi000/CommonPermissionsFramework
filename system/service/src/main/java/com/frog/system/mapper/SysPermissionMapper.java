@@ -142,12 +142,4 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
             WHERE permission_code = #{permissionCode} AND NOT deleted
             """)
     boolean existsByPermissionCode(@Param("permissionCode") String permissionCode);
-
-    /**
-     * 统计使用该权限的角色数
-     */
-    @Select("""
-            SELECT COUNT(*) FROM sys_role_permission WHERE permission_id = #{permissionId}
-            """)
-    Integer countRolesByPermissionId(@Param("permissionId") UUID permissionId);
 }

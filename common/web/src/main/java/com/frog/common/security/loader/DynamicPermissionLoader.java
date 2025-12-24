@@ -1,18 +1,18 @@
 package com.frog.common.security.loader;
 
-import com.frog.common.cache.MultiLevelCache;
+import com.frog.common.dto.permission.ApiPermissionDTO;
 import com.frog.common.feign.client.SysPermissionServiceClient;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,7 +32,6 @@ public class DynamicPermissionLoader {
     private final SysPermissionServiceClient permissionServiceClient;
     private final CacheManager cacheManager;
     private final ApplicationEventPublisher eventPublisher;
-    private final MultiLevelCache multiLevelCache;
 
     // 内存缓存：URL -> 所需权限列表
     private final Map<String, Set<String>> urlPermissionCache = new ConcurrentHashMap<>();
@@ -40,24 +39,27 @@ public class DynamicPermissionLoader {
     // 权限版本号（用于检测变更）
     private final AtomicLong permissionVersion = new AtomicLong(0L);
 
+    private static final String PERMISSION_CACHE_NAME = "permissionMapping";
     private static final String PERM_MAPPING_CACHE_KEY = "dynamic:permission:mapping";
-    private static final Duration PERM_MAPPING_TTL = Duration.ofMinutes(5);
 
     @PostConstruct
     public void initFromCache() {
         try {
-            Object rawCached = multiLevelCache.get(PERM_MAPPING_CACHE_KEY, Map.class);
-            if (rawCached instanceof Map<?, ?> rawMap && !rawMap.isEmpty()) {
-                urlPermissionCache.clear();
-                urlPermissionCache.putAll(normalizePermissionMap(rawMap));
+            Cache permCache = cacheManager.getCache(PERMISSION_CACHE_NAME);
+            if (permCache != null) {
+                Object rawCached = permCache.get(PERM_MAPPING_CACHE_KEY, Map.class);
+                if (rawCached instanceof Map<?, ?> rawMap && !rawMap.isEmpty()) {
+                    urlPermissionCache.clear();
+                    urlPermissionCache.putAll(normalizePermissionMap(rawMap));
 
-                // 初始化版本号
-                permissionVersion.set(1L);
-                log.info("Initialized dynamic permission cache from MultiLevelCache, size={}",
-                        urlPermissionCache.size());
+                    // 初始化版本号
+                    permissionVersion.set(1L);
+                    log.info("Initialized dynamic permission cache from TwoLevelCache, size={}",
+                            urlPermissionCache.size());
+                }
             }
         } catch (Exception e) {
-            log.warn("Init from MultiLevelCache failed", e);
+            log.warn("Init from cache failed", e);
         }
     }
 
@@ -91,15 +93,15 @@ public class DynamicPermissionLoader {
 
         try {
             // 查询所有 API类型的权限
-            List<Map<String, Object>> apiPermissions = permissionServiceClient
+            List<ApiPermissionDTO> apiPermissions = permissionServiceClient
                     .findApiPermissions();
 
             Map<String, Set<String>> newCache = new HashMap<>();
 
-            for (Map<String, Object> perm : apiPermissions) {
-                String apiPath = (String) perm.get("api_path");
-                String httpMethod = (String) perm.get("http_method");
-                String permissionCode = (String) perm.get("permission_code");
+            for (ApiPermissionDTO perm : apiPermissions) {
+                String apiPath = perm.getApiPath();
+                String httpMethod = perm.getHttpMethod();
+                String permissionCode = perm.getPermissionCode();
 
                 if (apiPath != null && permissionCode != null) {
                     String key = buildKey(httpMethod, apiPath);
@@ -113,7 +115,10 @@ public class DynamicPermissionLoader {
             urlPermissionCache.putAll(newCache);
 
             // 持久化到多级缓存（供多实例共享，冷启动加速）
-            multiLevelCache.set(PERM_MAPPING_CACHE_KEY, newCache, PERM_MAPPING_TTL);
+            Cache permCache = cacheManager.getCache(PERMISSION_CACHE_NAME);
+            if (permCache != null) {
+                permCache.put(PERM_MAPPING_CACHE_KEY, newCache);
+            }
 
             permissionVersion.incrementAndGet();
 

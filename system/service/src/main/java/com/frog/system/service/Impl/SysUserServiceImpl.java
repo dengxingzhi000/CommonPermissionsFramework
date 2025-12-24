@@ -3,6 +3,7 @@ package com.frog.system.service.Impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.frog.common.data.rw.annotation.Slave;
 import com.frog.common.response.ResultCode;
 import com.frog.common.util.UUIDv7Util;
 
@@ -11,12 +12,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.common.dto.user.UserDTO;
 import com.frog.common.dto.user.UserInfo;
+import com.frog.common.web.domain.SecurityUser;
 import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.domain.entity.SysUser;
 import com.frog.system.event.DataSyncEventPublisher;
-import com.frog.system.mapper.SysPermissionMapper;
 import com.frog.system.mapper.SysUserMapper;
-import com.frog.system.mapper.SysUserRoleMapper;
 import com.frog.system.service.CrossDatabaseQueryService;
 import com.frog.system.service.ISysUserService;
 import lombok.RequiredArgsConstructor;
@@ -48,8 +48,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements ISysUserService {
     private final SysUserMapper userMapper;
-    private final SysUserRoleMapper userRoleMapper;
-    private final SysPermissionMapper permissionMapper;
     private final CrossDatabaseQueryService crossDbService;
     private final PasswordEncoder passwordEncoder;
     private final DataSyncEventPublisher dataSyncEventPublisher;
@@ -59,7 +57,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     /**
      * 分页查询用户列表
+     * <p>
+     * 使用只读事务，自动路由到从库
      */
+    @Transactional(readOnly = true)
     public Page<UserDTO> listUsers(Integer pageNum, Integer pageSize,
                                    String username, Integer status) {
         Page<SysUser> page = new Page<>(pageNum, pageSize);
@@ -84,6 +85,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     /**
      * 根据 ID查询用户
      */
+    @Slave
     @Cacheable(
             value = "user",
             key = "#id"
@@ -96,9 +98,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         UserDTO userDTO = convertToDTO(user);
 
-        // PERFORMANCE: Single query to fetch both role IDs and names (fixes N+1 issue)
-        // 跨库查询 db_permission
-        List<Map<String, Object>> roles = userRoleMapper.findUserRolesWithNames(id);
+        // 通过 CrossDatabaseQueryService 跨库查询 db_permission
+        List<Map<String, Object>> roles = crossDbService.findUserRolesWithNames(id);
 
         if (!roles.isEmpty()) {
             List<UUID> roleIds = roles.stream()
@@ -116,8 +117,50 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     /**
-     * 获取用户详细信息（包含权限和菜单）
+     * 根据用户名获取用户（用于 Spring Security 认证）
+     * <p>
+     * 查询走从库，返回包含密码、角色、权限的完整认证信息
      */
+    @Override
+    @Slave
+    @Cacheable(
+            value = "userDetails",
+            key = "#username"
+    )
+    public SecurityUser getUserByUsername(String username) {
+        SysUser user = userMapper.findByUsername(username);
+        if (user == null) {
+            return null;
+        }
+
+        // 跨库查询角色和权限
+        Set<String> roles = crossDbService.findRoleCodesByUserId(user.getId());
+        Set<String> permissions = crossDbService.findPermissionCodesByUserId(user.getId());
+
+        return SecurityUser.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .password(user.getPassword())
+                .realName(user.getRealName())
+                .deptId(user.getDeptId())
+                .status(user.getStatus())
+                .accountType(user.getAccountType())
+                .userLevel(user.getUserLevel())
+                .roles(roles != null ? roles : Collections.emptySet())
+                .permissions(permissions != null ? permissions : Collections.emptySet())
+                .twoFactorSecret(user.getTwoFactorSecret())
+                .twoFactorEnabled(user.getTwoFactorEnabled())
+                .passwordExpireTime(user.getPasswordExpireTime())
+                .forceChangePassword(user.getForceChangePassword())
+                .build();
+    }
+
+    /**
+     * 获取用户详细信息（包含权限和菜单）
+     * <p>
+     * 查询走从库
+     */
+    @Slave
     @Cacheable(
             value = "userInfo",
             key = "#userId"
@@ -139,15 +182,15 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .userLevel(user.getUserLevel())
                 .build();
 
-        // 查询角色和权限（跨库查询 db_permission）
-        Set<String> roles = userRoleMapper.findRoleCodesByUserId(userId);
-        Set<String> permissions = userRoleMapper.findPermissionCodesByUserId(userId);
+        // 通过 CrossDatabaseQueryService 跨库查询 db_permission
+        Set<String> roles = crossDbService.findRoleCodesByUserId(userId);
+        Set<String> permissions = crossDbService.findPermissionCodesByUserId(userId);
 
         userInfo.setRoles(roles);
         userInfo.setPermissions(permissions);
 
         // 构建菜单树（只返回菜单类型的权限）
-        List<PermissionDTO> menuTree = permissionMapper.findMenuTreeByUserId(userId);
+        List<PermissionDTO> menuTree = crossDbService.findMenuTreeByUserId(userId);
         userInfo.setMenuTree(new HashSet<>(menuTree));
 
         return userInfo;
@@ -186,9 +229,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 4. Database operations
         userMapper.insert(user);
 
-        // 跨库操作：插入用户角色关联（db_permission）
+        // 通过 CrossDatabaseQueryService 跨库操作：插入用户角色关联（db_permission）
         if (userDTO.getRoleIds() != null && !userDTO.getRoleIds().isEmpty()) {
-            userRoleMapper.batchInsert(user.getId(), userDTO.getRoleIds(),
+            crossDbService.batchInsertUserRoles(user.getId(), userDTO.getRoleIds(),
                     SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
@@ -219,11 +262,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         userMapper.updateById(user);
 
-        // 跨库操作：更新用户角色关联（db_permission）
+        // 通过 CrossDatabaseQueryService 跨库操作：更新用户角色关联（db_permission）
         if (userDTO.getRoleIds() != null) {
-            userRoleMapper.deleteByUserId(user.getId());
+            crossDbService.deleteUserRoles(user.getId());
             if (!userDTO.getRoleIds().isEmpty()) {
-                userRoleMapper.batchInsert(user.getId(), userDTO.getRoleIds(),
+                crossDbService.batchInsertUserRoles(user.getId(), userDTO.getRoleIds(),
                         SecurityUtils.getCurrentUserUuid().orElse(null));
             }
         }
@@ -370,11 +413,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return;
         }
 
-        // 跨库操作：更新用户角色关联（db_permission）
-        userRoleMapper.deleteByUserId(userId);
+        // 通过 CrossDatabaseQueryService 跨库操作：更新用户角色关联（db_permission）
+        crossDbService.deleteUserRoles(userId);
 
         if (roleIds != null && !roleIds.isEmpty()) {
-            userRoleMapper.batchInsert(userId, roleIds, SecurityUtils.getCurrentUserUuid().orElse(null));
+            crossDbService.batchInsertUserRoles(userId, roleIds, SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
         log.info("Roles granted to user: {}, roles: {}, by: {}",
@@ -436,9 +479,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException("生效时间不能晚于过期时间");
         }
 
-        // 跨库操作：插入临时用户角色关联（db_permission）
+        // 通过 CrossDatabaseQueryService 跨库操作：插入临时用户角色关联（db_permission）
         if (roleIds != null && !roleIds.isEmpty()) {
-            userRoleMapper.batchInsertTemporary(
+            crossDbService.batchInsertTemporaryUserRoles(
                     userId, roleIds,
                     effectiveTime != null ? effectiveTime : LocalDateTime.now(),
                     expireTime,
@@ -460,8 +503,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             key = "#userId"
     )
     public void extendTemporaryRole(UUID userId, UUID roleId, LocalDateTime newExpireTime) {
-        // 跨库查询 db_permission
-        if (!userRoleMapper.hasTemporaryRole(userId, roleId)) {
+        // 通过 CrossDatabaseQueryService 跨库查询 db_permission
+        if (!crossDbService.hasTemporaryRole(userId, roleId)) {
             throw new BusinessException("用户不存在该临时角色或已过期");
         }
 
@@ -469,7 +512,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException("新的过期时间不能早于当前时间");
         }
 
-        int updated = userRoleMapper.extendTemporaryRole(userId, roleId, newExpireTime);
+        int updated = crossDbService.extendTemporaryRole(userId, roleId, newExpireTime);
         if (updated == 0) {
             throw new BusinessException("延长临时角色失败");
         }
@@ -488,8 +531,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             key = "#userId"
     )
     public void terminateTemporaryRole(UUID userId, UUID roleId) {
-        // 跨库操作 db_permission
-        int updated = userRoleMapper.terminateTemporaryRole(userId, roleId);
+        // 通过 CrossDatabaseQueryService 跨库操作 db_permission
+        int updated = crossDbService.terminateTemporaryRole(userId, roleId);
         if (updated == 0) {
             throw new BusinessException("终止临时角色失败，可能该角色不存在或已过期");
         }
@@ -502,13 +545,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
      * 查询用户的临时角色列表
      */
     @Override
+    @Slave
     @Cacheable(
             value = "userTemporaryRoles",
             key = "#userId"
     )
     public List<Map<String, Object>> getUserTemporaryRoles(UUID userId) {
-        // 跨库查询 db_permission
-        return userRoleMapper.findTemporaryRolesByUserId(userId);
+        // 通过 CrossDatabaseQueryService 跨库查询 db_permission
+        return crossDbService.findTemporaryRolesByUserId(userId);
     }
 
     /**
@@ -517,6 +561,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
      * 跨库查询：需要查询 db_permission 和 db_org
      */
     @Override
+    @Slave
     public boolean canAccessDept(UUID userId, UUID deptId) {
         return crossDbService.hasAccessToDept(userId, deptId);
     }
@@ -525,14 +570,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
      * 获取用户的数据权限范围
      */
     @Override
+    @Slave
     @Cacheable(
             value = "userDataScope",
             key = "#userId"
     )
     public Integer getUserDataScope(UUID userId) {
-        // 跨库查询 db_permission
-        Integer dataScope = userRoleMapper.getUserDataScope(userId);
-        return dataScope != null ? dataScope : 5;
+        // 通过 CrossDatabaseQueryService 跨库查询 db_permission
+        return crossDbService.getUserDataScope(userId);
     }
 
     /**
@@ -541,22 +586,23 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
      * 跨库查询 db_permission
      */
     @Override
+    @Slave
     public Map<String, Object> getUserStatistics(UUID userId) {
         Map<String, Object> stats = new HashMap<>();
 
-        Integer roleCount = userRoleMapper.countUserRoles(userId);
+        Integer roleCount = crossDbService.countUserRoles(userId);
         stats.put("roleCount", roleCount);
 
-        Integer tempRoleCount = userRoleMapper.countTemporaryRoles(userId);
+        Integer tempRoleCount = crossDbService.countTemporaryRoles(userId);
         stats.put("temporaryRoleCount", tempRoleCount);
 
-        Integer expiringCount = userRoleMapper.countExpiringRoles(userId, 7);
+        Integer expiringCount = crossDbService.countExpiringRoles(userId, 7);
         stats.put("expiringRoleCount", expiringCount);
 
-        Integer dataScope = userRoleMapper.getUserDataScope(userId);
-        stats.put("dataScope", dataScope != null ? dataScope : 5);
+        Integer dataScope = crossDbService.getUserDataScope(userId);
+        stats.put("dataScope", dataScope);
 
-        BigDecimal maxApprovalAmount = userRoleMapper.getMaxApprovalAmount(userId);
+        BigDecimal maxApprovalAmount = crossDbService.getMaxApprovalAmount(userId);
         stats.put("maxApprovalAmount", maxApprovalAmount);
 
         return stats;

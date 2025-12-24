@@ -127,7 +127,7 @@ public class DataScopeAspect {
 
     /**
      * 构建自定义数据权限
-     * 从 sys_role_data_permission 表查询用户的自定义权限规则
+     * 从 sys_role_dept 表查询用户的自定义权限规则
      */
     private DataScopeFilter buildCustomDataScope(UUID userId, String deptAlias, String userAlias) {
         // 查询用户的自定义数据权限部门列表

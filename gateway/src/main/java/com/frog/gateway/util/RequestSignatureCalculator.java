@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class RequestSignatureCalculator extends AbstractHmacSignatureAlgorithm {
-
     private static final String VERSION = "HMAC-SHA256-V2";
 
     @Override

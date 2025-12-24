@@ -2,6 +2,7 @@ package com.frog.system.controller;
 
 import com.frog.common.log.annotation.AuditLog;
 import com.frog.common.response.ApiResponse;
+import com.frog.common.dto.permission.ApiPermissionDTO;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.system.service.ISysPermissionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -103,5 +105,38 @@ public class SysPermissionController {
         PermissionDTO permissionDTO = permissionService.getPermissionById(id);
 
         return ApiResponse.success(permissionDTO);
+    }
+
+    /**
+     * 查询用户权限（用于 Feign 调用）
+     * 对应 Dubbo: PermissionDubboService.findAllPermissionsByUserId
+     */
+    @GetMapping("/user/{userId}")
+    @Operation(summary = "查询用户权限")
+    public ApiResponse<Set<String>> getUserPermissions(@PathVariable UUID userId) {
+        Set<String> permissions = permissionService.getUserPermissions(userId);
+
+        return ApiResponse.success(permissions);
+    }
+
+    /**
+     * 根据 URL 和 HTTP 方法查询权限（用于 Feign 调用）
+     * 对应 Dubbo: PermissionDubboService.findPermissionsByUrl
+     */
+    @GetMapping("/find-by-url")
+    @Operation(summary = "根据URL查询权限")
+    public List<String> findPermissionsByUrl(@RequestParam("url") String url,
+                                              @RequestParam("method") String method) {
+        return permissionService.findPermissionsByUrl(url, method);
+    }
+
+    /**
+     * 查询所有 API 权限（用于动态权限加载）
+     * 用于 DynamicPermissionLoader 加载权限映射
+     */
+    @GetMapping("/api")
+    @Operation(summary = "查询所有API权限")
+    public List<ApiPermissionDTO> findApiPermissions() {
+        return permissionService.findApiPermissions();
     }
 }

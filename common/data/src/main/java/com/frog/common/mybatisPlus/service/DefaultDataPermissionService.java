@@ -1,5 +1,6 @@
 package com.frog.common.mybatisPlus.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,17 +20,13 @@ import java.util.UUID;
 @Service
 @Slf4j
 @ConditionalOnMissingBean(DataPermissionService.class)
+@RequiredArgsConstructor
 public class DefaultDataPermissionService implements DataPermissionService {
-
     private final JdbcTemplate jdbcTemplate;
-
-    public DefaultDataPermissionService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
 
     /**
      * 查询用户的自定义数据权限部门列表
-     * SQL: 通过用户ID -> 用户角色 -> 角色数据权限 获取可访问部门
+     * SQL: 通过用户ID -> 用户角色 -> 角色部门关联 获取可访问部门
      */
     @Override
     public List<UUID> findCustomDeptPermissions(UUID userId) {
@@ -39,10 +36,12 @@ public class DefaultDataPermissionService implements DataPermissionService {
 
         try {
             String sql = """
-                SELECT DISTINCT rdp.dept_id
-                FROM sys_role_data_permission rdp
-                INNER JOIN sys_user_role ur ON rdp.role_id = ur.role_id
+                SELECT DISTINCT rd.dept_id
+                FROM sys_role_dept rd
+                INNER JOIN sys_user_role ur ON rd.role_id = ur.role_id
                 WHERE ur.user_id = ?
+                  AND ur.approval_status = 2
+                  AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
                 """;
 
             return jdbcTemplate.query(sql, (rs, rowNum) -> {
@@ -72,9 +71,11 @@ public class DefaultDataPermissionService implements DataPermissionService {
         try {
             String sql = """
                 SELECT COUNT(*) > 0
-                FROM sys_role_data_permission rdp
-                INNER JOIN sys_user_role ur ON rdp.role_id = ur.role_id
+                FROM sys_role_dept rd
+                INNER JOIN sys_user_role ur ON rd.role_id = ur.role_id
                 WHERE ur.user_id = ?
+                  AND ur.approval_status = 2
+                  AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
                 """;
 
             Boolean result = jdbcTemplate.queryForObject(sql, Boolean.class, userId);

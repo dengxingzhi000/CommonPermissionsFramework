@@ -23,7 +23,6 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class RoleSyncHandler implements DataSyncHandler {
-
     private final RoleSyncExecutor syncExecutor;
 
     @Override

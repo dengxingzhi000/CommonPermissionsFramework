@@ -1,6 +1,5 @@
 package com.frog.common.redis.config;
 
-import com.frog.common.cache.CacheInvalidationListener;
 import com.frog.common.cache.spring.TwoLevelCacheInvalidationListener;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -33,7 +32,6 @@ import java.util.Map;
 @Configuration
 @EnableCaching
 public class RedisConfig {
-    private static final String INVALIDATION_CHANNEL = "cache:invalidation";
     private static final String TWOLEVEL_INVALIDATION_CHANNEL = "cache:invalidation:twolevel";
 
     @Bean
@@ -59,16 +57,6 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedisMessageListenerContainer redisMessageListenerContainer(
-            RedisConnectionFactory connectionFactory,
-            CacheInvalidationListener listener) {
-        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
-        container.setConnectionFactory(connectionFactory);
-        container.addMessageListener(new MessageListenerAdapter(listener), new PatternTopic(INVALIDATION_CHANNEL));
-        return container;
-    }
-
-    @Bean
     public RedisMessageListenerContainer twoLevelCacheListenerContainer(
             RedisConnectionFactory connectionFactory,
             TwoLevelCacheInvalidationListener twoLevelListener) {
@@ -88,6 +76,7 @@ public class RedisConfig {
         ttls.put("userRoles", Duration.ofHours(1));
         ttls.put("userPermissions", Duration.ofHours(1));
         ttls.put("permissionTree", Duration.ofHours(2));
+        ttls.put("permissionMapping", Duration.ofMinutes(5));
         ttls.put("roles", Duration.ofHours(1));
         ttls.put("role", Duration.ofHours(1));
         long localMaxSize = 10_000L;

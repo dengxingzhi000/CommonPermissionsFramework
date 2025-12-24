@@ -1,5 +1,6 @@
 package com.frog.common.feign.reload;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,8 +29,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * @version 1.0
  */
 @Slf4j
+@RequiredArgsConstructor
 public class CertificateReloader {
-
     private final Resource keystoreResource;
     private final String keystorePassword;
     private final Resource truststoreResource;
@@ -44,14 +45,6 @@ public class CertificateReloader {
 
     // 监听器列表（用于通知 Feign Client 重建连接）
     private final CopyOnWriteArrayList<CertificateReloadListener> listeners = new CopyOnWriteArrayList<>();
-
-    public CertificateReloader(Resource keystoreResource, String keystorePassword,
-                               Resource truststoreResource, String truststorePassword) {
-        this.keystoreResource = keystoreResource;
-        this.keystorePassword = keystorePassword;
-        this.truststoreResource = truststoreResource;
-        this.truststorePassword = truststorePassword;
-    }
 
     /**
      * 初始化加载证书

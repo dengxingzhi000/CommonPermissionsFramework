@@ -24,7 +24,6 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class UserSyncExecutor {
-
     private final SysUserRoleMapper userRoleMapper;
     private final SysDeptMapper deptMapper;
 

@@ -1,5 +1,8 @@
 package com.frog.common.data.rw.config;
 
+import com.baomidou.dynamic.datasource.provider.DynamicDataSourceProvider;
+import com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceAssistConfiguration;
+import com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceAutoConfiguration;
 import com.frog.common.data.rw.aop.ReadWriteRoutingAspect;
 import com.frog.common.data.rw.circuitbreaker.SlaveCircuitBreaker;
 import com.frog.common.data.rw.dynamic.DynamicDataSourceRefresher;
@@ -40,9 +43,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since 2025-12-16
  */
 @Slf4j
-@AutoConfiguration(before = DataSourceAutoConfiguration.class)
+@AutoConfiguration(before = {
+        DynamicDataSourceAssistConfiguration.class,
+        DynamicDataSourceAutoConfiguration.class,
+        DataSourceAutoConfiguration.class
+})
 @EnableConfigurationProperties(ReadWriteProperties.class)
-@ConditionalOnProperty(prefix = "spring.datasource.rw", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(
+        prefix = "spring.datasource.rw",
+        name = "enabled",
+        havingValue = "true"
+)
 @EnableScheduling
 public class ReadWriteAutoConfiguration {
     private final ReadWriteProperties properties;
@@ -184,6 +195,11 @@ public class ReadWriteAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(DataSource.class)
+    @ConditionalOnProperty(
+            prefix = "spring.datasource.dynamic",
+            name = "enabled",
+            havingValue = "false"
+    )
     public DataSource dataSource() {
         if (routingDataSources.isEmpty()) {
             throw new IllegalStateException(
@@ -195,6 +211,31 @@ public class ReadWriteAutoConfiguration {
         String defaultGroup = routingDataSources.keySet().iterator().next();
         log.info("[RW-Config] Using group [{}] as default DataSource", defaultGroup);
         return routingDataSources.get(defaultGroup);
+    }
+
+    /**
+     * DynamicDatasource integration.
+     * <p>
+     * When {@code spring.datasource.dynamic} is enabled, expose rw routing datasources to
+     * DynamicDatasource via {@link DynamicDataSourceProvider} so {@code @DS("user")} etc can
+     * keep working while each group internally does master/slave routing.
+     */
+    @Bean
+    @ConditionalOnMissingBean(DynamicDataSourceProvider.class)
+    @ConditionalOnClass(name = "com.baomidou.dynamic.datasource.DynamicRoutingDataSource")
+    @ConditionalOnProperty(
+            prefix = "spring.datasource.dynamic",
+            name = "enabled",
+            havingValue = "true",
+            matchIfMissing = true
+    )
+    public DynamicDataSourceProvider readWriteDynamicDataSourceProvider() {
+        return () -> {
+            Map<String, DataSource> dataSources = new HashMap<>(routingDataSources);
+            log.info("[RW-Config] Exposed {} rw datasource group(s) to DynamicDatasource: {}",
+                    dataSources.size(), dataSources.keySet());
+            return dataSources;
+        };
     }
 
     /**
@@ -220,8 +261,12 @@ public class ReadWriteAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.datasource.rw", name = "health-check-enabled",
-            havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(
+            prefix = "spring.datasource.rw",
+            name = "health-check-enabled",
+            havingValue = "true",
+            matchIfMissing = true
+    )
     public SlaveHealthChecker slaveHealthChecker() {
         log.info("[RW-Config] Registering SlaveHealthChecker with interval: {}",
                 properties.getHealthCheckInterval());

@@ -27,9 +27,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class UserSyncHandler implements DataSyncHandler,
-        DataReconciliationTask.ReconcilableHandler {
-
+public class UserSyncHandler implements DataSyncHandler, DataReconciliationTask.ReconcilableHandler {
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final UserSyncExecutor syncExecutor;

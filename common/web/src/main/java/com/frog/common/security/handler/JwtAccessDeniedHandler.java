@@ -23,7 +23,6 @@ import java.util.Map;
 @Component
 @Slf4j
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override

@@ -7,6 +7,7 @@ import com.frog.common.integration.messaging.ReliableMessagePublisher;
 import io.micrometer.observation.ObservationRegistry;
 import io.opentelemetry.api.trace.Tracer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @AutoConfiguration
 @EnableConfigurationProperties(IntegrationProperties.class)
 @RequiredArgsConstructor
+@Slf4j
 public class RabbitIntegrationAutoConfiguration {
     private final IntegrationProperties properties;
 
@@ -62,10 +64,10 @@ public class RabbitIntegrationAutoConfiguration {
                 return;
             }
             // NACK logging; publisher will throw if waiting synchronously.
-            System.err.printf("RabbitMQ publish NACK id=%s cause=%s%n", correlationId, cause);
+            log.error("RabbitMQ publish NACK id={} cause={}", correlationId, cause);
         });
         template.setReturnsCallback(returned ->
-                System.err.printf("RabbitMQ message returned exchange=%s routingKey=%s replyCode=%d replyText=%s%n",
+                log.error("RabbitMQ message returned exchange={} routingKey={} replyCode={} replyText={}",
                         returned.getExchange(),
                         returned.getRoutingKey(),
                         returned.getReplyCode(),

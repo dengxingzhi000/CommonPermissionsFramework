@@ -2,7 +2,7 @@ package com.frog.gateway.filter;
 
 import com.alibaba.nacos.shaded.com.google.common.cache.Cache;
 import com.alibaba.nacos.shaded.com.google.common.cache.CacheBuilder;
-import com.frog.gateway.config.IpAccessControlProperties;
+import com.frog.gateway.properties.IpAccessControlProperties;
 import com.frog.gateway.filter.support.IpAccessDecision;
 import com.frog.gateway.support.ip.ClientIpResolver;
 import lombok.extern.slf4j.Slf4j;
