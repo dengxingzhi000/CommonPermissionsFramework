@@ -9,10 +9,8 @@ import com.frog.common.dto.approval.ApprovalProcessDTO;
 import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.domain.entity.SysPermissionApproval;
 import com.frog.system.domain.entity.SysUser;
-import com.frog.system.mapper.SysDeptMapper;
 import com.frog.system.mapper.SysPermissionApprovalMapper;
-import com.frog.system.mapper.SysUserMapper;
-import com.frog.system.mapper.SysUserRoleMapper;
+import com.frog.system.service.CrossDatabaseQueryService;
 import com.frog.system.service.ISysPermissionApprovalService;
 import com.frog.system.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -36,10 +34,8 @@ public class SysPermissionApprovalServiceImpl
         extends ServiceImpl<SysPermissionApprovalMapper, SysPermissionApproval>
         implements ISysPermissionApprovalService {
     private final SysPermissionApprovalMapper approvalMapper;
-    private final SysUserMapper userMapper;
-    private final SysUserRoleMapper userRoleMapper;
-    private final SysDeptMapper deptMapper;
     private final NotificationService notificationService;
+    private final CrossDatabaseQueryService crossDatabaseQueryService;
 
     /** 系统管理员角色编码 */
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
@@ -195,7 +191,7 @@ public class SysPermissionApprovalServiceImpl
     /**
      * 执行权限授予
      * <p>
-     * 注意：角色关联存储在 db_permission 库，需使用 SysUserRoleMapper
+     * 通过 CrossDatabaseQueryService 跨库操作 db_permission
      */
     private void grantPermissions(SysPermissionApproval approval) {
         UUID targetUserId = approval.getTargetUserId();
@@ -206,7 +202,7 @@ public class SysPermissionApprovalServiceImpl
                     Optional.ofNullable(approval.getRoleIds())
                             .ifPresent(roleIdsArray -> {
                                 List<UUID> roleIds = Arrays.asList(roleIdsArray);
-                                userRoleMapper.batchInsert(targetUserId, roleIds, currentUserId);
+                                crossDatabaseQueryService.batchInsertUserRoles(targetUserId, roleIds, currentUserId);
                                 log.info("Permanent roles granted: userId={}, roleIds={}", targetUserId, roleIds);
                             });
 
@@ -218,7 +214,7 @@ public class SysPermissionApprovalServiceImpl
                     Optional.ofNullable(approval.getRoleIds())
                             .ifPresent(roleIdsArray -> {
                                 List<UUID> roleIds = Arrays.asList(roleIdsArray);
-                                userRoleMapper.batchInsertTemporary(
+                                crossDatabaseQueryService.batchInsertTemporaryUserRoles(
                                         targetUserId,
                                         roleIds,
                                         approval.getEffectiveTime(),
@@ -297,18 +293,20 @@ public class SysPermissionApprovalServiceImpl
      * - 角色申请(type=1): 部门经理 -> 系统管理员
      * - 权限申请(type=2): 部门经理 -> 系统管理员
      * - 临时授权(type=3): 部门经理（如果是高风险权限，还需要系统管理员）
+     * <p>
+     * 通过 CrossDatabaseQueryService 跨库查询 db_user 和 db_org
      */
     private List<UUID> buildApprovalChain(Integer approvalType, UUID applicantId) {
         List<UUID> chain = new ArrayList<>();
 
-        // 查询申请人信息
-        SysUser applicant = userMapper.selectById(applicantId);
+        // 通过 CrossDatabaseQueryService 跨库查询申请人信息 (db_user)
+        SysUser applicant = crossDatabaseQueryService.getUserBasicInfo(applicantId);
         if (applicant == null) {
             log.warn("Cannot build approval chain: applicant not found, id={}", applicantId);
             return chain;
         }
 
-        // 1. 获取部门经理（如果有）
+        // 1. 获取部门经理（如果有）- 通过 CrossDatabaseQueryService 跨库查询 (db_org)
         UUID deptManager = getDeptManager(applicant.getDeptId());
         if (deptManager != null && !deptManager.equals(applicantId)) {
             // 部门经理不能审批自己的申请
@@ -350,30 +348,34 @@ public class SysPermissionApprovalServiceImpl
 
     /**
      * 获取部门负责人
+     * <p>
+     * 通过 CrossDatabaseQueryService 跨库查询 db_org
      */
     private UUID getDeptManager(UUID deptId) {
         if (deptId == null) {
             return null;
         }
-        return deptMapper.getLeaderId(deptId);
+        return crossDatabaseQueryService.getDeptLeaderId(deptId);
     }
 
     /**
      * 获取系统管理员（第一个拥有 ROLE_ADMIN 角色的用户）
      */
     private UUID getSystemAdmin() {
-        return approvalMapper.findFirstUserByRoleCode(ROLE_ADMIN);
+        return crossDatabaseQueryService.findFirstUserIdByRoleCode(ROLE_ADMIN);
     }
 
     /**
      * 获取超级管理员（第一个拥有 ROLE_SUPER_ADMIN 角色的用户）
      */
     private UUID getSuperAdmin() {
-        return approvalMapper.findFirstUserByRoleCode(ROLE_SUPER_ADMIN);
+        return crossDatabaseQueryService.findFirstUserIdByRoleCode(ROLE_SUPER_ADMIN);
     }
 
     /**
      * 发送审批通知
+     * <p>
+     * 通过 CrossDatabaseQueryService 跨库查询 db_user
      */
     private void sendApprovalNotification(SysPermissionApproval approval) {
         try {
@@ -383,15 +385,15 @@ public class SysPermissionApprovalServiceImpl
                 return;
             }
 
-            // 查询审批人信息
-            SysUser approver = userMapper.selectById(approverId);
+            // 通过 CrossDatabaseQueryService 跨库查询审批人信息 (db_user)
+            SysUser approver = crossDatabaseQueryService.getUserBasicInfo(approverId);
             if (approver == null) {
                 log.warn("Approver not found: {}", approverId);
                 return;
             }
 
-            // 查询申请人信息
-            SysUser applicant = userMapper.selectById(approval.getApplicantId());
+            // 通过 CrossDatabaseQueryService 跨库查询申请人信息 (db_user)
+            SysUser applicant = crossDatabaseQueryService.getUserBasicInfo(approval.getApplicantId());
             String applicantName = applicant != null ? applicant.getRealName() : "Unknown";
 
             // 构建通知参数
@@ -419,11 +421,13 @@ public class SysPermissionApprovalServiceImpl
 
     /**
      * 发送审批结果通知
+     * <p>
+     * 通过 CrossDatabaseQueryService 跨库查询 db_user
      */
     private void sendResultNotification(SysPermissionApproval approval, boolean approved) {
         try {
-            // 查询申请人信息
-            SysUser applicant = userMapper.selectById(approval.getApplicantId());
+            // 通过 CrossDatabaseQueryService 跨库查询申请人信息 (db_user)
+            SysUser applicant = crossDatabaseQueryService.getUserBasicInfo(approval.getApplicantId());
             if (applicant == null) {
                 log.warn("Applicant not found: {}", approval.getApplicantId());
                 return;

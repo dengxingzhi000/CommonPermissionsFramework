@@ -4,9 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.frog.common.exception.BusinessException;
 import com.frog.common.util.UUIDv7Util;
+import com.frog.common.dto.permission.ApiPermissionDTO;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.system.domain.entity.SysPermission;
 import com.frog.system.mapper.SysPermissionMapper;
+import com.frog.system.mapper.SysRolePermissionMapper;
+import com.frog.system.mapper.SysTempPermissionMapper;
 import com.frog.system.service.ISysPermissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -32,6 +35,8 @@ import java.util.stream.Collectors;
 public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, SysPermission>
         implements ISysPermissionService {
     private final SysPermissionMapper sysPermissionMapper;
+    private final SysTempPermissionMapper tempPermissionMapper;
+    private final SysRolePermissionMapper rolePermissionMapper;
 
     /**
      * 检查用户是否有指定权限
@@ -82,6 +87,35 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
      */
     public List<String> findPermissionsByUrl(String url, String method) {
         return sysPermissionMapper.findPermissionsByUrl(url, method);
+    }
+
+    /**
+     * 查询所有 API 类型的权限
+     * 用于动态权限加载（DynamicPermissionLoader）
+     */
+    @Override
+    @Cacheable(
+            value = "apiPermissions",
+            key = "'all'"
+    )
+    public List<ApiPermissionDTO> findApiPermissions() {
+        // 查询所有 API 类型的权限（permissionType = 4）
+        LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysPermission::getPermissionType, 4) // 4 = API 类型
+               .eq(SysPermission::getStatus, 1)         // 只查询启用的权限
+               .isNotNull(SysPermission::getApiPath)    // 必须有 API 路径
+               .isNotNull(SysPermission::getPermissionCode); // 必须有权限编码
+
+        List<SysPermission> permissions = sysPermissionMapper.selectList(wrapper);
+
+        // 转换为 ApiPermissionDTO
+        return permissions.stream()
+                .map(permission -> ApiPermissionDTO.builder()
+                        .apiPath(permission.getApiPath())
+                        .httpMethod(permission.getHttpMethod())
+                        .permissionCode(permission.getPermissionCode())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     /**
@@ -168,6 +202,13 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
 
     /**
      * 删除权限
+     * <p>
+     * 删除前检查：
+     * <ul>
+     *   <li>是否有子权限</li>
+     *   <li>是否有角色使用该权限 (sys_role_permission)</li>
+     *   <li>是否有用户拥有该临时权限 (sys_temp_permission)</li>
+     * </ul>
      */
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(
@@ -180,7 +221,7 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
             throw new BusinessException("权限不存在");
         }
 
-        // 检查是否有子权限
+        // 1. 检查是否有子权限
         LambdaQueryWrapper<SysPermission> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysPermission::getParentId, id);
         Long childCount = sysPermissionMapper.selectCount(wrapper);
@@ -188,11 +229,16 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
             throw new BusinessException("该权限下还有子权限，不能删除");
         }
 
-        // 检查是否有角色使用该权限
-        // 注意：这里需要根据实际的表结构和关联关系来实现
-        Integer roleCount = sysPermissionMapper.countRolesByPermissionId(id);
+        // 2. 检查是否有角色使用该权限
+        Integer roleCount = rolePermissionMapper.countRolesByPermissionId(id);
         if (roleCount > 0) {
-            throw new BusinessException("该权限已被" + roleCount + "个角色使用，不能删除");
+            throw new BusinessException("该权限已被 " + roleCount + " 个角色使用，不能删除");
+        }
+
+        // 3. 检查是否有用户拥有该临时权限（有效的临时授权）
+        Integer tempPermCount = tempPermissionMapper.countActiveByPermissionId(id);
+        if (tempPermCount != null && tempPermCount > 0) {
+            throw new BusinessException("该权限正被 " + tempPermCount + " 个用户作为临时权限使用，不能删除");
         }
 
         sysPermissionMapper.deleteById(id);

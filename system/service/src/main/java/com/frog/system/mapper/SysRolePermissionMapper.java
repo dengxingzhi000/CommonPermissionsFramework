@@ -3,10 +3,7 @@ package com.frog.system.mapper;
 import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.frog.system.domain.entity.SysRolePermission;
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -66,4 +63,36 @@ public interface SysRolePermissionMapper extends BaseMapper<SysRolePermission> {
             """)
     boolean existsByRoleIdAndPermissionId(@Param("roleId") UUID roleId,
                                           @Param("permissionId") UUID permissionId);
+
+    /**
+     * 删除角色权限关联
+     */
+    @Delete("""
+            DELETE FROM sys_role_permission
+            WHERE role_id = #{roleId}
+            """)
+    void deleteRolePermissions(@Param("roleId") UUID roleId);
+
+    /**
+     * 批量插入角色权限
+     */
+    @Insert("""
+            <script>
+            INSERT INTO sys_role_permission (role_id, permission_id, create_by, create_time) VALUES
+            <foreach collection='permissionIds' item='permissionId' separator=','>
+            (#{roleId}, #{permissionId}, #{createBy}, NOW())
+            </foreach>
+            </script>
+            """)
+    void batchInsertRolePermissions(@Param("roleId") UUID roleId,
+                                    @Param("permissionIds") List<UUID> permissionIds,
+                                    @Param("createBy") UUID createBy);
+
+    /**
+     * 统计使用该权限的角色数
+     */
+    @Select("""
+            SELECT COUNT(*) FROM sys_role_permission WHERE permission_id = #{permissionId}
+            """)
+    Integer countRolesByPermissionId(@Param("permissionId") UUID permissionId);
 }

@@ -42,9 +42,7 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
             }
 
             @Override
-            public void setReadListener(ReadListener readListener) {
-                // not supported
-            }
+            public void setReadListener(ReadListener readListener) {}
         };
     }
 

@@ -1,6 +1,6 @@
 package com.frog.gateway.security;
 
-import com.frog.gateway.config.IdentityPropagationProperties;
+import com.frog.gateway.properties.IdentityPropagationProperties;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.Ordered;

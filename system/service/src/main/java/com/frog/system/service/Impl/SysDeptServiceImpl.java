@@ -4,10 +4,11 @@ import com.frog.common.dto.dept.DeptDTO;
 import com.frog.common.exception.BusinessException;
 import com.frog.common.util.UUIDv7Util;
 import com.frog.common.web.util.SecurityUtils;
+import com.frog.common.data.rw.annotation.Slave;
 import com.frog.system.domain.entity.SysDept;
 import com.frog.system.event.DataSyncEventPublisher;
 import com.frog.system.mapper.SysDeptMapper;
-import com.frog.system.mapper.SysUserMapper;
+import com.frog.system.service.CrossDatabaseQueryService;
 import com.frog.system.service.ISysDeptService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -32,16 +33,19 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> implements ISysDeptService {
     private final SysDeptMapper deptMapper;
-    private final SysUserMapper userMapper;
+    private final CrossDatabaseQueryService crossDatabaseQueryService;
     private final DataSyncEventPublisher dataSyncEventPublisher;
 
     /**
      * 查询部门树
      * <p>
      * 注意：此方法使用冗余字段获取负责人信息（无需跨库）
-     * 用户数统计通过批量跨库查询 db_user 实现（性能优化）
+     * 用户数统计通过 CrossDatabaseQueryService 批量跨库查询 db_user 实现（性能优化）
+     * <p>
+     * 查询走从库
      */
     @Override
+    @Slave
     @Cacheable(value = "deptTree", key = "'all'")
     public List<DeptDTO> getDeptTree() {
         // 1. 从 org 库查询所有部门（使用冗余字段包含负责人信息）
@@ -50,16 +54,10 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
         // 2. 收集所有部门 ID，用于批量统计用户数
         List<UUID> deptIds = depts.stream().map(SysDept::getId).toList();
 
-        // 3. 从 user 库批量统计每个部门的用户数（单次跨库查询，性能优化）
+        // 3. 通过 CrossDatabaseQueryService 从 user 库批量统计每个部门的用户数（单次跨库查询，性能优化）
         Map<UUID, Integer> userCountMap = new HashMap<>();
         if (!deptIds.isEmpty()) {
-            Map<UUID, Map<String, Object>> countResult = userMapper.countUsersByDeptIds(deptIds);
-            if (countResult != null) {
-                countResult.forEach((deptId, row) -> {
-                    Object count = row.get("user_count");
-                    userCountMap.put(deptId, count != null ? ((Number) count).intValue() : 0);
-                });
-            }
+            userCountMap = crossDatabaseQueryService.countUsersByDeptIds(deptIds);
         }
 
         // 4. 批量统计每个部门的子部门数（避免 N+1 查询）
@@ -75,11 +73,12 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
         }
 
         // 5. 转换为 DTO 并填充统计信息
+        Map<UUID, Integer> finalUserCountMap = userCountMap;
         List<DeptDTO> allDepts = depts.stream().map(dept -> {
             DeptDTO dto = new DeptDTO();
             BeanUtils.copyProperties(dept, dto);
             dto.setLeaderName(dept.getLeaderName());  // 使用冗余字段
-            dto.setUserCount(userCountMap.getOrDefault(dept.getId(), 0));
+            dto.setUserCount(finalUserCountMap.getOrDefault(dept.getId(), 0));
             dto.setChildCount(childCountMap.getOrDefault(dept.getId(), 0));
             return dto;
         }).toList();
@@ -90,8 +89,11 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
 
     /**
      * 查询子部门（包含自身）- 递归查询
+     * <p>
+     * 查询走从库
      */
     @Override
+    @Slave
     @Cacheable(value = "deptChildren", key = "#deptId")
     public List<UUID> getDeptAndChildren(UUID deptId) {
         return deptMapper.selectDeptAndChildren(deptId);
@@ -172,6 +174,11 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
 
     /**
      * 删除部门
+     * <p>
+     * 删除部门时会同时清理以下关联数据：
+     * <ul>
+     *   <li>sys_role_dept (db_permission) - 角色与部门的数据权限关联</li>
+     * </ul>
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -193,9 +200,16 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
             throw new BusinessException("该部门下还有 " + userCount + " 个用户，不能删除");
         }
 
+        // 1. 清理角色部门关联数据 (sys_role_dept in db_permission) - 跨库操作
+        int deletedRoleDeptCount = crossDatabaseQueryService.deleteRoleDeptsByDeptId(id);
+        if (deletedRoleDeptCount > 0) {
+            log.debug("已清理部门 {} 的角色关联记录: {} 条", dept.getDeptName(), deletedRoleDeptCount);
+        }
+
+        // 2. 删除部门记录
         deptMapper.deleteById(id);
 
-        // Publish sync event for redundancy update
+        // 3. 发布同步事件用于冗余数据更新
         dataSyncEventPublisher.publishDeptDeleted(id);
 
         log.info("部门删除成功: {}, 操作人: {}", dept.getDeptName(),
@@ -224,10 +238,10 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
     /**
      * 统计部门下的用户数
      * <p>
-     * 跨库查询 db_user（使用 COUNT 查询，比获取 ID 列表更高效）
+     * 通过 CrossDatabaseQueryService 跨库查询 db_user
      */
     private int countUsersByDeptId(UUID deptId) {
-        return userMapper.countUsersByDeptId(deptId);
+        return crossDatabaseQueryService.countUsersByDeptId(deptId);
     }
 
     // ========== 私有方法 ==========

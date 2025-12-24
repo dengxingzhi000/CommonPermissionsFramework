@@ -8,7 +8,7 @@ import com.frog.common.dto.role.RoleDTO;
 import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.domain.entity.SysRole;
 import com.frog.system.event.DataSyncEventPublisher;
-import com.frog.system.mapper.SysRoleMapper;
+import com.frog.system.mapper.*;
 import com.frog.system.service.ISysRoleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> implements ISysRoleService {
     private final SysRoleMapper roleMapper;
+    private final SysUserRoleMapper userRoleMapper;
     private final DataSyncEventPublisher dataSyncEventPublisher;
+    private final SysRolePermissionMapper rolePermissionMapper;
+    private final SysRoleDeptMapper roleDeptMapper;
+    private final SysRoleDataRuleMapper roleDataRuleMapper;
 
     /**
      * 分页查询角色列表
@@ -94,11 +98,11 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         RoleDTO roleDTO = convertToRoleDTO(role);
 
         // 查询角色权限
-        List<UUID> permissionIds = roleMapper.findPermissionIdsByRoleId(id);
+        List<UUID> permissionIds = rolePermissionMapper.findPermissionIdsByRoleId(id);
         roleDTO.setPermissionIds(permissionIds);
 
         // 查询拥有该角色的用户数
-        Integer userCount = roleMapper.countUsersByRoleId(id);
+        Integer userCount = userRoleMapper.countUsersByRoleId(id);
         roleDTO.setUserCount(userCount);
 
         return roleDTO;
@@ -125,7 +129,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
         // 分配权限
         if (roleDTO.getPermissionIds() != null && !roleDTO.getPermissionIds().isEmpty()) {
-            roleMapper.batchInsertRolePermissions(role.getId(), roleDTO.getPermissionIds(),
+            rolePermissionMapper.batchInsertRolePermissions(role.getId(), roleDTO.getPermissionIds(),
                     SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
@@ -168,6 +172,13 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
     /**
      * 删除角色
+     * <p>
+     * 删除角色时会同时清理以下关联数据：
+     * <ul>
+     *   <li>sys_role_permission - 角色权限关联</li>
+     *   <li>sys_role_dept - 角色部门关联（自定义数据权限）</li>
+     *   <li>sys_role_data_rule - 角色数据权限规则关联</li>
+     * </ul>
      */
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(
@@ -186,18 +197,24 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         }
 
         // 检查是否有用户使用该角色
-        Integer userCount = roleMapper.countUsersByRoleId(id);
+        Integer userCount = userRoleMapper.countUsersByRoleId(id);
         if (userCount > 0) {
-            throw new BusinessException("该角色下还有" + userCount + "个用户，不能删除");
+            throw new BusinessException("该角色下还有 " + userCount + " 个用户，不能删除");
         }
 
-        // 删除角色权限关联
-        roleMapper.deleteRolePermissions(id);
+        // 1. 删除角色权限关联 (sys_role_permission)
+        rolePermissionMapper.deleteRolePermissions(id);
 
-        // 删除角色
+        // 2. 删除角色部门关联 (sys_role_dept) - 自定义数据权限范围
+        roleDeptMapper.deleteRoleDepts(id);
+
+        // 3. 删除角色数据权限规则关联 (sys_role_data_rule)
+        roleDataRuleMapper.deleteRoleDataRules(id);
+
+        // 4. 删除角色记录
         roleMapper.deleteById(id);
 
-        // Publish sync event for redundancy update
+        // 5. 发布同步事件用于冗余数据更新
         dataSyncEventPublisher.publishRoleDeleted(id);
 
         log.info("Role deleted: {}, by: {}", role.getRoleCode(), SecurityUtils.getCurrentUsername());
@@ -218,11 +235,11 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         }
 
         // 删除原有权限
-        roleMapper.deleteRolePermissions(roleId);
+        rolePermissionMapper.deleteRolePermissions(roleId);
 
         // 分配新权限
         if (permissionIds != null && !permissionIds.isEmpty()) {
-            roleMapper.batchInsertRolePermissions(roleId, permissionIds,
+            rolePermissionMapper.batchInsertRolePermissions(roleId, permissionIds,
                     SecurityUtils.getCurrentUserUuid().orElse(null));
         }
 
@@ -239,7 +256,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
             key = "#roleId"
     )
     public List<UUID> getRolePermissionIds(UUID roleId) {
-        return roleMapper.findPermissionIdsByRoleId(roleId);
+        return rolePermissionMapper.findPermissionIdsByRoleId(roleId);
     }
 
     private RoleDTO convertToRoleDTO(SysRole role) {

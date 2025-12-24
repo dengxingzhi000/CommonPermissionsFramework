@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CommonPermissionsFramework (NewNearSync) is an enterprise-grade microservices permission management framework built on Spring Cloud 2025, Spring Security 6, and Spring Boot 4. It provides multi-layered security with JWT authentication, RBAC authorization, data-level permissions, API signature validation, read-write separation, and event-driven architecture.
 
-**Tech Stack:** Java 17+, Spring Boot 3.x/4.0, Spring Cloud 2025.0.0, Spring Cloud Alibaba 2024.0.1.0, MyBatis-Plus 3.5.14, Nacos, Dubbo, Redis, PostgreSQL/MySQL, Kafka/RabbitMQ
+**Tech Stack:** Java 21, Spring Boot 4.0.0, Spring Cloud 2025.1.0, Spring Cloud Alibaba 2025.0.0.0, MyBatis-Plus 3.5.14, Nacos, Dubbo, Redis, PostgreSQL/MySQL, Kafka/RabbitMQ
+
+**Project Name:** Repository is named `NewNearSync` but the framework is called `CommonPermissionsFramework`
 
 ## Build & Run Commands
 
@@ -44,9 +46,6 @@ cd gateway && mvn spring-boot:run
 ### Testing
 
 ```bash
-# Run all tests
-mvn test
-
 # Run tests for a specific module
 cd common/web && mvn test
 
@@ -67,8 +66,9 @@ mvn spotbugs:check
 ### Local Development
 
 ```bash
-# Use Docker Compose for dependencies
-docker-compose -f docker-compose.yml up -d
+# Use Docker Compose for dependencies (located in auth/src/main/resources/)
+# Starts: Nacos, Redis, PostgreSQL/MySQL, Kafka/RabbitMQ
+docker-compose -f auth/src/main/resources/docker-compose.yml up -d
 
 # Verify Nacos is running
 curl http://localhost:8848/nacos
@@ -76,6 +76,13 @@ curl http://localhost:8848/nacos
 # Check registered services
 curl http://localhost:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=10
 ```
+
+### Prerequisites
+
+- JDK 21 (required - project uses Java 21 language features)
+- Maven 3.8+
+- Docker and Docker Compose (for dependencies: Nacos, Redis, PostgreSQL, Kafka/RabbitMQ)
+- Nacos 2.0+
 
 ## Architecture & Code Organization
 
@@ -85,6 +92,7 @@ curl http://localhost:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=10
 NewNearSync/
 ├── common/                          # Shared foundation modules
 │   ├── core/                        # Core utilities, exceptions, PageResult, UUIDv7
+│   ├── security-api/                # Security DTOs and interfaces shared across services
 │   ├── data/                        # MyBatis-Plus, caching, data scope, read-write separation
 │   ├── web/                         # Security filters, JWT, Feign clients
 │   │   └── securityCore/            # SecurityUser domain objects
@@ -121,10 +129,13 @@ Client Request
 ```
 
 **Important Security Components:**
-- **JwtUtils** (common/web): Token generation/validation/blacklisting via Redis
-- **SecurityConfig** (common/web): Filter chain configuration (order: SqlInjection → JWT → StepUp)
-- **ApiSignatureFilter** (gateway): HMAC-SHA256 with nonce-based replay prevention
-- **StepUpFilter** (common/web): Step-up authentication for sensitive operations
+- **JwtUtils** (common/web/src/.../security/util): Token generation/validation/blacklisting via Redis
+- **SecurityConfig** (common/web/src/.../security/config): Filter chain configuration (order: SqlInjection → JWT → StepUp)
+- **ApiSignatureFilter** (gateway/src/.../filter): HMAC-SHA256 with nonce-based replay prevention
+- **ApiSignatureProperties** (gateway/src/.../properties): Moved from config package in recent refactoring
+- **IdentityPropagationProperties** (gateway/src/.../properties): Gateway identity propagation settings
+- **IpAccessControlProperties** (gateway/src/.../properties): IP whitelist/blacklist configuration
+- **StepUpFilter** (common/web/src/.../stepup): Step-up authentication for sensitive operations
 
 #### 2. Data Scope (Row-Level Security)
 
@@ -138,12 +149,16 @@ public List<SysUser> selectUserList(UserQuery query) {
 ```
 
 **How it works:**
-1. `@DataScope` annotation triggers `DataScopeAspect`
+1. `@DataScope` annotation triggers `DataScopeAspect` (common/data/src/.../mybatisPlus/aspect)
 2. Aspect populates `DataScopeContextHolder` (ThreadLocal)
 3. `DataScopeInterceptor` (MyBatis interceptor) rewrites SQL
 4. Adds WHERE clause based on user's data scope level
 
 **Data Scope Levels:** ALL (1), CUSTOM (2), DEPT (3), DEPT_AND_CHILDREN (4), SELF (5)
+
+**File Locations:**
+- Aspect: `common/data/src/main/java/com/frog/common/mybatisPlus/aspect/DataScopeAspect.java`
+- Interceptor: `common/data/src/main/java/com/frog/common/mybatisPlus/interceptor/DataScopeInterceptor.java`
 
 #### 3. Read-Write Separation (v1.3.0)
 
@@ -178,12 +193,14 @@ public class UserService {
 
 **Configuration:** See `docs/read-write-separation.md` for full YAML configuration.
 
-#### 4. Multi-Level Caching
+#### 4. Two-Level Caching
 
 **Cache Hierarchy:** L1 (Caffeine) → L2 (Redis) → Database
 
-- `MultiLevelCache`: Coordinated L1+L2 with Redis pub/sub invalidation
-- `TwoLevelCache`: Spring Cache abstraction wrapper (`@Cacheable`, `@CacheEvict`)
+- `TwoLevelCache`: Implements Spring Cache interface with coordinated L1+L2 and Redis pub/sub invalidation
+- `TwoLevelCacheManager`: Spring CacheManager implementation supporting multiple named caches
+- Supports `@Cacheable`, `@CacheEvict`, and `@CachePut` annotations
+- Automatic L1 invalidation across instances via Redis pub/sub channel `cache:invalidation:twolevel`
 
 #### 5. Service-to-Service Communication
 
@@ -202,10 +219,84 @@ public class UserService {
 
 **Dual Messaging Support:** Kafka and RabbitMQ
 
-**Kafka:** Idempotence enabled, DLQ support, exponential backoff retry
-**RabbitMQ:** sendSync/sendAsync/sendDelayed/sendOrderly modes, OpenTelemetry tracing
+**Kafka Features:**
+- Idempotence enabled by default
+- DLQ (Dead Letter Queue) support with configurable suffix (default: `.dlq`)
+- Exponential backoff retry (configurable: initial 200ms, multiplier 2, max 5s)
+- CloudEvents message envelope with distributed tracing
+- Observation/OTel integration for metrics
 
-See `common/integration/Developer.md` for detailed messaging patterns.
+**RabbitMQ Features:**
+- sendSync/sendAsync/sendDelayed/sendOrderly modes
+- Publisher Confirm and Return callbacks
+- OpenTelemetry tracing
+- CloudEvents message envelope
+- Idempotent message consumption
+
+**Message Envelope (CloudEvents Compliant):**
+All messages use `MessageEnvelope` with: id, type, source, specVersion, time, traceId, tenant, version, and extension fields.
+
+**Key Files:**
+- Messaging interfaces: `common/integration/src/main/java/com/frog/common/integration/messaging/`
+- Event examples: `common/integration/src/main/java/com/frog/common/integration/events/`
+- Configuration: `common/integration/src/main/java/com/frog/common/integration/config/`
+
+See `common/integration/Developer.md` for detailed messaging patterns and configuration templates.
+
+#### 7. Resilience & Fault Tolerance (Resilience4j)
+
+**Circuit Breaker Pattern:** Prevents cascading failures by monitoring service health
+
+**Default Configuration (Auth Service):**
+- Failure rate threshold: 50% (auth service: 60%)
+- Slow call threshold: 2s
+- Slow call rate threshold: 50%
+- Sliding window: 10 calls
+- Wait duration: 60s before retry
+- Half-open permitted calls: 3
+
+**Additional Resilience Features:**
+- **Retry:** 3 attempts with exponential backoff (multiplier: 2)
+- **Rate Limiter:** 100 requests/second (userService: 50/second)
+- **Bulkhead:** Max 10 concurrent calls with 1s wait timeout
+
+**Usage Example:**
+
+```java
+@Service
+public class UserServiceClient {
+
+    @CircuitBreaker(name = "userService", fallbackMethod = "fallbackGetUser")
+    @Retry(name = "userService")
+    @RateLimiter(name = "userService")
+    public SysUser getUser(Long userId) {
+        return feignClient.getUserById(userId);
+    }
+
+    private SysUser fallbackGetUser(Long userId, Throwable ex) {
+        log.warn("Fallback triggered for user {}: {}", userId, ex.getMessage());
+        return getCachedUser(userId);  // Return cached data
+    }
+}
+```
+
+**Monitoring Circuit Breaker:**
+
+```bash
+# View circuit breaker status
+curl https://localhost:8106/actuator/circuitbreakers
+
+# View circuit breaker events
+curl https://localhost:8106/actuator/circuitbreakerevents
+
+# View retry metrics
+curl https://localhost:8106/actuator/retries
+
+# View rate limiter metrics
+curl https://localhost:8106/actuator/ratelimiters
+```
+
+**Configuration Location:** `auth/src/main/resources/application.yaml` under `resilience4j.*`
 
 ## Common Development Patterns
 
@@ -265,6 +356,11 @@ NACOS_NAMESPACE=dev
 - JWT Secret must be 512-bit minimum (HMAC-SHA512)
 - `SqlInjectionFilter` runs before authentication; tune patterns carefully
 - Auth service requires HTTPS; configure `HttpsRedirectConfig`
+- **WebAuthn Support:** Auth service includes FIDO2/WebAuthn for passwordless authentication
+  - Challenge expiry: 120s (auth), 300s (registration)
+  - Credential inactive threshold: 90 days
+  - Auth attempt retention: 30 days
+  - Configuration in `auth/src/main/resources/application.yaml` under `webauthn.rp.*`
 
 ### Data Scope Caveats
 - `@DataScope` requires correct table aliases matching your SQL
@@ -272,8 +368,9 @@ NACOS_NAMESPACE=dev
 - Context is ThreadLocal; propagate manually for async operations
 
 ### Caching Pitfalls
-- Always evict L1+L2 together via `MultiLevelCache.evict()`
-- Ensure cached objects are serializable for Redis
+- Use Spring Cache annotations (`@CacheEvict`, `@CachePut`) or `Cache.evict()` to invalidate entries
+- TwoLevelCache automatically coordinates L1+L2 eviction and notifies other instances via Redis pub/sub
+- Ensure cached objects are serializable for Redis (use Jackson-compatible types)
 
 ### Message Publishing
 - Always check message ID for idempotent processing
@@ -299,6 +396,12 @@ curl http://localhost:9095/actuator/prometheus
 
 # Read-write separation status
 curl http://localhost:8081/actuator/readwrite
+
+# Circuit breaker monitoring (Auth service)
+curl -k https://localhost:8106/actuator/circuitbreakers
+curl -k https://localhost:8106/actuator/circuitbreakerevents
+curl -k https://localhost:8106/actuator/retries
+curl -k https://localhost:8106/actuator/ratelimiters
 ```
 
 ### Common Issues
@@ -318,3 +421,18 @@ curl http://localhost:8081/actuator/readwrite
 - **Lombok:** Prefer `@Data`, `@Builder`, `@Slf4j`
 - **Response Format:** Always return `ApiResponse<T>` from controllers
 - **Validation:** Use `@Valid` with JSR-303 annotations on DTOs
+- **Package Naming:** All packages use lowercase: `com.frog.{module}.{layer}`
+- **JavaDoc:** Required for all public classes and methods
+- **Test Coverage:** Minimum 80% for new code
+
+## Key File Locations
+
+**Gateway Properties:**
+- `gateway/src/main/java/com/frog/gateway/properties/` - API signature, identity propagation, IP access control
+
+**Configuration Templates:**
+- `config/templates/integration-messaging.yaml` - Kafka/RabbitMQ configuration templates
+
+**DTOs:**
+- `common/data/src/main/java/com/frog/common/dto/` - Shared DTOs across services
+- `common/security-api/` - Security-related DTOs and interfaces

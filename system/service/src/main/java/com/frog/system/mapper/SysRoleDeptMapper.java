@@ -70,6 +70,17 @@ public interface SysRoleDeptMapper extends BaseMapper<SysRoleDept> {
     int deleteByRoleId(@Param("roleId") UUID roleId);
 
     /**
+     * 删除部门的所有角色关联
+     * <p>
+     * 用于部门删除时清理关联数据
+     */
+    @Delete("""
+            DELETE FROM sys_role_dept
+            WHERE dept_id = #{deptId}
+            """)
+    int deleteByDeptId(@Param("deptId") UUID deptId);
+
+    /**
      * 批量插入角色部门关联
      */
     @Insert("""
@@ -84,4 +95,15 @@ public interface SysRoleDeptMapper extends BaseMapper<SysRoleDept> {
                     @Param("deptIds") List<UUID> deptIds,
                     @Param("includeChildren") boolean includeChildren,
                     @Param("createBy") UUID createBy);
+
+    /**
+     * 删除角色部门关联
+     * <p>
+     * 用于删除角色时清理自定义数据权限关联
+     */
+    @Delete("""
+            DELETE FROM sys_role_dept
+            WHERE role_id = #{roleId}
+            """)
+    int deleteRoleDepts(@Param("roleId") UUID roleId);
 }

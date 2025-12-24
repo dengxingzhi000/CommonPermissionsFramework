@@ -15,7 +15,6 @@ import java.util.Set;
  * @version 1.0
  */
 public final class FilterBypassHelper {
-
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
     private FilterBypassHelper() {

@@ -124,7 +124,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
             try {
                 userDubboService.updateLastLogin(user.getUserId(), ipAddress, LocalDateTime.now());
             } catch (Exception ex) {
-                userServiceClient.updateLastLogin(user.getUserId(), ipAddress, LocalDateTime.now());
+                userServiceClient.updateLastLogin(user.getUserId(), ipAddress);
             }
 
             // 9. 记录登录日志
@@ -232,9 +232,9 @@ public class SysAuthServiceImpl implements ISysAuthService {
         UUID userId = jwtUtils.getUserIdFromToken(refreshToken);
         String username = jwtUtils.getUsernameFromToken(refreshToken);
 
-        // 重新获取用户权限
-        Set<String> roles = userServiceClient.findRolesByUserId(userId).data();
-        Set<String> permissions = userServiceClient.findPermissionsByUserId(userId).data();
+        // 重新获取用户权限（使用 Dubbo 高性能 RPC）
+        Set<String> roles = userDubboService.findRolesByUserId(userId);
+        Set<String> permissions = userDubboService.findPermissionsByUserId(userId);
 
         String newAccessToken = jwtUtils.refreshToken(
                 refreshToken, roles, permissions, deviceId, ipAddress);

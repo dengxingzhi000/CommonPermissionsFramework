@@ -27,10 +27,7 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class DataSyncEventPublisher {
-
     private final DataSyncPublisher publisher;
-
-    // ==================== 用户事件 ====================
 
     public void publishUserCreated(SysUser user) {
         publishEvent(DataSyncEvent.ofInsert("User", user.getId().toString(), buildUserData(user)),
@@ -38,7 +35,8 @@ public class DataSyncEventPublisher {
     }
 
     public void publishUserUpdated(SysUser user) {
-        publishEvent(DataSyncEvent.create("User", user.getId().toString(), DataSyncEventType.UPDATE, buildUserData(user)),
+        publishEvent(DataSyncEvent.create("User", user.getId().toString(), DataSyncEventType.UPDATE,
+                        buildUserData(user)),
                 "db_user", "sys_user", "UserUpdated", user.getId());
     }
 
@@ -58,15 +56,14 @@ public class DataSyncEventPublisher {
         );
     }
 
-    // ==================== 部门事件 ====================
-
     public void publishDeptCreated(SysDept dept) {
         publishEvent(DataSyncEvent.ofInsert("Dept", dept.getId().toString(), buildDeptData(dept)),
                 "db_org", "sys_dept", "DeptCreated", dept.getId());
     }
 
     public void publishDeptUpdated(SysDept dept) {
-        publishEvent(DataSyncEvent.create("Dept", dept.getId().toString(), DataSyncEventType.UPDATE, buildDeptData(dept)),
+        publishEvent(DataSyncEvent.create("Dept", dept.getId().toString(), DataSyncEventType.UPDATE,
+                        buildDeptData(dept)),
                 "db_org", "sys_dept", "DeptUpdated", dept.getId());
     }
 
@@ -84,15 +81,14 @@ public class DataSyncEventPublisher {
         );
     }
 
-    // ==================== 角色事件 ====================
-
     public void publishRoleCreated(SysRole role) {
         publishEvent(DataSyncEvent.ofInsert("Role", role.getId().toString(), buildRoleData(role)),
                 "db_permission", "sys_role", "RoleCreated", role.getId());
     }
 
     public void publishRoleUpdated(SysRole role) {
-        publishEvent(DataSyncEvent.create("Role", role.getId().toString(), DataSyncEventType.UPDATE, buildRoleData(role)),
+        publishEvent(DataSyncEvent.create("Role", role.getId().toString(), DataSyncEventType.UPDATE,
+                        buildRoleData(role)),
                 "db_permission", "sys_role", "RoleUpdated", role.getId());
     }
 
@@ -108,8 +104,6 @@ public class DataSyncEventPublisher {
                 "status", role.getStatus()
         );
     }
-
-    // ==================== 公共方法 ====================
 
     private void publishEvent(DataSyncEvent event, String database, String table, String action, Object id) {
         event.setSourceDatabase(database);

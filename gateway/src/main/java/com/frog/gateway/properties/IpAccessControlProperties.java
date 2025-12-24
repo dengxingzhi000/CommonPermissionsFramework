@@ -1,4 +1,4 @@
-package com.frog.gateway.config;
+package com.frog.gateway.properties;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,6 +1,7 @@
 package com.frog.system.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.frog.common.dto.permission.ApiPermissionDTO;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.system.domain.entity.SysPermission;
 
@@ -79,6 +80,14 @@ public interface ISysPermissionService extends IService<SysPermission> {
      * @return 访问该接口所需的权限编码列表
      */
     List<String> findPermissionsByUrl(String url, String method);
+
+    /**
+     * 查询所有 API 类型的权限。
+     * 用于动态权限加载（DynamicPermissionLoader）。
+     *
+     * @return API 权限列表，包含路径、HTTP 方法和权限编码
+     */
+    List<ApiPermissionDTO> findApiPermissions();
 
     /**
      * 新增权限。

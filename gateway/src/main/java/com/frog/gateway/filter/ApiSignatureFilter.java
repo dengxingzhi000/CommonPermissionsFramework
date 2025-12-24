@@ -1,6 +1,6 @@
 package com.frog.gateway.filter;
 
-import com.frog.gateway.config.ApiSignatureProperties;
+import com.frog.gateway.properties.ApiSignatureProperties;
 import com.frog.gateway.util.CachedBodyRequestDecorator;
 import com.frog.gateway.util.SignatureAlgorithm;
 import com.frog.gateway.util.SignatureAlgorithmRegistry;

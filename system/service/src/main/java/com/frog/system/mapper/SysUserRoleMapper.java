@@ -24,8 +24,6 @@ import java.util.UUID;
 @DS("permission")
 public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
 
-    // ==================== 角色查询 ====================
-
     /**
      * 查询用户的有效角色 ID 列表
      */
@@ -96,8 +94,6 @@ public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
             """)
     boolean hasRole(@Param("userId") UUID userId, @Param("roleId") UUID roleId);
 
-    // ==================== 权限查询 ====================
-
     /**
      * 查询用户的有效权限编码列表
      */
@@ -137,8 +133,6 @@ public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
             AND (ur.expire_time IS NULL OR ur.expire_time > NOW())
             """)
     BigDecimal getMaxApprovalAmount(@Param("userId") UUID userId);
-
-    // ==================== 临时角色管理 ====================
 
     /**
      * 查询用户即将过期的角色（7天内）
@@ -245,8 +239,6 @@ public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
             """)
     List<Map<String, Object>> findExpiredRolesForCleanup();
 
-    // ==================== 审批管理 ====================
-
     /**
      * 查询用户待审批的角色申请
      */
@@ -275,8 +267,6 @@ public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
     int updateApprovalStatus(@Param("id") UUID id,
                              @Param("status") int status,
                              @Param("approvedBy") UUID approvedBy);
-
-    // ==================== 角色分配 ====================
 
     /**
      * 删除用户的所有角色关联
@@ -458,4 +448,13 @@ public interface SysUserRoleMapper extends BaseMapper<SysUserRole> {
             AND NOT r.deleted
             """)
     List<Map<String, Object>> findRolesByUsername(@Param("username") String username);
+
+    /**
+     * 统计拥有该角色的用户数
+     */
+    @Select("""
+            SELECT COUNT(*) FROM sys_user_role
+            WHERE role_id = #{roleId}
+            """)
+    Integer countUsersByRoleId(@Param("roleId") UUID roleId);
 }

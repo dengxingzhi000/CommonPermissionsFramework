@@ -71,6 +71,151 @@ spring:
           url: jdbc:postgresql://${DB_HOST:192.168.18.134}:5432/db_notify
           username: ${DB_USERNAME:admin}
           password: ${DB_PASSWORD:123456}
+
+    # ========== 读写分离（主从） ==========
+    # 开启后将通过 common/data 的 ReadWriteRoutingDataSource 在每个库内做 master/slave 路由，
+    # 仍由 dynamic-datasource 负责在 user/org/permission/... 这些库之间选择（@DS）。
+    rw:
+      enabled: ${RW_ENABLED:true}
+
+      # 全局负载均衡策略: ROUND_ROBIN, WEIGHTED_ROUND_ROBIN, RANDOM, WEIGHTED_RANDOM, LEAST_CONNECTIONS
+      load-balance: WEIGHTED_ROUND_ROBIN
+
+      # 写后读主库持续时间（解决读写一致性，写入后2秒内读操作走主库）
+      read-master-after-write: 2s
+
+      # 复制延迟容忍（超过此值强制走主库）
+      replication-lag-tolerance: 1s
+
+      # 健康检查配置
+      health-check-enabled: true
+      health-check-interval: 30s
+      failure-threshold: 3
+
+      groups:
+        # 用户数据库
+        user:
+          master:
+            url: jdbc:postgresql://${DB_MASTER_HOST:192.168.18.134}:5432/db_user
+            username: ${DB_USERNAME:admin}
+            password: ${DB_PASSWORD:123456}
+            driver-class-name: org.postgresql.Driver
+            minimum-idle: 5
+            maximum-pool-size: 20
+          slaves:
+            - name: slave1
+              url: jdbc:postgresql://${DB_SLAVE1_HOST:192.168.18.135}:5432/db_user
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 2
+              minimum-idle: 3
+              maximum-pool-size: 15
+            - name: slave2
+              url: jdbc:postgresql://${DB_SLAVE2_HOST:192.168.18.136}:5432/db_user
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 1
+              minimum-idle: 3
+              maximum-pool-size: 15
+
+        # 组织数据库
+        org:
+          master:
+            url: jdbc:postgresql://${DB_MASTER_HOST:192.168.18.134}:5432/db_org
+            username: ${DB_USERNAME:admin}
+            password: ${DB_PASSWORD:123456}
+            driver-class-name: org.postgresql.Driver
+            minimum-idle: 5
+            maximum-pool-size: 20
+          slaves:
+            - name: slave1
+              url: jdbc:postgresql://${DB_SLAVE1_HOST:192.168.18.135}:5432/db_org
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 2
+            - name: slave2
+              url: jdbc:postgresql://${DB_SLAVE2_HOST:192.168.18.136}:5432/db_org
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 1
+
+        # 权限数据库
+        permission:
+          master:
+            url: jdbc:postgresql://${DB_MASTER_HOST:192.168.18.134}:5432/db_permission
+            username: ${DB_USERNAME:admin}
+            password: ${DB_PASSWORD:123456}
+            driver-class-name: org.postgresql.Driver
+            minimum-idle: 5
+            maximum-pool-size: 20
+          slaves:
+            - name: slave1
+              url: jdbc:postgresql://${DB_SLAVE1_HOST:192.168.18.135}:5432/db_permission
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 2
+            - name: slave2
+              url: jdbc:postgresql://${DB_SLAVE2_HOST:192.168.18.136}:5432/db_permission
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 1
+
+        # 审批数据库
+        approval:
+          master:
+            url: jdbc:postgresql://${DB_MASTER_HOST:192.168.18.134}:5432/db_approval
+            username: ${DB_USERNAME:admin}
+            password: ${DB_PASSWORD:123456}
+            driver-class-name: org.postgresql.Driver
+            minimum-idle: 3
+            maximum-pool-size: 10
+          slaves:
+            - name: slave1
+              url: jdbc:postgresql://${DB_SLAVE1_HOST:192.168.18.135}:5432/db_approval
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 1
+
+        # 审计数据库
+        audit:
+          master:
+            url: jdbc:postgresql://${DB_MASTER_HOST:192.168.18.134}:5432/db_audit
+            username: ${DB_USERNAME:admin}
+            password: ${DB_PASSWORD:123456}
+            driver-class-name: org.postgresql.Driver
+            minimum-idle: 3
+            maximum-pool-size: 10
+          slaves:
+            - name: slave1
+              url: jdbc:postgresql://${DB_SLAVE1_HOST:192.168.18.135}:5432/db_audit
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 1
+
+        # 通知数据库
+        notify:
+          master:
+            url: jdbc:postgresql://${DB_MASTER_HOST:192.168.18.134}:5432/db_notify
+            username: ${DB_USERNAME:admin}
+            password: ${DB_PASSWORD:123456}
+            driver-class-name: org.postgresql.Driver
+            minimum-idle: 3
+            maximum-pool-size: 10
+          slaves:
+            - name: slave1
+              url: jdbc:postgresql://${DB_SLAVE1_HOST:192.168.18.135}:5432/db_notify
+              username: ${DB_USERNAME:admin}
+              password: ${DB_PASSWORD:123456}
+              driver-class-name: org.postgresql.Driver
+              weight: 1
   security:
     default-password: 123456
 

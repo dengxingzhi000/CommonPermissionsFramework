@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.frog.common.dto.user.UserDTO;
 import com.frog.common.dto.user.UserInfo;
+import com.frog.common.web.domain.SecurityUser;
 import com.frog.system.domain.entity.SysUser;
 
 import java.time.LocalDateTime;
@@ -32,6 +33,14 @@ public interface ISysUserService extends IService<SysUser> {
      */
     Page<UserDTO> listUsers(Integer pageNum, Integer pageSize,
                             String username, Integer status);
+
+    /**
+     * 根据用户名获取用户（用于 Spring Security 认证）。
+     *
+     * @param username 用户名
+     * @return SecurityUser 用于认证的用户对象，包含密码、角色、权限等信息；如果用户不存在则返回 null
+     */
+    SecurityUser getUserByUsername(String username);
 
     /**
      * 根据用户ID获取用户详情。

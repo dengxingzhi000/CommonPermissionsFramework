@@ -74,4 +74,17 @@ public interface SysTempPermissionMapper extends BaseMapper<SysTempPermission> {
             WHERE approval_id = #{approvalId}
             """)
     List<SysTempPermission> findByApprovalId(@Param("approvalId") UUID approvalId);
+
+    /**
+     * 统计正在使用指定权限的临时授权数量
+     * <p>
+     * 用于权限删除前检查，防止意外删除正在被使用的权限
+     */
+    @Select("""
+            SELECT COUNT(*) FROM sys_temp_permission
+            WHERE permission_id = #{permissionId}
+              AND status = 1
+              AND expire_time > NOW()
+            """)
+    Integer countActiveByPermissionId(@Param("permissionId") UUID permissionId);
 }

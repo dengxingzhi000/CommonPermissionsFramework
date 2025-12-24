@@ -1,6 +1,6 @@
 package com.frog.gateway.support.ip;
 
-import com.frog.gateway.config.IpAccessControlProperties;
+import com.frog.gateway.properties.IpAccessControlProperties;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;

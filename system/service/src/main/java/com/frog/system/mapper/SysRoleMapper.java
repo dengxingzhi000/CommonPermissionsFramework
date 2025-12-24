@@ -46,46 +46,4 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
             WHERE role_code = #{roleCode} AND NOT deleted
             """)
     SysRole findByRoleCode(@Param("roleCode") String roleCode);
-
-    /**
-     * 查询角色权限 ID列表
-     */
-    @Select("""
-            SELECT permission_id FROM sys_role_permission
-            WHERE role_id = #{roleId}
-            """)
-    List<UUID> findPermissionIdsByRoleId(@Param("roleId") UUID roleId);
-
-    /**
-     * 统计拥有该角色的用户数
-     */
-    @Select("""
-            SELECT COUNT(*) FROM sys_user_role
-            WHERE role_id = #{roleId}
-            """)
-    Integer countUsersByRoleId(@Param("roleId") UUID roleId);
-
-    /**
-     * 删除角色权限关联
-     */
-    @Delete("""
-            DELETE FROM sys_role_permission
-            WHERE role_id = #{roleId}
-            """)
-    void deleteRolePermissions(@Param("roleId") UUID roleId);
-
-    /**
-     * 批量插入角色权限
-     */
-    @Insert("""
-            <script>
-            INSERT INTO sys_role_permission (role_id, permission_id, create_by, create_time) VALUES
-            <foreach collection='permissionIds' item='permissionId' separator=','>
-            (#{roleId}, #{permissionId}, #{createBy}, NOW())
-            </foreach>
-            </script>
-            """)
-    void batchInsertRolePermissions(@Param("roleId") UUID roleId,
-                                    @Param("permissionIds") List<UUID> permissionIds,
-                                    @Param("createBy") UUID createBy);
 }

@@ -3,10 +3,7 @@ package com.frog.system.mapper;
 import com.baomidou.dynamic.datasource.annotation.DS;
 import com.frog.system.domain.entity.SysDept;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 import java.util.Map;
