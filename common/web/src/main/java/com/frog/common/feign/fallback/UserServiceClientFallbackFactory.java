@@ -1,7 +1,7 @@
 package com.frog.common.feign.fallback;
 
 import com.frog.common.feign.factory.BaseFallbackFactory;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import com.frog.common.feign.client.SysUserServiceClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -23,9 +23,9 @@ public class UserServiceClientFallbackFactory extends BaseFallbackFactory<SysUse
     protected SysUserServiceClient createFallback(String errorMsg, Throwable cause) {
         return new SysUserServiceClient() {
             @Override
-            public ApiResponse<Void> updateLastLogin(UUID userId, String ipAddress) {
+            public ApiResults<Void> updateLastLogin(UUID userId, String ipAddress) {
                 log.warn("更新登录信息失败: userId={}, 原因: {}", userId, errorMsg);
-                return ApiResponse.success();
+                return ApiResults.success();
             }
         };
     }

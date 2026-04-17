@@ -2,7 +2,7 @@ package com.frog.common.sentinel.exception.Impl;
 
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowException;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import com.frog.common.sentinel.exception.SentinelExceptionHandlerStrategy;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +22,7 @@ public class FlowExceptionHandler implements SentinelExceptionHandlerStrategy {
     }
 
     @Override
-    public ApiResponse<Void> handle(BlockException e) {
-        return ApiResponse.fail(429, "请求过于频繁，请稍后再试");
+    public ApiResults<Void> handle(BlockException e) {
+        return ApiResults.fail(429, "请求过于频繁，请稍后再试");
     }
 }

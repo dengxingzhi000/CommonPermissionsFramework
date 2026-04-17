@@ -1,7 +1,7 @@
 package com.frog.common.feign.client;
 
 import com.frog.common.feign.fallback.SysAuthServiceClientFallbackFactory;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,5 +26,5 @@ public interface SysAuthServiceClient {
      * 强制用户登出
      */
     @PostMapping("/force-logout/{userId}")
-    ApiResponse<Void> forceLogout(@PathVariable UUID userId, @RequestParam("reason") String reason);
+    ApiResults<Void> forceLogout(@PathVariable UUID userId, @RequestParam("reason") String reason);
 }

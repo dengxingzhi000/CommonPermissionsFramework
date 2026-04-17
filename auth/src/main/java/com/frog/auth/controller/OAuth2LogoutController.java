@@ -1,6 +1,6 @@
 package com.frog.auth.controller;
 
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import com.frog.common.security.util.JwtUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -44,7 +44,7 @@ public class OAuth2LogoutController {
             summary = "OAuth2 登出",
             description = "撤销 OAuth2 授权，支持单客户端撤销或全局登出"
     )
-    public ApiResponse<Void> logout(
+    public ApiResults<Void> logout(
             @Parameter(description = "Bearer Token", required = true)
             @RequestHeader("Authorization") String authHeader,
             @Parameter(description = "客户端 ID（可选，不传则全局登出）")
@@ -53,13 +53,13 @@ public class OAuth2LogoutController {
         // 验证并解析 Token
         if (!StringUtils.hasText(authHeader) || !authHeader.startsWith(BEARER_PREFIX)) {
             log.warn("Invalid authorization header format");
-            return ApiResponse.fail(400, "Invalid authorization header");
+            return ApiResults.fail(400, "Invalid authorization header");
         }
 
         String accessToken = authHeader.substring(BEARER_PREFIX.length());
         if (!StringUtils.hasText(accessToken)) {
             log.warn("Empty access token");
-            return ApiResponse.fail(400, "Empty access token");
+            return ApiResults.fail(400, "Empty access token");
         }
 
         UUID userId = jwtUtils.getUserIdFromToken(accessToken);
@@ -80,6 +80,6 @@ public class OAuth2LogoutController {
             log.info("OAuth2 global logout: revoked all tokens for userId={}", userId);
         }
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 }

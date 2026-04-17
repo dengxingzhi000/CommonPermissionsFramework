@@ -1,11 +1,14 @@
 package com.frog.system.controller;
 
 import com.frog.common.log.annotation.AuditLog;
-import com.frog.common.response.ApiResponse;
 import com.frog.common.dto.permission.ApiPermissionDTO;
 import com.frog.common.dto.permission.PermissionDTO;
+import com.frog.common.response.ApiResults;
 import com.frog.system.service.ISysPermissionService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,7 +29,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/system/permissions")
 @RequiredArgsConstructor
-@Tag(name = "权限模块")
+@Tag(name = "权限模块", description = "系统权限管理相关接口，包括权限的增删改查、权限树查询、API权限映射等功能")
 public class SysPermissionController {
     private final ISysPermissionService permissionService;
 
@@ -35,11 +38,15 @@ public class SysPermissionController {
      */
     @GetMapping("/tree")
     @PreAuthorize("hasAuthority('system:permission:list')")
-    @Operation(summary = "查询权限树")
-    public ApiResponse<List<PermissionDTO>> tree() {
+    @Operation(summary = "查询权限树", description = "获取系统权限树形结构，包含所有权限的层级关系")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
+    public ApiResults<List<PermissionDTO>> tree() {
         List<PermissionDTO> tree = permissionService.getPermissionTree();
 
-        return ApiResponse.success(tree);
+        return ApiResults.success(tree);
     }
 
     /**
@@ -47,16 +54,22 @@ public class SysPermissionController {
      */
     @PostMapping
     @PreAuthorize("hasAuthority('system:permission:add')")
-    @Operation(summary = "新增权限")
+    @Operation(summary = "新增权限", description = "创建新的系统权限")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "创建成功"),
+            @ApiResponse(responseCode = "400", description = "请求参数校验失败"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "新增权限",
             businessType = "PERMISSION",
             riskLevel = 4
     )
-    public ApiResponse<Void> add(@Validated @RequestBody PermissionDTO permissionDTO) {
+    public ApiResults<Void> add(
+            @Parameter(description = "权限信息", required = true) @Validated @RequestBody PermissionDTO permissionDTO) {
         permissionService.addPermission(permissionDTO);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -64,18 +77,25 @@ public class SysPermissionController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:permission:edit')")
-    @Operation(summary = "修改权限")
+    @Operation(summary = "修改权限", description = "更新权限信息")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "更新成功"),
+            @ApiResponse(responseCode = "400", description = "请求参数校验失败"),
+            @ApiResponse(responseCode = "404", description = "权限不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "修改权限",
             businessType = "PERMISSION",
             riskLevel = 4
     )
-    public ApiResponse<Void> update(@PathVariable UUID id,
-                                   @Validated @RequestBody PermissionDTO permissionDTO) {
+    public ApiResults<Void> update(
+            @Parameter(description = "权限 ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "权限信息", required = true) @Validated @RequestBody PermissionDTO permissionDTO) {
         permissionDTO.setId(id);
         permissionService.updatePermission(permissionDTO);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -83,16 +103,22 @@ public class SysPermissionController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:permission:delete')")
-    @Operation(summary = "删除权限")
+    @Operation(summary = "删除权限", description = "删除指定权限（软删除）")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "删除成功"),
+            @ApiResponse(responseCode = "404", description = "权限不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "删除权限",
             businessType = "PERMISSION",
             riskLevel = 4
     )
-    public ApiResponse<Void> delete(@PathVariable UUID id) {
+    public ApiResults<Void> delete(
+            @Parameter(description = "权限 ID", required = true) @PathVariable UUID id) {
         permissionService.deletePermission(id);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -100,11 +126,17 @@ public class SysPermissionController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('system:permission:list')")
-    @Operation(summary = "查询权限详情")
-    public ApiResponse<PermissionDTO> getById(@PathVariable UUID id) {
+    @Operation(summary = "查询权限详情", description = "根据权限 ID查询权限详细信息")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "404", description = "权限不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
+    public ApiResults<PermissionDTO> getById(
+            @Parameter(description = "权限 ID", required = true) @PathVariable UUID id) {
         PermissionDTO permissionDTO = permissionService.getPermissionById(id);
 
-        return ApiResponse.success(permissionDTO);
+        return ApiResults.success(permissionDTO);
     }
 
     /**
@@ -112,11 +144,16 @@ public class SysPermissionController {
      * 对应 Dubbo: PermissionDubboService.findAllPermissionsByUserId
      */
     @GetMapping("/user/{userId}")
-    @Operation(summary = "查询用户权限")
-    public ApiResponse<Set<String>> getUserPermissions(@PathVariable UUID userId) {
+    @Operation(summary = "查询用户权限", description = "获取用户拥有的所有权限标识符集合（用于Feign调用）")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "404", description = "用户不存在")
+    })
+    public ApiResults<Set<String>> getUserPermissions(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID userId) {
         Set<String> permissions = permissionService.getUserPermissions(userId);
 
-        return ApiResponse.success(permissions);
+        return ApiResults.success(permissions);
     }
 
     /**
@@ -124,9 +161,13 @@ public class SysPermissionController {
      * 对应 Dubbo: PermissionDubboService.findPermissionsByUrl
      */
     @GetMapping("/find-by-url")
-    @Operation(summary = "根据URL查询权限")
-    public List<String> findPermissionsByUrl(@RequestParam("url") String url,
-                                              @RequestParam("method") String method) {
+    @Operation(summary = "根据 URL查询权限", description = "根据API路径和HTTP方法查询所需权限标识符（用于动态权限校验）")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功")
+    })
+    public List<String> findPermissionsByUrl(
+            @Parameter(description = "API 路径", required = true, example = "/api/system/users") @RequestParam("url") String url,
+            @Parameter(description = "HTTP 方法", required = true, example = "GET") @RequestParam("method") String method) {
         return permissionService.findPermissionsByUrl(url, method);
     }
 
@@ -135,7 +176,10 @@ public class SysPermissionController {
      * 用于 DynamicPermissionLoader 加载权限映射
      */
     @GetMapping("/api")
-    @Operation(summary = "查询所有API权限")
+    @Operation(summary = "查询所有 API权限", description = "获取所有API权限映射，用于动态权限加载器初始化")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功")
+    })
     public List<ApiPermissionDTO> findApiPermissions() {
         return permissionService.findApiPermissions();
     }

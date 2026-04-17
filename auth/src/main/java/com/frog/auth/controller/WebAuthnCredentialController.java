@@ -8,7 +8,7 @@ import com.frog.common.dto.auth.TokenUpgradeResponse;
 import com.frog.common.dto.auth.WebAuthnChallengeResponse;
 import com.frog.common.dto.auth.WebAuthnRegisterChallengeResponse;
 import com.frog.common.exception.BusinessException;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import com.frog.common.security.util.HttpServletRequestUtils;
 import com.frog.common.security.util.IpUtils;
 import com.frog.common.web.domain.SecurityUser;
@@ -62,7 +62,7 @@ public class WebAuthnCredentialController {
             summary = "生成注册挑战",
             description = "生成WebAuthn注册挑战，用于注册新的认证器"
     )
-    public ApiResponse<WebAuthnRegisterChallengeResponse> generateRegistrationChallenge(
+    public ApiResults<WebAuthnRegisterChallengeResponse> generateRegistrationChallenge(
             @Parameter(description = "依赖方ID（域名）", example = "example.com")
             @RequestParam(required = false, defaultValue = DEFAULT_RP_ID) String rpId,
             @AuthenticationPrincipal SecurityUser user,
@@ -78,7 +78,7 @@ public class WebAuthnCredentialController {
         WebAuthnRegisterChallengeResponse challenge = credentialService.generateRegistrationChallenge(
                 userId, username, deviceId, rpId);
 
-        return ApiResponse.success(challenge);
+        return ApiResults.success(challenge);
     }
 
     @PostMapping("/register/verify")
@@ -87,7 +87,7 @@ public class WebAuthnCredentialController {
             summary = "验证并注册凭证",
             description = "验证WebAuthn 注册响应并保存凭证"
     )
-    public ApiResponse<WebauthnCredentialDTO> registerCredential(
+    public ApiResults<WebauthnCredentialDTO> registerCredential(
             @Valid @RequestBody WebauthnRegistrationRequest request,
             @AuthenticationPrincipal SecurityUser user,
             HttpServletRequest httpRequest) {
@@ -99,7 +99,7 @@ public class WebAuthnCredentialController {
 
         WebauthnCredentialDTO credential = credentialService.registerCredential(userId, request);
 
-        return ApiResponse.success(credential);
+        return ApiResults.success(credential);
     }
 
     @PostMapping("/authenticate/challenge")
@@ -108,7 +108,7 @@ public class WebAuthnCredentialController {
             summary = "生成认证挑战",
             description = "生成WebAuthn认证挑战，用于多因素认证或Token升级"
     )
-    public ApiResponse<WebAuthnChallengeResponse> generateAuthenticationChallenge(
+    public ApiResults<WebAuthnChallengeResponse> generateAuthenticationChallenge(
             @Parameter(description = "依赖方ID（域名）", example = "example.com")
             @RequestParam(required = false, defaultValue = DEFAULT_RP_ID) String rpId,
             @AuthenticationPrincipal SecurityUser user,
@@ -124,7 +124,7 @@ public class WebAuthnCredentialController {
         WebAuthnChallengeResponse challenge = credentialService.generateAuthenticationChallenge(
                 userId, username, deviceId, rpId);
 
-        return ApiResponse.success(challenge);
+        return ApiResults.success(challenge);
     }
 
     @PostMapping("/authenticate/verify")
@@ -133,7 +133,7 @@ public class WebAuthnCredentialController {
             summary = "验证认证并升级 Token",
             description = "验证WebAuthn 认证响应并升级访问令牌的AMR"
     )
-    public ApiResponse<TokenUpgradeResponse> authenticateAndUpgradeToken(
+    public ApiResults<TokenUpgradeResponse> authenticateAndUpgradeToken(
             @Valid @RequestBody WebauthnAuthenticationRequest request,
             @AuthenticationPrincipal SecurityUser user,
             HttpServletRequest httpRequest) {
@@ -154,7 +154,7 @@ public class WebAuthnCredentialController {
             credentialService.logAuthenticationAttempt(
                     userId, request.getCredentialId(), true, ipAddress, userAgent);
 
-            return ApiResponse.success(response);
+            return ApiResults.success(response);
 
         } catch (AuthenticationException | BusinessException e) {
             // 记录失败的认证尝试
@@ -170,7 +170,7 @@ public class WebAuthnCredentialController {
             summary = "列出所有凭证",
             description = "获取当前用户的所有活跃 WebAuthn凭证"
     )
-    public ApiResponse<List<WebauthnCredentialDTO>> listCredentials(
+    public ApiResults<List<WebauthnCredentialDTO>> listCredentials(
             @AuthenticationPrincipal SecurityUser user) {
 
         UUID userId = user.getUserId();
@@ -179,7 +179,7 @@ public class WebAuthnCredentialController {
 
         List<WebauthnCredentialDTO> credentials = credentialService.listActiveCredentials(userId);
 
-        return ApiResponse.success(credentials);
+        return ApiResults.success(credentials);
     }
 
     @PutMapping("/credentials/{credentialId}/name")
@@ -188,7 +188,7 @@ public class WebAuthnCredentialController {
             summary = "更新设备名称",
             description = "更新 WebAuthn凭证的设备名称"
     )
-    public ApiResponse<WebauthnCredentialDTO> updateDeviceName(
+    public ApiResults<WebauthnCredentialDTO> updateDeviceName(
             @Parameter(description = "凭证 ID", required = true)
             @PathVariable String credentialId,
             @Parameter(description = "新的设备名称", required = true)
@@ -203,7 +203,7 @@ public class WebAuthnCredentialController {
         WebauthnCredentialDTO credential = credentialService.updateDeviceName(
                 userId, credentialId, deviceName);
 
-        return ApiResponse.success(credential);
+        return ApiResults.success(credential);
     }
 
     @DeleteMapping("/credentials/{credentialId}")
@@ -212,7 +212,7 @@ public class WebAuthnCredentialController {
             summary = "删除凭证",
             description = "永久删除 WebAuthn凭证"
     )
-    public ApiResponse<Void> deleteCredential(
+    public ApiResults<Void> deleteCredential(
             @Parameter(description = "凭证 ID", required = true)
             @PathVariable String credentialId,
             @AuthenticationPrincipal SecurityUser user) {
@@ -223,7 +223,7 @@ public class WebAuthnCredentialController {
 
         credentialService.deleteCredential(userId, credentialId);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     @PutMapping("/credentials/{credentialId}/deactivate")
@@ -232,7 +232,7 @@ public class WebAuthnCredentialController {
             summary = "停用凭证",
             description = "停用WebAuthn凭证（软删除）"
     )
-    public ApiResponse<Void> deactivateCredential(
+    public ApiResults<Void> deactivateCredential(
             @Parameter(description = "凭证 ID", required = true)
             @PathVariable String credentialId,
             @AuthenticationPrincipal SecurityUser user) {
@@ -243,7 +243,7 @@ public class WebAuthnCredentialController {
 
         credentialService.deactivateCredential(userId, credentialId);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     @GetMapping("/credentials/health")
@@ -252,7 +252,7 @@ public class WebAuthnCredentialController {
             summary = "检查凭证健康状态",
             description = "检测异常凭证（长期未使用、计数器异常等）"
     )
-    public ApiResponse<List<WebauthnCredentialDTO>> checkCredentialHealth(
+    public ApiResults<List<WebauthnCredentialDTO>> checkCredentialHealth(
             @AuthenticationPrincipal SecurityUser user) {
 
         UUID userId = user.getUserId();
@@ -261,6 +261,6 @@ public class WebAuthnCredentialController {
 
         List<WebauthnCredentialDTO> unhealthyCredentials = credentialService.checkCredentialHealth(userId);
 
-        return ApiResponse.success(unhealthyCredentials);
+        return ApiResults.success(unhealthyCredentials);
     }
 }

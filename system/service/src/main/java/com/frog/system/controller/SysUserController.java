@@ -4,13 +4,18 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.frog.common.feign.client.SysAuthServiceClient;
 import com.frog.common.log.annotation.AuditLog;
 import com.frog.common.domain.PageResult;
-import com.frog.common.response.ApiResponse;
 import com.frog.common.dto.user.ChangePasswordRequest;
 import com.frog.common.dto.role.TemporaryRoleGrantDTO;
 import com.frog.common.dto.user.UserDTO;
+import com.frog.common.response.ApiResults;
 import com.frog.common.web.util.SecurityUtils;
 import com.frog.system.service.ISysUserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -33,7 +38,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/system/users")
 @RequiredArgsConstructor
-@Tag(name = "用户模块")
+@Tag(name = "用户模块", description = "系统用户管理相关接口，包括用户的增删改查、角色授权、密码管理等功能")
 public class SysUserController {
     private final ISysUserService userService;
     private final SysAuthServiceClient authServiceClient;
@@ -43,14 +48,20 @@ public class SysUserController {
      */
     @GetMapping
     @PreAuthorize("hasAuthority('system:user:list')")
-    @Operation(summary = "查询用户列表")
-    public ApiResponse<PageResult<UserDTO>> list(@RequestParam(defaultValue = "1") Integer page,
-                                                 @RequestParam(defaultValue = "10") Integer size,
-                                                 @RequestParam(required = false) String username,
-                                                 @RequestParam(required = false) Integer status) {
+    @Operation(summary = "查询用户列表", description = "分页查询系统用户列表，支持用户名和状态过滤")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功",
+                    content = @Content(schema = @Schema(implementation = PageResult.class))),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
+    public ApiResults<PageResult<UserDTO>> list(
+            @Parameter(description = "页码", example = "1") @RequestParam(defaultValue = "1") Integer page,
+            @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") Integer size,
+            @Parameter(description = "用户名（模糊查询）") @RequestParam(required = false) String username,
+            @Parameter(description = "用户状态（0:禁用 1:启用）") @RequestParam(required = false) Integer status) {
         Page<UserDTO> result = userService.listUsers(page, size, username, status);
 
-        return ApiResponse.success(PageResult.of(result));
+        return ApiResults.success(PageResult.of(result));
     }
 
     /**
@@ -58,10 +69,17 @@ public class SysUserController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('system:user:list')")
-    public ApiResponse<UserDTO> getById(@PathVariable UUID id) {
+    @Operation(summary = "查询用户详情", description = "根据用户 ID查询用户详细信息")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "404", description = "用户不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
+    public ApiResults<UserDTO> getById(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id) {
         UserDTO user = userService.getUserById(id);
 
-        return ApiResponse.success(user);
+        return ApiResults.success(user);
     }
 
     /**
@@ -69,14 +87,21 @@ public class SysUserController {
      */
     @PostMapping
     @PreAuthorize("hasAuthority('system:user:add')")
+    @Operation(summary = "新增用户", description = "创建新的系统用户")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "创建成功"),
+            @ApiResponse(responseCode = "400", description = "请求参数校验失败"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "新增用户",
             businessType = "USER"
     )
-    public ApiResponse<Void> add(@Validated @RequestBody UserDTO userDTO) {
+    public ApiResults<Void> add(
+            @Parameter(description = "用户信息", required = true) @Validated @RequestBody UserDTO userDTO) {
         userService.addUser(userDTO);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -84,16 +109,24 @@ public class SysUserController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:user:edit')")
+    @Operation(summary = "修改用户", description = "更新用户信息")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "更新成功"),
+            @ApiResponse(responseCode = "400", description = "请求参数校验失败"),
+            @ApiResponse(responseCode = "404", description = "用户不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "修改用户",
             businessType = "USER"
     )
-    public ApiResponse<Void> update(@PathVariable UUID id,
-                               @Validated @RequestBody UserDTO userDTO) {
+    public ApiResults<Void> update(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "用户信息", required = true) @Validated @RequestBody UserDTO userDTO) {
         userDTO.setId(id);
         userService.updateUser(userDTO);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -101,26 +134,39 @@ public class SysUserController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:user:delete')")
+    @Operation(summary = "删除用户", description = "删除指定用户（软删除）")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "删除成功"),
+            @ApiResponse(responseCode = "404", description = "用户不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "删除用户",
             businessType = "USER",
             riskLevel = 4
     )
-    public ApiResponse<Void> delete(@PathVariable UUID id) {
+    public ApiResults<Void> delete(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id) {
         userService.deleteUser(id);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
      * 修改密码
      */
     @PostMapping("/change-password")
-    public ApiResponse<Void> changePassword(@Validated @RequestBody ChangePasswordRequest request) {
+    @Operation(summary = "修改密码", description = "用户修改自己的密码")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "修改成功"),
+            @ApiResponse(responseCode = "400", description = "旧密码错误或新密码不符合规则")
+    })
+    public ApiResults<Void> changePassword(
+            @Parameter(description = "修改密码请求", required = true) @Validated @RequestBody ChangePasswordRequest request) {
         UUID userId = SecurityUtils.getCurrentUserUuid().orElse(null);
         userService.changePassword(userId, request.getOldPassword(), request.getNewPassword());
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -128,15 +174,22 @@ public class SysUserController {
      */
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('system:user:reset')")
+    @Operation(summary = "重置密码", description = "管理员重置用户密码为默认密码")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "重置成功，返回新密码"),
+            @ApiResponse(responseCode = "404", description = "用户不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "重置密码",
             businessType = "USER",
             riskLevel = 3
     )
-    public ApiResponse<String> resetPassword(@PathVariable UUID id) {
+    public ApiResults<String> resetPassword(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id) {
         String newPassword = userService.resetPassword(id);
 
-        return ApiResponse.success(newPassword);
+        return ApiResults.success(newPassword);
     }
 
     /**
@@ -144,16 +197,23 @@ public class SysUserController {
      */
     @PostMapping("/{id}/grant-roles")
     @PreAuthorize("hasAuthority('system:user:grant')")
+    @Operation(summary = "授权角色", description = "为用户分配角色")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "授权成功"),
+            @ApiResponse(responseCode = "404", description = "用户或角色不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "授权角色",
             businessType = "USER",
             riskLevel = 4
     )
-    public ApiResponse<Void> grantRoles(@PathVariable UUID id,
-                                   @RequestBody List<UUID> roleIds) {
+    public ApiResults<Void> grantRoles(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "角色 ID列表", required = true) @RequestBody List<UUID> roleIds) {
         userService.grantRoles(id, roleIds);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -161,15 +221,23 @@ public class SysUserController {
      */
     @PostMapping("/{id}/lock")
     @PreAuthorize("hasAuthority('system:user:edit')")
+    @Operation(summary = "锁定/解锁用户", description = "锁定或解锁指定用户账号")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "操作成功"),
+            @ApiResponse(responseCode = "404", description = "用户不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "锁定用户",
             businessType = "USER",
             riskLevel = 3
     )
-    public ApiResponse<Void> lockUser(@PathVariable UUID id, @RequestParam Boolean lock) {
+    public ApiResults<Void> lockUser(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "是否锁定（true:锁定 false:解锁）", required = true) @RequestParam Boolean lock) {
         userService.lockUser(id, lock);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -177,15 +245,23 @@ public class SysUserController {
      */
     @PostMapping("/{id}/force-logout")
     @PreAuthorize("hasAuthority('system:user:edit')")
+    @Operation(summary = "强制用户下线", description = "强制指定用户退出登录")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "操作成功"),
+            @ApiResponse(responseCode = "404", description = "用户不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "强制下线",
             businessType = "USER",
             riskLevel = 3
     )
-    public ApiResponse<Void> forceLogout(@PathVariable UUID id, @RequestParam String reason) {
+    public ApiResults<Void> forceLogout(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "强制下线原因", required = true) @RequestParam String reason) {
         authServiceClient.forceLogout(id, reason);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -193,15 +269,21 @@ public class SysUserController {
      */
     @PostMapping("/{id}/grant-temporary-roles")
     @PreAuthorize("hasAuthority('system:user:grant')")
+    @Operation(summary = "授予临时角色", description = "为用户分配临时角色，支持设置生效和过期时间")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "授予成功"),
+            @ApiResponse(responseCode = "400", description = "请求参数校验失败"),
+            @ApiResponse(responseCode = "404", description = "用户或角色不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "授予临时角色",
             businessType = "USER",
             riskLevel = 4
     )
-    @Operation(summary = "授予临时角色")
-    public ApiResponse<String> grantTemporaryRoles(
-            @PathVariable UUID id,
-            @RequestBody @Validated TemporaryRoleGrantDTO dto) {
+    public ApiResults<String> grantTemporaryRoles(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id,
+            @Parameter(description = "临时角色授权信息", required = true) @RequestBody @Validated TemporaryRoleGrantDTO dto) {
         userService.grantTemporaryRoles(
                 id,
                 dto.getRoleIds(),
@@ -209,7 +291,7 @@ public class SysUserController {
                 dto.getExpireTime()
         );
 
-        return ApiResponse.success("临时角色授予成功");
+        return ApiResults.success("临时角色授予成功");
     }
 
     /**
@@ -217,19 +299,25 @@ public class SysUserController {
      */
     @PostMapping("/{userId}/extend-temporary-role/{roleId}")
     @PreAuthorize("hasAuthority('system:user:grant')")
+    @Operation(summary = "延长临时角色有效期", description = "延长用户临时角色的过期时间")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "延长成功"),
+            @ApiResponse(responseCode = "404", description = "用户、角色或临时角色分配不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "延长临时角色",
             businessType = "USER",
             riskLevel = 3
     )
-    @Operation(summary = "延长临时角色有效期")
-    public ApiResponse<String> extendTemporaryRole(
-            @PathVariable UUID userId,
-            @PathVariable UUID roleId,
+    public ApiResults<String> extendTemporaryRole(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID userId,
+            @Parameter(description = "角色 ID", required = true) @PathVariable UUID roleId,
+            @Parameter(description = "新的过期时间", required = true, example = "2025-12-31 23:59:59")
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime newExpireTime) {
         userService.extendTemporaryRole(userId, roleId, newExpireTime);
 
-        return ApiResponse.success("临时角色有效期已延长");
+        return ApiResults.success("临时角色有效期已延长");
     }
 
     /**
@@ -237,18 +325,23 @@ public class SysUserController {
      */
     @PostMapping("/{userId}/terminate-temporary-role/{roleId}")
     @PreAuthorize("hasAuthority('system:user:grant')")
+    @Operation(summary = "终止临时角色", description = "立即终止用户的临时角色")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "终止成功"),
+            @ApiResponse(responseCode = "404", description = "用户、角色或临时角色分配不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
     @AuditLog(
             operation = "终止临时角色",
             businessType = "USER",
             riskLevel = 3
     )
-    @Operation(summary = "终止临时角色")
-    public ApiResponse<String> terminateTemporaryRole(
-            @PathVariable UUID userId,
-            @PathVariable UUID roleId) {
+    public ApiResults<String> terminateTemporaryRole(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID userId,
+            @Parameter(description = "角色 ID", required = true) @PathVariable UUID roleId) {
         userService.terminateTemporaryRole(userId, roleId);
 
-        return ApiResponse.success("临时角色已终止");
+        return ApiResults.success("临时角色已终止");
     }
 
     /**
@@ -256,11 +349,17 @@ public class SysUserController {
      */
     @GetMapping("/{id}/temporary-roles")
     @PreAuthorize("hasAuthority('system:user:list')")
-    @Operation(summary = "查询用户的临时角色")
-    public ApiResponse<List<Map<String, Object>>> getUserTemporaryRoles(@PathVariable UUID id) {
+    @Operation(summary = "查询用户的临时角色", description = "获取用户所有临时角色及其有效期信息")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "404", description = "用户不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
+    public ApiResults<List<Map<String, Object>>> getUserTemporaryRoles(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id) {
         List<Map<String, Object>> roles = userService.getUserTemporaryRoles(id);
 
-        return ApiResponse.success(roles);
+        return ApiResults.success(roles);
     }
 
     /**
@@ -268,22 +367,33 @@ public class SysUserController {
      */
     @GetMapping("/{id}/statistics")
     @PreAuthorize("hasAuthority('system:user:list')")
-    @Operation(summary = "查询用户统计信息")
-    public ApiResponse<Map<String, Object>> getUserStatistics(@PathVariable UUID id) {
+    @Operation(summary = "查询用户统计信息", description = "获取用户的统计数据，如登录次数、最后登录时间等")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "404", description = "用户不存在"),
+            @ApiResponse(responseCode = "403", description = "无权限访问")
+    })
+    public ApiResults<Map<String, Object>> getUserStatistics(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID id) {
         Map<String, Object> stats = userService.getUserStatistics(id);
 
-        return ApiResponse.success(stats);
+        return ApiResults.success(stats);
     }
 
     /**
      * 更新最后登录信息
      */
     @GetMapping("/{userId}/update-login")
-    @Operation(summary = "更新最后登录信息")
-    public ApiResponse<Void> updateLastLogin(@PathVariable UUID userId,
-                                             @RequestParam("ipAddress") String ipAddress) {
+    @Operation(summary = "更新最后登录信息", description = "记录用户最后登录时间和 IP地址")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "更新成功"),
+            @ApiResponse(responseCode = "404", description = "用户不存在")
+    })
+    public ApiResults<Void> updateLastLogin(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID userId,
+            @Parameter(description = "登录 IP地址", required = true) @RequestParam("ipAddress") String ipAddress) {
         userService.updateLastLogin(userId, ipAddress);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 }

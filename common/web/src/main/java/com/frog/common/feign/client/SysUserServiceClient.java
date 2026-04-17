@@ -1,6 +1,6 @@
 package com.frog.common.feign.client;
 
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import com.frog.common.feign.fallback.UserServiceClientFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +37,7 @@ public interface SysUserServiceClient {
      * Dubbo: UserDubboService.updateLastLogin()
      */
     @GetMapping("/{userId}/update-login")
-    ApiResponse<Void> updateLastLogin(
+    ApiResults<Void> updateLastLogin(
             @PathVariable UUID userId,
             @RequestParam("ipAddress") String ipAddress
     );

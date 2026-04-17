@@ -8,7 +8,7 @@ import com.frog.common.dto.user.RefreshTokenRequest;
 import com.frog.common.dto.user.UserInfo;
 import com.frog.common.feign.client.SysUserServiceClient;
 import com.frog.common.log.annotation.AuditLog;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import com.frog.common.security.util.HttpServletRequestUtils;
 import com.frog.common.security.util.IpUtils;
 import com.frog.common.sentinel.annotation.RateLimit;
@@ -74,7 +74,7 @@ public class SysAuthController {
             summary = "用户登录",
             description = "使用用户名密码进行登录认证"
     )
-    public ApiResponse<LoginResponse> login(
+    public ApiResults<LoginResponse> login(
             @RequestBody @Valid LoginRequest request,
             HttpServletRequest httpRequest) {
         String ipAddress = IpUtils.getClientIp(httpRequest);
@@ -84,7 +84,7 @@ public class SysAuthController {
         LoginResponse response = authService.login(request, ipAddress, deviceId);
         log.info("login success traceId={} user={} ip={} device={}", traceId, request.getUsername(), ipAddress, deviceId);
 
-        return ApiResponse.success(response);
+        return ApiResults.success(response);
     }
 
     /**
@@ -99,10 +99,10 @@ public class SysAuthController {
             summary = "用户登出",
             description = "撤销当前用户的访问令牌"
     )
-    public ApiResponse<Void> logout(HttpServletRequest request) {
+    public ApiResults<Void> logout(HttpServletRequest request) {
         String token = httpServletRequestUtils.getTokenFromRequest(request);
         if (!StringUtils.hasText(token)) {
-            return ApiResponse.fail(400, "Missing token");
+            return ApiResults.fail(400, "Missing token");
         }
         UUID userId = SecurityUtils.getCurrentUserUuid().orElse(null);
         String traceId = traceId(request);
@@ -110,7 +110,7 @@ public class SysAuthController {
         authService.logout(token, userId, "用户主动登出");
         log.info("logout traceId={} userId={}", traceId, userId);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     /**
@@ -126,11 +126,11 @@ public class SysAuthController {
             summary = "刷新 Token",
             description = "使用 Refresh Token 获取新的访问令牌"
     )
-    public ApiResponse<LoginResponse> refreshToken(
+    public ApiResults<LoginResponse> refreshToken(
             @RequestBody @Valid RefreshTokenRequest request,
             HttpServletRequest httpRequest) {
         if (!StringUtils.hasText(request.getRefreshToken())) {
-            return ApiResponse.fail(400, "Missing refresh token");
+            return ApiResults.fail(400, "Missing refresh token");
         }
         String ipAddress = IpUtils.getClientIp(httpRequest);
 
@@ -144,7 +144,7 @@ public class SysAuthController {
                 deviceId,
                 ipAddress);
 
-        return ApiResponse.success(response);
+        return ApiResults.success(response);
     }
 
     /**
@@ -159,10 +159,10 @@ public class SysAuthController {
             summary = "获取用户信息",
             description = "获取当前登录用户的详细信息"
     )
-    public ApiResponse<UserInfo> getUserInfo(HttpServletRequest request) {
+    public ApiResults<UserInfo> getUserInfo(HttpServletRequest request) {
         UUID userId = SecurityUtils.getCurrentUserUuid().orElse(null);
         if (userId == null) {
-            return ApiResponse.fail(401, "Unauthorized");
+            return ApiResults.fail(401, "Unauthorized");
         }
 
         // 优先使用 Dubbo，失败回退到 Feign
@@ -176,11 +176,11 @@ public class SysAuthController {
                 String traceId = traceId(request);
                 log.error("getUserInfo failed traceId={} userId={} dubboErr={} feignErr={}",
                         traceId, userId, ex.getMessage(), ex2.getMessage());
-                return ApiResponse.fail(503, "User info unavailable");
+                return ApiResults.fail(503, "User info unavailable");
             }
         }
 
-        return ApiResponse.success(userInfo);
+        return ApiResults.success(userInfo);
     }
 
     /**
@@ -201,7 +201,7 @@ public class SysAuthController {
             summary = "强制登出",
             description = "管理员强制指定用户下线"
     )
-    public ApiResponse<Void> forceLogout(
+    public ApiResults<Void> forceLogout(
             @Parameter(description = "用户 ID", required = true)
             @PathVariable UUID userId,
             @Parameter(description = "登出原因", required = true)
@@ -210,7 +210,7 @@ public class SysAuthController {
         authService.forceLogout(userId, reason);
         log.info("force logout userId={} reason={}", userId, reason);
 
-        return ApiResponse.success();
+        return ApiResults.success();
     }
 
     private String traceId(HttpServletRequest request) {
