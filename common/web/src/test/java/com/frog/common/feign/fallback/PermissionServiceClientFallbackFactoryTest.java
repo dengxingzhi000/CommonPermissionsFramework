@@ -2,7 +2,7 @@ package com.frog.common.feign.fallback;
 
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.common.feign.client.SysPermissionServiceClient;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import org.junit.jupiter.api.Test;
 
 import java.net.SocketTimeoutException;
@@ -19,7 +19,7 @@ class PermissionServiceClientFallbackFactoryTest {
         PermissionServiceClientFallbackFactory factory = new PermissionServiceClientFallbackFactory();
         SysPermissionServiceClient client = factory.create(new SocketTimeoutException("timeout"));
 
-        ApiResponse<Set<String>> resp = client.getUserPermissions(UUID.randomUUID());
+        ApiResults<Set<String>> resp = client.getUserPermissions(UUID.randomUUID());
         assertEquals(200, resp.code());
         assertTrue(resp.data().isEmpty());
     }
@@ -29,7 +29,7 @@ class PermissionServiceClientFallbackFactoryTest {
         PermissionServiceClientFallbackFactory factory = new PermissionServiceClientFallbackFactory();
         SysPermissionServiceClient client = factory.create(new SocketTimeoutException("timeout"));
 
-        ApiResponse<PermissionDTO> resp = client.getPermissionById(UUID.randomUUID());
+        ApiResults<PermissionDTO> resp = client.getPermissionById(UUID.randomUUID());
         assertEquals(503, resp.code());
         assertEquals("权限服务暂时不可用", resp.message());
     }

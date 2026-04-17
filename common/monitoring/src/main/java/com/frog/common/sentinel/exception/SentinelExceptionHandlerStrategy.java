@@ -1,7 +1,7 @@
 package com.frog.common.sentinel.exception;
 
 import com.alibaba.csp.sentinel.slots.block.BlockException;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 
 /**
  * Sentinel 异常处理器策略接口
@@ -23,5 +23,5 @@ public interface SentinelExceptionHandlerStrategy {
      * @param ex 异常
      * @return 响应结果
      */
-    ApiResponse<Void> handle(BlockException ex);
+    ApiResults<Void> handle(BlockException ex);
 }

@@ -2,7 +2,7 @@ package com.frog.common.feign.client;
 
 import com.frog.common.dto.permission.ApiPermissionDTO;
 import com.frog.common.dto.permission.PermissionDTO;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import com.frog.common.feign.fallback.PermissionServiceClientFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +37,7 @@ public interface SysPermissionServiceClient {
      * 对应: SysPermissionController.tree()
      */
     @GetMapping("/tree")
-    ApiResponse<List<PermissionDTO>> getPermissionTree();
+    ApiResults<List<PermissionDTO>> getPermissionTree();
 
     /**
      * 查询用户权限（用于 FeignPermissionAccess）
@@ -45,14 +45,14 @@ public interface SysPermissionServiceClient {
      * Dubbo: PermissionDubboService.findAllPermissionsByUserId()
      */
     @GetMapping("/user/{userId}")
-    ApiResponse<Set<String>> getUserPermissions(@PathVariable UUID userId);
+    ApiResults<Set<String>> getUserPermissions(@PathVariable UUID userId);
 
     /**
      * 根据 ID获取权限详情
      * 对应: SysPermissionController.getById()
      */
     @GetMapping("/{id}")
-    ApiResponse<PermissionDTO> getPermissionById(@PathVariable UUID id);
+    ApiResults<PermissionDTO> getPermissionById(@PathVariable UUID id);
 
     /**
      * 根据 URL和HTTP方法查询权限（用于 FeignPermissionAccess）

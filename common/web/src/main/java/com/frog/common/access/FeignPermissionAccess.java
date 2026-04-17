@@ -4,7 +4,7 @@ import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.SphU;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.frog.common.feign.client.SysPermissionServiceClient;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import com.frog.common.security.PermissionService;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -99,7 +99,7 @@ public class FeignPermissionAccess implements PermissionService {
     @Override
     public Set<String> findAllPermissionsByUserId(UUID userId) {
         try (Entry entry = SphU.entry("permission:findByUserId")) {
-            ApiResponse<Set<String>> resp = permissionServiceClient.getUserPermissions(userId);
+            ApiResults<Set<String>> resp = permissionServiceClient.getUserPermissions(userId);
             Set<String> perms = resp != null ? resp.data() : null;
             meterRegistry.counter("security.permissions.user.success").increment();
             log.debug("User permission lookup success via Feign: userId={}, count={}",

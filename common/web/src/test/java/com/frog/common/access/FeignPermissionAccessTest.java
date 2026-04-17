@@ -1,8 +1,7 @@
 package com.frog.common.access;
 
-import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.frog.common.feign.client.SysPermissionServiceClient;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -142,7 +141,7 @@ class FeignPermissionAccessTest {
     void testFindAllPermissionsByUserId_Success() {
         // Arrange
         Set<String> expectedPermissions = Set.of("user:read", "user:write", "admin:access");
-        ApiResponse<Set<String>> response = ApiResponse.success(expectedPermissions);
+        ApiResults<Set<String>> response = ApiResults.success(expectedPermissions);
 
         when(permissionServiceClient.getUserPermissions(testUserId))
                 .thenReturn(response);
@@ -268,7 +267,7 @@ class FeignPermissionAccessTest {
     @DisplayName("Should handle API response with null data gracefully")
     void testFindAllPermissionsByUserId_NullResponseData() {
         // Arrange
-        ApiResponse<Set<String>> response = ApiResponse.success(null);
+        ApiResults<Set<String>> response = ApiResults.success(null);
         when(permissionServiceClient.getUserPermissions(testUserId))
                 .thenReturn(response);
 

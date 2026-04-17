@@ -5,7 +5,7 @@ import com.frog.common.dto.permission.ApiPermissionDTO;
 import com.frog.common.dto.permission.PermissionDTO;
 import com.frog.common.feign.client.SysPermissionServiceClient;
 import com.frog.common.feign.factory.BaseFallbackFactory;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
@@ -32,22 +32,22 @@ public class PermissionServiceClientFallbackFactory extends BaseFallbackFactory<
     protected SysPermissionServiceClient createFallback(String errorMsg, Throwable cause) {
         return new SysPermissionServiceClient() {
             @Override
-            public ApiResponse<List<PermissionDTO>> getPermissionTree() {
+            public ApiResults<List<PermissionDTO>> getPermissionTree() {
                 log.error("调用权限服务查询权限树失败: {}", errorMsg, cause);
-                return ApiResponse.success(new ArrayList<>());
+                return ApiResults.success(new ArrayList<>());
             }
 
             @Override
-            public ApiResponse<Set<String>> getUserPermissions(UUID userId) {
+            public ApiResults<Set<String>> getUserPermissions(UUID userId) {
                 log.error("SECURITY: User permission lookup failed via Sentinel fallback - DENYING ACCESS. " +
                          "userId={}, error: {}", userId, errorMsg, cause);
-                return ApiResponse.success(Collections.emptySet());
+                return ApiResults.success(Collections.emptySet());
             }
 
             @Override
-            public ApiResponse<PermissionDTO> getPermissionById(UUID id) {
+            public ApiResults<PermissionDTO> getPermissionById(UUID id) {
                 log.error("调用权限服务查询权限详情失败: id={}, 原因: {}", id, errorMsg, cause);
-                return ApiResponse.fail(503, "权限服务暂时不可用");
+                return ApiResults.fail(503, "权限服务暂时不可用");
             }
 
             @Override

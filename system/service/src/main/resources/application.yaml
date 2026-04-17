@@ -252,3 +252,31 @@ dubbo:
     port: -1
   registry:
     address: nacos://${spring.cloud.nacos.server-addr}
+
+# ========== SpringDoc OpenAPI 配置 ==========
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+    enabled: true
+    # SpringDoc 3.x 新增配置
+    tags-sorter: alpha
+    operations-sorter: alpha
+  # 自定义OpenAPI信息（通过OpenApiProperties读取）
+  info:
+    title: CommonPermissionsFramework System Service API
+    description: 企业级微服务权限管理框架 - 系统管理服务
+    version: v1.0.0
+    contact:
+      name: Development Team
+      email: dev@example.com
+    license:
+      name: Apache 2.0
+      url: https://www.apache.org/licenses/LICENSE-2.0.html
+    servers:
+      - url: http://localhost:8081
+        description: Development Server (HTTP)
+      - url: https://localhost:8081
+        description: Development Server (HTTPS)

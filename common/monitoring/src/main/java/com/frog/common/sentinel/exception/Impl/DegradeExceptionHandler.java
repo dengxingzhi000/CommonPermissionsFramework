@@ -3,7 +3,7 @@ package com.frog.common.sentinel.exception.Impl;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
 import com.frog.common.sentinel.exception.SentinelExceptionHandlerStrategy;
-import com.frog.common.response.ApiResponse;
+import com.frog.common.response.ApiResults;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,7 +22,7 @@ public class DegradeExceptionHandler implements SentinelExceptionHandlerStrategy
     }
 
     @Override
-    public ApiResponse<Void> handle(BlockException e) {
-        return ApiResponse.fail(503, "服务暂时不可用，请稍后再试");
+    public ApiResults<Void> handle(BlockException e) {
+        return ApiResults.fail(503, "服务暂时不可用，请稍后再试");
     }
 }
