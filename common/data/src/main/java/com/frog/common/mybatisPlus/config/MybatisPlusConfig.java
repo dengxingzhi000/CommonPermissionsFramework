@@ -32,7 +32,7 @@ public class MybatisPlusConfig {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
 
         // 分页插件
-        PaginationInnerInterceptor paginationInterceptor = new PaginationInnerInterceptor(DbType.MYSQL);
+        PaginationInnerInterceptor paginationInterceptor = new PaginationInnerInterceptor(DbType.POSTGRE_SQL);
         paginationInterceptor.setMaxLimit(properties.getPaginationMaxLimit()); // 最大单页限制数量
         paginationInterceptor.setOverflow(false); // 溢出总页数后是否进行处理
         interceptor.addInnerInterceptor(paginationInterceptor);

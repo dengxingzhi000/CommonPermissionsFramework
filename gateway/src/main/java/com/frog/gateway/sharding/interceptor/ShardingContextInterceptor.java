@@ -15,12 +15,17 @@ import java.util.UUID;
 /**
  * 安全地管理 HintManager（防止嵌套 / 泄露）
  *
+ * <p><b>WARNING:</b> This is a Servlet-based interceptor and will NOT work in WebFlux/Gateway.
+ * It is only effective in Servlet-based services (system-service, auth-service).
+ * For Gateway, use a WebFilter-based equivalent instead.
+ *
  * @author Deng
  * createData 2025/11/11 15:16
  * @version 1.0
  */
 @Component
 @RequiredArgsConstructor
+@Deprecated(since = "1.1", forRemoval = false)
 public class ShardingContextInterceptor implements HandlerInterceptor {
 
     @Override

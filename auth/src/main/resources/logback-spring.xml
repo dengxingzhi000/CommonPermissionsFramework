@@ -11,7 +11,7 @@
 
     <!-- Logstash输出 -->
     <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>192.168.18.133:5044</destination>
+        <destination>${LOGSTASH_HOST:localhost}:5044</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <customFields>{"app":"${APP_NAME}"}</customFields>
         </encoder>
@@ -19,7 +19,7 @@
 
     <!-- 审计日志单独处理 -->
     <appender name="AUDIT" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>192.168.18.133:5044</destination>
+        <destination>${LOGSTASH_HOST:localhost}:5044</destination>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <customFields>{"app":"${APP_NAME}","type":"AUDIT_LOG"}</customFields>
         </encoder>

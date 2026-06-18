@@ -195,11 +195,6 @@ public class SysAuthServiceImpl implements ISysAuthService {
         redisTemplate.delete(attemptKey);
     }
 
-    private boolean verifyTwoFactor(String code, UUID userId) {
-        // Deprecated path kept for backward compatibility; unified check is done earlier.
-        return true;
-    }
-
     private boolean verifyTwoFactor(String secret, String code, UUID userId) {
         if (!StringUtils.hasText(secret) || !StringUtils.hasText(code)) {
             return false;
@@ -225,7 +220,7 @@ public class SysAuthServiceImpl implements ISysAuthService {
 
     @Override
     public LoginResponse refreshToken(String refreshToken, String deviceId, String ipAddress) {
-        if (!jwtUtils.isRefreshTokenInvalid(refreshToken)) {
+        if (jwtUtils.isRefreshTokenInvalid(refreshToken)) {
             throw new BadCredentialsException("刷新令牌无效或已过期");
         }
 

@@ -5,10 +5,10 @@ spring:
 
       ds0:
         type: com.zaxxer.hikari.HikariDataSource
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbc-url: jdbc:mysql://192.168.18.133:3306/near_sync_0?useSSL=false&serverTimezone=Asia/Shanghai
-        username: root
-        password: 123456
+        driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
+        jdbc-url: ${DB_DS0_URL:jdbc:mysql://localhost:3306/near_sync_0?useSSL=false&serverTimezone=Asia/Shanghai}
+        username: ${DB_DS0_USERNAME:root}
+        password: ${DB_DS0_PASSWORD:}
         hikari:
           maximum-pool-size: 10
           minimum-idle: 2
@@ -16,10 +16,10 @@ spring:
 
       ds1:
         type: com.zaxxer.hikari.HikariDataSource
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbc-url: jdbc:mysql://192.168.18.134:3306/near_sync_1?useSSL=false&serverTimezone=Asia/Shanghai
-        username: root
-        password: 123456
+        driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
+        jdbc-url: ${DB_DS1_URL:jdbc:mysql://localhost:3306/near_sync_1?useSSL=false&serverTimezone=Asia/Shanghai}
+        username: ${DB_DS1_USERNAME:root}
+        password: ${DB_DS1_PASSWORD:}
         hikari:
           maximum-pool-size: 10
           minimum-idle: 2

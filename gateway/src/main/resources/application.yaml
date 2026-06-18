@@ -41,8 +41,7 @@ spring:
             - Path=/common/**
           filters:
             - StripPrefix=1
-      default-filters:
-        - StripPrefix=1
+      # default-filters StripPrefix removed - each route defines its own StripPrefix=1
 
 security:
   signature:
@@ -53,7 +52,8 @@ security:
     nonce-key-prefix: api:nonce:
     whitelist:
       - /public/**
-      - /actuator/**
+      - /actuator/health
+      - /actuator/info
     app-secrets:
       # SECURITY: Secrets MUST be provided via environment variables in production
       # Remove default values to enforce secure configuration

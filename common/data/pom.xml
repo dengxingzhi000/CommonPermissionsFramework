@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com</groupId>
-        <artifactId>NewNearSync</artifactId>
+        <artifactId>common-permissions-framework</artifactId>
         <version>1.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
@@ -134,6 +134,13 @@
             <artifactId>sentinel-datasource-extension</artifactId>
         </dependency>
         <!-- tools end -->
+
+        <!-- test dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 </project>

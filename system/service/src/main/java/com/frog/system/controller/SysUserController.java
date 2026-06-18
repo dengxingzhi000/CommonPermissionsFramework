@@ -9,6 +9,7 @@ import com.frog.common.dto.role.TemporaryRoleGrantDTO;
 import com.frog.common.dto.user.UserDTO;
 import com.frog.common.response.ApiResults;
 import com.frog.common.web.util.SecurityUtils;
+import com.frog.system.service.ISysPermissionService;
 import com.frog.system.service.ISysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -41,6 +42,7 @@ import java.util.UUID;
 @Tag(name = "用户模块", description = "系统用户管理相关接口，包括用户的增删改查、角色授权、密码管理等功能")
 public class SysUserController {
     private final ISysUserService userService;
+    private final ISysPermissionService permissionService;
     private final SysAuthServiceClient authServiceClient;
 
     /**
@@ -395,5 +397,29 @@ public class SysUserController {
         userService.updateLastLogin(userId, ipAddress);
 
         return ApiResults.success();
+    }
+
+    @GetMapping("/{userId}/info")
+    @Operation(summary = "获取用户信息（Feign降级）", description = "供Feign客户端调用的用户信息接口")
+    public ApiResults<com.frog.common.dto.user.UserInfo> getUserInfo(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID userId) {
+        com.frog.common.dto.user.UserInfo userInfo = userService.getUserInfo(userId);
+        return ApiResults.success(userInfo);
+    }
+
+    @GetMapping("/{userId}/roles")
+    @Operation(summary = "获取用户角色（Feign降级）", description = "供Feign客户端调用的角色查询接口")
+    public ApiResults<java.util.Set<String>> findRolesByUserId(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID userId) {
+        java.util.Set<String> roles = permissionService.getUserRoles(userId);
+        return ApiResults.success(roles);
+    }
+
+    @GetMapping("/{userId}/permissions")
+    @Operation(summary = "获取用户权限（Feign降级）", description = "供Feign客户端调用的权限查询接口")
+    public ApiResults<java.util.Set<String>> findPermissionsByUserId(
+            @Parameter(description = "用户 ID", required = true) @PathVariable UUID userId) {
+        java.util.Set<String> permissions = permissionService.getUserPermissions(userId);
+        return ApiResults.success(permissions);
     }
 }

@@ -7,9 +7,9 @@ spring:
       # === 公共连接属性 ===
       common:
         type: com.zaxxer.hikari.HikariDataSource
-        username: root
-        password: 123456
-        driver-class-name: com.mysql.cj.jdbc.Driver
+        username: ${DB_USERNAME:root}
+        password: ${DB_PASSWORD:}
+        driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
         hikari:
           maximum-pool-size: 10
           minimum-idle: 2
@@ -25,15 +25,15 @@ spring:
 
       slave0-0:
         type: ${spring.shardingsphere.datasource.common.type}
-        jdbc-url: jdbc:mysql://192.168.18.135:3306/near_sync_0?useSSL=false&characterEncoding=utf8
-        username: readonly
-        password: 123456
+        jdbc-url: ${DB_SLAVE0_0_URL:jdbc:mysql://localhost:3306/near_sync_0?useSSL=false&characterEncoding=utf8}
+        username: ${DB_SLAVE0_0_USERNAME:readonly}
+        password: ${DB_SLAVE0_0_PASSWORD:}
 
       slave0-1:
         type: ${spring.shardingsphere.datasource.common.type}
-        jdbc-url: jdbc:mysql://192.168.18.136:3306/near_sync_0?useSSL=false&characterEncoding=utf8
-        username: readonly
-        password: 123456
+        jdbc-url: ${DB_SLAVE0_1_URL:jdbc:mysql://localhost:3306/near_sync_0?useSSL=false&characterEncoding=utf8}
+        username: ${DB_SLAVE0_1_USERNAME:readonly}
+        password: ${DB_SLAVE0_1_PASSWORD:}
 
       # === 主库1 + 从库 ===
       master1:
@@ -44,15 +44,15 @@ spring:
 
       slave1-0:
         type: ${spring.shardingsphere.datasource.common.type}
-        jdbc-url: jdbc:mysql://192.168.18.137:3306/near_sync_1?useSSL=false&characterEncoding=utf8
-        username: readonly
-        password: 123456
+        jdbc-url: ${DB_SLAVE1_0_URL:jdbc:mysql://localhost:3306/near_sync_1?useSSL=false&characterEncoding=utf8}
+        username: ${DB_SLAVE1_0_USERNAME:readonly}
+        password: ${DB_SLAVE1_0_PASSWORD:}
 
       slave1-1:
         type: ${spring.shardingsphere.datasource.common.type}
-        jdbc-url: jdbc:mysql://192.168.18.138:3306/near_sync_1?useSSL=false&characterEncoding=utf8
-        username: readonly
-        password: 123456
+        jdbc-url: ${DB_SLAVE1_1_URL:jdbc:mysql://localhost:3306/near_sync_1?useSSL=false&characterEncoding=utf8}
+        username: ${DB_SLAVE1_1_USERNAME:readonly}
+        password: ${DB_SLAVE1_1_PASSWORD:}
 
     rules:
       # === 读写分离规则 ===

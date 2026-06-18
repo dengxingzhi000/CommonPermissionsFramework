@@ -90,12 +90,33 @@ public class TwoLevelCache implements org.springframework.cache.Cache {
     @Override
     public ValueWrapper putIfAbsent(@NonNull Object key, Object value) {
         Object existing = lookup(key);
-        if (existing == null) {
-            put(key, value);
-            return null;
+        if (existing != null) {
+            final Object finalExisting = existing;
+            return () -> finalExisting;
         }
-        final Object finalExisting = existing;
-        return () -> finalExisting;
+        // Use Redis SETNX for atomic put-if-absent to prevent TOCTOU race
+        String k = keyString(key);
+        String rk = redisKey(k);
+        try {
+            Boolean absent = redisTemplate.opsForValue().setIfAbsent(rk, value, ttl);
+            if (Boolean.TRUE.equals(absent)) {
+                local.put(k, value);
+                redisTemplate.convertAndSend(CHANNEL, name + "|" + k);
+                return null;
+            }
+            // Another instance inserted first; fetch and return
+            existing = redisTemplate.opsForValue().get(rk);
+            if (existing != null) {
+                local.put(k, existing);
+                final Object finalExisting1 = existing;
+                return () -> finalExisting1;
+            }
+        } catch (Exception e) {
+            log.warn("TwoLevelCache putIfAbsent redis failed: {}", e.getMessage());
+            // Fallback to local put
+            put(key, value);
+        }
+        return null;
     }
 
     @Override

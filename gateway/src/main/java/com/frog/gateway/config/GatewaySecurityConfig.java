@@ -30,7 +30,7 @@ public class GatewaySecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
-                                .jwkSetUri("http://auth-service:8106/oauth2/jwks")
+                                .jwkSetUri("${security.oauth2.jwk-set-uri:http://auth-service:8106/oauth2/jwks}")
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter())
                         )
                 )

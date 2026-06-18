@@ -48,13 +48,10 @@ import java.util.UUID;
         description = "WebAuthn生物识别/硬件密钥认证管理"
 )
 public class WebAuthnCredentialController {
-    /**
-     * 默认 RP ID，生产环境应通过配置文件设置
-     */
-    private static final String DEFAULT_RP_ID = "localhost";
 
     private final IWebauthnCredentialService credentialService;
     private final HttpServletRequestUtils httpServletRequestUtils;
+    private final com.frog.auth.webauthn.WebAuthnConfig webAuthnConfig;
 
     @PostMapping("/register/challenge")
     @PreAuthorize("isAuthenticated()")
@@ -63,8 +60,6 @@ public class WebAuthnCredentialController {
             description = "生成WebAuthn注册挑战，用于注册新的认证器"
     )
     public ApiResults<WebAuthnRegisterChallengeResponse> generateRegistrationChallenge(
-            @Parameter(description = "依赖方ID（域名）", example = "example.com")
-            @RequestParam(required = false, defaultValue = DEFAULT_RP_ID) String rpId,
             @AuthenticationPrincipal SecurityUser user,
             HttpServletRequest request) {
 
@@ -72,6 +67,7 @@ public class WebAuthnCredentialController {
         String username = user.getUsername();
         String deviceId = httpServletRequestUtils.getDeviceId(request);
         String ipAddress = IpUtils.getClientIp(request);
+        String rpId = webAuthnConfig.getId();
 
         log.info("User {} requesting registration challenge from {}", userId, ipAddress);
 
@@ -109,8 +105,6 @@ public class WebAuthnCredentialController {
             description = "生成WebAuthn认证挑战，用于多因素认证或Token升级"
     )
     public ApiResults<WebAuthnChallengeResponse> generateAuthenticationChallenge(
-            @Parameter(description = "依赖方ID（域名）", example = "example.com")
-            @RequestParam(required = false, defaultValue = DEFAULT_RP_ID) String rpId,
             @AuthenticationPrincipal SecurityUser user,
             HttpServletRequest request) {
 
@@ -118,6 +112,7 @@ public class WebAuthnCredentialController {
         String username = user.getUsername();
         String deviceId = httpServletRequestUtils.getDeviceId(request);
         String ipAddress = IpUtils.getClientIp(request);
+        String rpId = webAuthnConfig.getId();
 
         log.info("User {} requesting authentication challenge from {}", userId, ipAddress);
 

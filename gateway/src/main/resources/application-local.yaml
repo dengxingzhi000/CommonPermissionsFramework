@@ -26,8 +26,7 @@ spring:
             - Path=/system/**
           filters:
             - StripPrefix=1
-      default-filters:
-        - StripPrefix=1
+      # default-filters StripPrefix removed - each route defines its own StripPrefix=1
 
 security:
   signature:
