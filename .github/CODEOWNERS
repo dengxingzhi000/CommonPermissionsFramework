@@ -1,0 +1,8 @@
+# Default owners for everything in the repo
+* @dengxingzhi000
+
+# Security-related changes require owner review
+common/web/securityCore/ @dengxingzhi000
+common/web/src/main/java/com/frog/common/security/ @dengxingzhi000
+auth/ @dengxingzhi000
+gateway/src/main/java/com/frog/gateway/filter/ @dengxingzhi000
