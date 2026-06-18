@@ -19,7 +19,7 @@ jobs:
   helm-rollback:
     runs-on: ubuntu-latest
     steps:
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
       - uses: azure/setup-helm@v4
       - name: Select env secrets
         id: sel
