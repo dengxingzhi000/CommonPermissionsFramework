@@ -3,11 +3,11 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com</groupId>
-  <artifactId>NewNearSync</artifactId>
+  <artifactId>common-permissions-framework</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>NewNearSync</name>
+  <name>common-permissions-framework</name>
   <url>http://maven.apache.org</url>
     <modules>
         <module>common</module>
