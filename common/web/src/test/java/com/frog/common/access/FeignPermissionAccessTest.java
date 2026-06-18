@@ -62,12 +62,12 @@ class FeignPermissionAccessTest {
         testUserId = UUID.randomUUID();
 
         // Mock meter registry counters
-        when(meterRegistry.counter("security.permissions.lookup.success")).thenReturn(successCounter);
-        when(meterRegistry.counter("security.permissions.lookup.fail")).thenReturn(failureCounter);
-        when(meterRegistry.counter("security.permissions.lookup.blocked")).thenReturn(blockedCounter);
-        when(meterRegistry.counter("security.permissions.user.success")).thenReturn(successCounter);
-        when(meterRegistry.counter("security.permissions.user.fail")).thenReturn(failureCounter);
-        when(meterRegistry.counter("security.permissions.user.blocked")).thenReturn(blockedCounter);
+        lenient().when(meterRegistry.counter("security.permissions.lookup.success")).thenReturn(successCounter);
+        lenient().when(meterRegistry.counter("security.permissions.lookup.fail")).thenReturn(failureCounter);
+        lenient().when(meterRegistry.counter("security.permissions.lookup.blocked")).thenReturn(blockedCounter);
+        lenient().when(meterRegistry.counter("security.permissions.user.success")).thenReturn(successCounter);
+        lenient().when(meterRegistry.counter("security.permissions.user.fail")).thenReturn(failureCounter);
+        lenient().when(meterRegistry.counter("security.permissions.user.blocked")).thenReturn(blockedCounter);
     }
 
     @Test

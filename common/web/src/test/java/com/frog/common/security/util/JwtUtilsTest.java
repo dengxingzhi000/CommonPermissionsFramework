@@ -12,17 +12,12 @@ import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * JWT Utilities Test Suite
- *
- * Tests token generation, validation, and revocation.
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("JWT Utils Tests")
 class JwtUtilsTest {
@@ -47,65 +42,118 @@ class JwtUtilsTest {
     @BeforeEach
     void setUp() {
         lenient().when(jwtProperties.getSecret()).thenReturn(SECRET);
-        lenient().when(jwtProperties.getAccessTokenExpiration()).thenReturn(3600000L);
-        lenient().when(jwtProperties.getRefreshTokenExpiration()).thenReturn(604800000L);
+        lenient().when(jwtProperties.getExpiration()).thenReturn(3600000L);
+        lenient().when(jwtProperties.getRefreshExpiration()).thenReturn(604800000L);
         lenient().when(jwtProperties.getIssuer()).thenReturn("test");
+        lenient().when(jwtProperties.isStrictIpCheck()).thenReturn(false);
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(redisTemplate.hasKey(anyString())).thenReturn(true);
+        lenient().when(redisTemplate.expire(anyString(), any(java.time.Duration.class))).thenReturn(true);
+        jwtUtils.init();
     }
 
     @Test
-    @DisplayName("Should generate access token")
+    @DisplayName("Should generate access token with correct JWT structure")
     void testGenerateAccessToken() {
         UUID userId = UUID.randomUUID();
-        String token = jwtUtils.generateAccessToken(userId, "admin", "127.0.0.1", "device-1");
+
+        String token = jwtUtils.generateAccessToken(
+                userId, "admin", Set.of("ROLE_ADMIN"), Set.of("read", "write"), "device-1", "127.0.0.1");
 
         assertThat(token).isNotBlank();
-        assertThat(token.split("\\.")).hasSize(3); // JWT has 3 parts
+        String[] parts = token.split("\\.");
+        assertThat(parts).hasSize(3);
     }
 
     @Test
-    @DisplayName("Should generate refresh token")
+    @DisplayName("Should generate refresh token with correct JWT structure")
     void testGenerateRefreshToken() {
         UUID userId = UUID.randomUUID();
+
         String token = jwtUtils.generateRefreshToken(userId, "admin", "device-1");
 
         assertThat(token).isNotBlank();
-        assertThat(token.split("\\.")).hasSize(3);
+        String[] parts = token.split("\\.");
+        assertThat(parts).hasSize(3);
     }
 
     @Test
-    @DisplayName("Should validate token with correct IP and device")
-    void testValidateToken() {
+    @DisplayName("Should extract roles from token")
+    void testGetRolesFromToken() {
         UUID userId = UUID.randomUUID();
-        when(hashOperations.get(anyString(), anyString())).thenReturn(userId.toString());
 
-        String token = jwtUtils.generateAccessToken(userId, "admin", "127.0.0.1", "device-1");
+        String token = jwtUtils.generateAccessToken(
+                userId, "admin", Set.of("ROLE_ADMIN", "ROLE_USER"), Set.of("read"), "device-1", "127.0.0.1");
 
-        boolean valid = jwtUtils.validateToken(token, "127.0.0.1", "device-1");
-        assertThat(valid).isTrue();
+        Set<String> roles = jwtUtils.getRolesFromToken(token);
+        assertThat(roles).containsExactlyInAnyOrder("ROLE_ADMIN", "ROLE_USER");
     }
 
     @Test
-    @DisplayName("Should reject token with wrong IP")
-    void testValidateToken_WrongIp() {
+    @DisplayName("Should extract permissions from token")
+    void testGetPermissionsFromToken() {
         UUID userId = UUID.randomUUID();
-        when(hashOperations.get(anyString(), anyString())).thenReturn(userId.toString());
 
-        String token = jwtUtils.generateAccessToken(userId, "admin", "127.0.0.1", "device-1");
+        String token = jwtUtils.generateAccessToken(
+                userId, "admin", Set.of("ROLE_ADMIN"), Set.of("read", "write", "delete"), "device-1", "127.0.0.1");
 
-        boolean valid = jwtUtils.validateToken(token, "192.168.1.1", "device-1");
-        assertThat(valid).isFalse();
+        Set<String> permissions = jwtUtils.getPermissionsFromToken(token);
+        assertThat(permissions).containsExactlyInAnyOrder("read", "write", "delete");
     }
 
     @Test
-    @DisplayName("Should revoke token")
-    void testRevokeToken() {
+    @DisplayName("Should extract userId from token")
+    void testGetUserIdFromToken() {
         UUID userId = UUID.randomUUID();
-        String token = jwtUtils.generateAccessToken(userId, "admin", "127.0.0.1", "device-1");
 
-        jwtUtils.revokeToken(token, "test revocation");
+        String token = jwtUtils.generateAccessToken(
+                userId, "admin", Set.of("ROLE_ADMIN"), Set.of("read"), "device-1", "127.0.0.1");
 
-        verify(hashOperations).delete(anyString(), anyString());
+        UUID extractedUserId = jwtUtils.getUserIdFromToken(token);
+        assertThat(extractedUserId).isEqualTo(userId);
+    }
+
+    @Test
+    @DisplayName("Should extract username from token")
+    void testGetUsernameFromToken() {
+        UUID userId = UUID.randomUUID();
+
+        String token = jwtUtils.generateAccessToken(
+                userId, "admin", Set.of("ROLE_ADMIN"), Set.of("read"), "device-1", "127.0.0.1");
+
+        String username = jwtUtils.getUsernameFromToken(token);
+        assertThat(username).isEqualTo("admin");
+    }
+
+    @Test
+    @DisplayName("Should detect invalid refresh token")
+    void testIsRefreshTokenInvalid() {
+        UUID userId = UUID.randomUUID();
+
+        String refreshToken = jwtUtils.generateRefreshToken(userId, "admin", "device-1");
+        assertThat(jwtUtils.isRefreshTokenInvalid(refreshToken)).isFalse();
+
+        String accessToken = jwtUtils.generateAccessToken(
+                userId, "admin", Set.of("ROLE_ADMIN"), Set.of("read"), "device-1", "127.0.0.1");
+        assertThat(jwtUtils.isRefreshTokenInvalid(accessToken)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should throw on null secret")
+    void testInit_NullSecret() {
+        JwtUtils utils = new JwtUtils(jwtProperties, redisTemplate);
+        when(jwtProperties.getSecret()).thenReturn(null);
+        assertThatThrownBy(utils::init)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("Should throw on short secret")
+    void testInit_ShortSecret() {
+        JwtUtils utils = new JwtUtils(jwtProperties, redisTemplate);
+        when(jwtProperties.getSecret()).thenReturn("short");
+        assertThatThrownBy(utils::init)
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

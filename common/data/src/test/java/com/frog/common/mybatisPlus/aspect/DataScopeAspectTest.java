@@ -14,8 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -25,6 +25,9 @@ import static org.mockito.Mockito.*;
  *
  * Tests the DataScopeAspect that depends on SecurityContext interface.
  * Validates data scope filtering logic and ThreadLocal context management.
+ *
+ * NOTE: DataScopeAspect.around() clears ThreadLocal in a finally block,
+ * so we capture the filter DURING execution via doAnswer on joinPoint.proceed().
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DataScopeAspect Tests")
@@ -53,8 +56,8 @@ class DataScopeAspectTest {
         testUserId = UUID.randomUUID();
         testDeptId = UUID.randomUUID();
 
-        when(dataScopeAnnotation.userAlias()).thenReturn("u");
-        when(dataScopeAnnotation.deptAlias()).thenReturn("d");
+        lenient().when(dataScopeAnnotation.userAlias()).thenReturn("u");
+        lenient().when(dataScopeAnnotation.deptAlias()).thenReturn("d");
     }
 
     @AfterEach
@@ -95,14 +98,20 @@ class DataScopeAspectTest {
         when(securityContext.getCurrentUserId()).thenReturn(testUserId);
         when(securityContext.getCurrentDeptId()).thenReturn(testDeptId);
         when(securityContext.getDataScopeLevel()).thenReturn(5);
-        when(joinPoint.proceed()).thenReturn("result");
+
+        AtomicReference<DataScopeFilter> captured = new AtomicReference<>();
+        doAnswer(inv -> {
+            captured.set(DataScopeContextHolder.get());
+            return "result";
+        }).when(joinPoint).proceed();
 
         aspect.around(joinPoint, dataScopeAnnotation);
 
-        DataScopeFilter filter = DataScopeContextHolder.get();
+        DataScopeFilter filter = captured.get();
         assertThat(filter).isNotNull();
         assertThat(filter.getClause()).contains("u = #{__ds_userId}::uuid");
         assertThat(filter.getParams()).containsEntry("__ds_userId", testUserId.toString());
+        assertThat(DataScopeContextHolder.get()).isNull();
     }
 
     @Test
@@ -112,11 +121,16 @@ class DataScopeAspectTest {
         when(securityContext.getCurrentUserId()).thenReturn(testUserId);
         when(securityContext.getCurrentDeptId()).thenReturn(testDeptId);
         when(securityContext.getDataScopeLevel()).thenReturn(3);
-        when(joinPoint.proceed()).thenReturn("result");
+
+        AtomicReference<DataScopeFilter> captured = new AtomicReference<>();
+        doAnswer(inv -> {
+            captured.set(DataScopeContextHolder.get());
+            return "result";
+        }).when(joinPoint).proceed();
 
         aspect.around(joinPoint, dataScopeAnnotation);
 
-        DataScopeFilter filter = DataScopeContextHolder.get();
+        DataScopeFilter filter = captured.get();
         assertThat(filter).isNotNull();
         assertThat(filter.getClause()).contains("d = #{__ds_deptId}::uuid");
         assertThat(filter.getParams()).containsEntry("__ds_deptId", testDeptId.toString());
@@ -129,11 +143,16 @@ class DataScopeAspectTest {
         when(securityContext.getCurrentUserId()).thenReturn(testUserId);
         when(securityContext.getCurrentDeptId()).thenReturn(testDeptId);
         when(securityContext.getDataScopeLevel()).thenReturn(1);
-        when(joinPoint.proceed()).thenReturn("result");
+
+        AtomicReference<DataScopeFilter> captured = new AtomicReference<>();
+        doAnswer(inv -> {
+            captured.set(DataScopeContextHolder.get());
+            return "result";
+        }).when(joinPoint).proceed();
 
         aspect.around(joinPoint, dataScopeAnnotation);
 
-        DataScopeFilter filter = DataScopeContextHolder.get();
+        DataScopeFilter filter = captured.get();
         assertThat(filter).isNotNull();
         assertThat(filter.getClause()).isEqualTo("1=1");
     }
@@ -145,11 +164,16 @@ class DataScopeAspectTest {
         when(securityContext.getCurrentUserId()).thenReturn(testUserId);
         when(securityContext.getCurrentDeptId()).thenReturn(testDeptId);
         when(securityContext.getDataScopeLevel()).thenReturn(4);
-        when(joinPoint.proceed()).thenReturn("result");
+
+        AtomicReference<DataScopeFilter> captured = new AtomicReference<>();
+        doAnswer(inv -> {
+            captured.set(DataScopeContextHolder.get());
+            return "result";
+        }).when(joinPoint).proceed();
 
         aspect.around(joinPoint, dataScopeAnnotation);
 
-        DataScopeFilter filter = DataScopeContextHolder.get();
+        DataScopeFilter filter = captured.get();
         assertThat(filter).isNotNull();
         assertThat(filter.getClause()).contains("WITH RECURSIVE dept_tree");
         assertThat(filter.getParams()).containsEntry("__ds_deptId", testDeptId.toString());
@@ -162,11 +186,16 @@ class DataScopeAspectTest {
         when(securityContext.getCurrentUserId()).thenReturn(testUserId);
         when(securityContext.getCurrentDeptId()).thenReturn(null);
         when(securityContext.getDataScopeLevel()).thenReturn(3);
-        when(joinPoint.proceed()).thenReturn("result");
+
+        AtomicReference<DataScopeFilter> captured = new AtomicReference<>();
+        doAnswer(inv -> {
+            captured.set(DataScopeContextHolder.get());
+            return "result";
+        }).when(joinPoint).proceed();
 
         aspect.around(joinPoint, dataScopeAnnotation);
 
-        DataScopeFilter filter = DataScopeContextHolder.get();
+        DataScopeFilter filter = captured.get();
         assertThat(filter).isNotNull();
         assertThat(filter.getClause()).isEqualTo("1=0");
     }
@@ -180,11 +209,17 @@ class DataScopeAspectTest {
         when(securityContext.getCurrentUserId()).thenReturn(testUserId);
         when(securityContext.getCurrentDeptId()).thenReturn(testDeptId);
         when(securityContext.getDataScopeLevel()).thenReturn(5);
-        when(joinPoint.proceed()).thenReturn("result");
+
+        AtomicReference<DataScopeFilter> captured = new AtomicReference<>();
+        doAnswer(inv -> {
+            captured.set(DataScopeContextHolder.get());
+            return "result";
+        }).when(joinPoint).proceed();
 
         aspect.around(joinPoint, dataScopeAnnotation);
 
-        DataScopeFilter filter = DataScopeContextHolder.get();
+        DataScopeFilter filter = captured.get();
+        assertThat(filter).isNotNull();
         assertThat(filter.getClause()).contains("user_table =");
     }
 
