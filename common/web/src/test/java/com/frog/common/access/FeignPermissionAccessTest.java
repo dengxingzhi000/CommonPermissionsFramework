@@ -2,6 +2,7 @@ package com.frog.common.access;
 
 import com.frog.common.feign.client.SysPermissionServiceClient;
 import com.frog.common.response.ApiResults;
+import com.frog.common.security.PermissionService.PermissionServiceException;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;

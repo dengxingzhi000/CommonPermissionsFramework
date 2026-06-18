@@ -160,5 +160,12 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
         <!-- 工具包 end -->
+
+        <!-- test dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

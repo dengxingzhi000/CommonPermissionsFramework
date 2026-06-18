@@ -7,7 +7,7 @@ import lombok.Getter;
  *
  * @author Deng
  * createData 2025/10/15 14:26
- * @version 1.0
+ * @version 1.1 - Added cause-chaining constructors, merged from ServiceException
  */
 @Getter
 public class BusinessException extends RuntimeException {
@@ -20,6 +20,16 @@ public class BusinessException extends RuntimeException {
 
     public BusinessException(Integer code, String message) {
         super(message);
+        this.code = code;
+    }
+
+    public BusinessException(String message, Throwable cause) {
+        super(message, cause);
+        this.code = 500;
+    }
+
+    public BusinessException(Integer code, String message, Throwable cause) {
+        super(message, cause);
         this.code = code;
     }
 }

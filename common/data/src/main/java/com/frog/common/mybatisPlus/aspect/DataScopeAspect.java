@@ -128,6 +128,7 @@ public class DataScopeAspect {
     /**
      * 构建自定义数据权限
      * 从 sys_role_dept 表查询用户的自定义权限规则
+     * SECURITY: Uses parameterized #{...} placeholders for all UUID values.
      */
     private DataScopeFilter buildCustomDataScope(UUID userId, String deptAlias, String userAlias) {
         // 查询用户的自定义数据权限部门列表
@@ -142,19 +143,21 @@ public class DataScopeAspect {
             );
         }
 
-        // 构建 IN 子句 (PostgreSQL UUID 数组)
+        // SECURITY: 使用参数化占位符 #{...} 替代字符串拼接，防止 SQL 注入
         Map<String, Object> params = new HashMap<>();
         params.put("__ds_userId", userId.toString());
 
-        // 使用 PostgreSQL 的 ANY 语法配合数组，更高效
-        String deptList = customDepts.stream()
-                .map(UUID::toString)
-                .map(s -> "'" + s + "'::uuid")
-                .collect(Collectors.joining(","));
+        StringBuilder placeholders = new StringBuilder();
+        for (int i = 0; i < customDepts.size(); i++) {
+            if (i > 0) placeholders.append(",");
+            String key = "__ds_deptId_" + i;
+            placeholders.append("#{").append(key).append("}::uuid");
+            params.put(key, customDepts.get(i).toString());
+        }
 
         // 组合条件：部门在自定义列表中 OR 本人创建的数据
         String clause = String.format("(%s IN (%s) OR %s = #{__ds_userId}::uuid)",
-                deptAlias, deptList, userAlias);
+                deptAlias, placeholders, userAlias);
 
         log.debug("Custom data scope for user {}: {} depts", userId, customDepts.size());
         return new DataScopeFilter(clause, params);

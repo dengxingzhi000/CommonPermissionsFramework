@@ -33,15 +33,15 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
     /**
-     * 业务异常
+     * 业务异常 - 支持动态 HTTP 状态码
      */
-    @ExceptionHandler(ServiceException.class)
-    public ResponseEntity<ApiResults<Void>> handleServiceException(ServiceException e, HttpServletRequest request) {
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResults<Void>> handleBusinessException(BusinessException e, HttpServletRequest request) {
         String traceId = traceId(request);
-        log.error("Service exception at {}, traceId={}: {}", request.getRequestURI(), traceId, e.getMessage());
+        log.error("Business exception at {}, traceId={}: {}", request.getRequestURI(), traceId, e.getMessage());
         HttpStatus status = HttpStatus.resolve(e.getCode()) != null ? HttpStatus.valueOf(e.getCode()) : HttpStatus.INTERNAL_SERVER_ERROR;
         return ResponseEntity.status(status)
-                .body(ApiResults.fail(e.getCode(), safeMessage("Service error", e.getMessage()) + " (traceId=" + traceId + ")"));
+                .body(ApiResults.fail(e.getCode(), safeMessage("Business error", e.getMessage()) + " (traceId=" + traceId + ")"));
     }
 
     /**
@@ -106,16 +106,6 @@ public class GlobalExceptionHandler {
     public ApiResults<Void> handleUnauthorizedException(UnauthorizedException e) {
         log.warn("Unauthorized");
         return ApiResults.fail(ResultCode.UNAUTHORIZED.getCode(), "Unauthorized");
-    }
-
-    /**
-     * 业务异常
-     */
-    @ExceptionHandler(BusinessException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ApiResults<Void> handleBusinessException(BusinessException e) {
-        log.error("Business exception: {}", e.getMessage());
-        return ApiResults.fail(e.getCode(), safeMessage("Business error", e.getMessage()));
     }
 
     /**
