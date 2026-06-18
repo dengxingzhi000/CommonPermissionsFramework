@@ -104,41 +104,41 @@ public class ApiSignatureFilter implements GlobalFilter, Ordered {
         }
 
         String nonceKey = properties.getNonceKeyPrefix() + appId + ":" + nonce;
-        return redisTemplate.hasKey(nonceKey)
-                .flatMap(exists -> {
-                    if (exists) {
-                        meterRegistry.counter("gateway.signature.replay").increment();
-                        log.warn("Signature replay detected traceId={} appId={} path={}",
+
+        SignatureAlgorithm algorithm = algorithmRegistry.getAlgorithm(
+                StringUtils.defaultIfBlank(version, properties.getDefaultVersion()));
+        if (algorithm == null) {
+            return unauthorized(exchange, "UNSUPPORTED_VERSION", "Unsupported signature version");
+        }
+        String secretKey = properties.getAppSecrets().get(appId);
+
+        if (secretKey == null) {
+            meterRegistry.counter("gateway.signature.invalid_app").increment();
+            log.warn("Unknown appId signature traceId={} appId={} path={}",
+                    exchange.getRequest().getId(), appId, request.getURI().getPath());
+            return unauthorized(exchange, "INVALID_APP_ID", "Invalid appId");
+        }
+
+        return algorithm.verify(request, signature, appId, timestamp, nonce, secretKey)
+                .flatMap(valid -> {
+                    if (!valid) {
+                        meterRegistry.counter("gateway.signature.invalid").increment();
+                        log.warn("Signature verification failed traceId={} appId={} path={}",
                                 exchange.getRequest().getId(), appId, request.getURI().getPath());
-                        return unauthorized(exchange, "REPLAY", "Replay detected");
+                        return unauthorized(exchange, "SIGNATURE_INVALID", "Signature verification failed");
                     }
 
-                    SignatureAlgorithm algorithm = algorithmRegistry.getAlgorithm(
-                            StringUtils.defaultIfBlank(version, properties.getDefaultVersion()));
-                    if (algorithm == null) {
-                        return unauthorized(exchange, "UNSUPPORTED_VERSION", "Unsupported signature version");
-                    }
-                    String secretKey = properties.getAppSecrets().get(appId);
-
-                    if (secretKey == null) {
-                        meterRegistry.counter("gateway.signature.invalid_app").increment();
-                        log.warn("Unknown appId signature traceId={} appId={} path={}",
-                                exchange.getRequest().getId(), appId, request.getURI().getPath());
-                        return unauthorized(exchange, "INVALID_APP_ID", "Invalid appId");
-                    }
-
-                    return algorithm.verify(request, signature, appId, timestamp, nonce, secretKey)
-                            .flatMap(valid -> {
-                                if (!valid) {
-                                    meterRegistry.counter("gateway.signature.invalid").increment();
-                                    log.warn("Signature verification failed traceId={} appId={} path={}",
+                    // Atomic SETNX to prevent nonce TOCTOU race condition
+                    return redisTemplate.opsForValue()
+                            .setIfAbsent(nonceKey, "1", properties.getNonceTtl())
+                            .flatMap(acquired -> {
+                                if (Boolean.FALSE.equals(acquired)) {
+                                    meterRegistry.counter("gateway.signature.replay").increment();
+                                    log.warn("Signature replay detected traceId={} appId={} path={}",
                                             exchange.getRequest().getId(), appId, request.getURI().getPath());
-                                    return unauthorized(exchange, "SIGNATURE_INVALID", "Signature verification failed");
+                                    return unauthorized(exchange, "REPLAY", "Replay detected");
                                 }
-
-                                return redisTemplate.opsForValue()
-                                        .set(nonceKey, "1", properties.getNonceTtl())
-                                        .then(chain.filter(exchange));
+                                return chain.filter(exchange);
                             });
                 })
                 .onErrorResume(e -> {

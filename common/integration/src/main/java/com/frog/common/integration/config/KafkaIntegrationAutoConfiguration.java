@@ -64,7 +64,13 @@ public class KafkaIntegrationAutoConfiguration {
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.getBootstrapServers());
         
         JacksonJsonDeserializer<Object> jsonDeserializer = new JacksonJsonDeserializer<>();
-        jsonDeserializer.addTrustedPackages("*");
+        jsonDeserializer.addTrustedPackages(
+                "com.frog.common.integration.*",
+                "com.frog.common.dto.*",
+                "com.frog.system.api.*",
+                "java.util.*",
+                "java.lang.*"
+        );
         jsonDeserializer.setUseTypeHeaders(false);
         
         return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(), jsonDeserializer);

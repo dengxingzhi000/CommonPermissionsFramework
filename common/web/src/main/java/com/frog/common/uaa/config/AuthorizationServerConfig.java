@@ -8,6 +8,7 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -55,6 +56,7 @@ import java.util.UUID;
  */
 @Configuration
 @RequiredArgsConstructor
+@Slf4j
 public class AuthorizationServerConfig {
     @Value("${security.oauth2.authorizationserver.issuer:http://localhost:8090}")
     private String issuer;
@@ -192,6 +194,9 @@ public class AuthorizationServerConfig {
         // 优先从 keystore 加载；失败则回退到启动时生成
         RSAKey rsaKey = loadRsaFromKeystore();
         if (rsaKey == null) {
+            log.warn("No JWK keystore configured - generating ephemeral RSA key pair. "
+                    + "Tokens will be INVALID after restart or across instances. "
+                    + "Configure security.oauth2.authorizationserver.jwk.keystore-location for production.");
             KeyPair keyPair = generateRsaKey();
             RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
             RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();

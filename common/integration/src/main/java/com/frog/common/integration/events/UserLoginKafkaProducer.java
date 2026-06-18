@@ -6,13 +6,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 public class UserLoginKafkaProducer {
     private final KafkaMessagePublisher kafkaPublisher;
 
-    public void publish(Long userId, String username, String ip, String deviceId, String location) {
+    public void publish(UUID userId, String username, String ip, String deviceId, String location) {
         UserLoginEvent event = UserLoginEvent.builder()
                 .userId(userId)
                 .username(username)

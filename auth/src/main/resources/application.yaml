@@ -3,13 +3,13 @@ server:
   ssl:
     enabled: true
     key-store: classpath:certs/auth-keystore.p12
-    key-store-password: changeit
+    key-store-password: ${KEYSTORE_PASSWORD:}
     key-store-type: PKCS12
     key-alias: auth-service
     # 要求客户端证书
     client-auth: need
     trust-store: classpath:certs/truststore.p12
-    trust-store-password: changeit
+    trust-store-password: ${TRUSTSTORE_PASSWORD:}
     trust-store-type: PKCS12
 
 spring:
@@ -28,7 +28,7 @@ spring:
         group: ${NACOS_GROUP:DEFAULT_GROUP}
     sentinel:
       transport:
-        dashboard: 192.168.18.133:8080
+        dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
         port: 8719
       datasource:
         flow:
@@ -48,10 +48,10 @@ spring:
     feign:
       enabled: true
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:mysql://192.168.18.133:3306/new-near-sync?useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&transformedBitIsBoolean=true&allowMultiQueries=true&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 123456
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/new-near-sync}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
   data:
     redis:
       host: 192.168.18.133
@@ -76,7 +76,7 @@ springdoc:
   group-configs:
     - group: 'default'
       paths-to-match: '/**'
-      packages-to-scan: com.xiaominfo.knife4j.demo.web
+      packages-to-scan: com.frog.auth.controller
 
 knife4j:
   enable: true

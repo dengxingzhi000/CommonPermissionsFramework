@@ -38,16 +38,19 @@ import java.util.stream.Collectors;
 public class SecurityUser implements UserDetails {
     private UUID userId;
     private String username;
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
     private String realName;
     private UUID deptId;
     private Integer status;
     private Integer accountType;
     private Integer userLevel;
+    private Integer dataScope;
     @Builder.Default
     private Set<String> roles = Collections.emptySet();
     @Builder.Default
     private Set<String> permissions = Collections.emptySet();
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String twoFactorSecret;
 
     // 安全相关字段
@@ -59,21 +62,23 @@ public class SecurityUser implements UserDetails {
     private Boolean forceChangePassword;
     
     @JsonIgnore
-    private Collection<? extends GrantedAuthority> authorities;
+    private transient Collection<? extends GrantedAuthority> authorities;
 
     @Override
     @JsonIgnore
     public @NonNull Collection<? extends GrantedAuthority> getAuthorities() {
+        if (authorities != null) {
+            return authorities;
+        }
         // 合并角色和权限，防御空集合
-        Set<GrantedAuthority> authorities = (roles != null ? roles : Collections.<String>emptySet()).stream()
+        Set<GrantedAuthority> result = (roles != null ? roles : Collections.<String>emptySet()).stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toSet());
-
-        authorities.addAll((permissions != null ? permissions : Collections.<String>emptySet()).stream()
+        result.addAll((permissions != null ? permissions : Collections.<String>emptySet()).stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toSet()));
-
-        return authorities;
+        this.authorities = Collections.unmodifiableSet(result);
+        return this.authorities;
     }
 
     @Override

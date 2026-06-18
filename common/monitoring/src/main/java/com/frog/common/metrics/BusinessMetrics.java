@@ -1,5 +1,7 @@
 package com.frog.common.metrics;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Gauge;
@@ -8,8 +10,6 @@ import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -18,18 +18,29 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @author Deng
  * createData 2025/10/22 14:01
- * @version 1.0
+ * @version 1.1 - 使用Guava有界缓存替代无界ConcurrentHashMap防止内存泄漏
  */
 @Component
 @RequiredArgsConstructor
 public class BusinessMetrics {
     private final MeterRegistry registry;
 
-    // 缓存指标对象
-    private final Map<String, Counter> counterCache = new ConcurrentHashMap<>();
-    private final Map<String, Timer> timerCache = new ConcurrentHashMap<>();
-    private final Map<String, DistributionSummary> summaryCache = new ConcurrentHashMap<>();
-    private final Map<String, AtomicLong> gaugeCache = new ConcurrentHashMap<>();
+    private final Cache<String, Counter> counterCache = CacheBuilder.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
+    private final Cache<String, Timer> timerCache = CacheBuilder.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
+    private final Cache<String, DistributionSummary> summaryCache = CacheBuilder.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
+    private final Cache<String, AtomicLong> gaugeCache = CacheBuilder.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
 
     /**
      * 记录业务指标 - 计数器
@@ -37,12 +48,17 @@ public class BusinessMetrics {
      */
     public void recordCount(String metricName, String... tags) {
         String key = metricName + String.join(",", tags);
-        counterCache.computeIfAbsent(key, k ->
-                Counter.builder(metricName)
-                        .tags(tags)
-                        .description("业务计数指标: " + metricName)
-                        .register(registry)
-        ).increment();
+        try {
+            Counter counter = counterCache.get(key, () ->
+                    Counter.builder(metricName)
+                            .tags(tags)
+                            .description("业务计数指标: " + metricName)
+                            .register(registry)
+            );
+            if (counter != null) counter.increment();
+        } catch (Exception e) {
+            // Metrics should never throw
+        }
     }
 
     /**
@@ -51,14 +67,19 @@ public class BusinessMetrics {
      */
     public void recordTime(String metricName, long timeMs, String... tags) {
         String key = metricName + String.join(",", tags);
-        timerCache.computeIfAbsent(key, k ->
-                Timer.builder(metricName)
-                        .tags(tags)
-                        .description("业务耗时指标: " + metricName)
-                        .publishPercentiles(0.5, 0.9, 0.95, 0.99)
-                        .publishPercentileHistogram()
-                        .register(registry)
-        ).record(timeMs, TimeUnit.MILLISECONDS);
+        try {
+            Timer timer = timerCache.get(key, () ->
+                    Timer.builder(metricName)
+                            .tags(tags)
+                            .description("业务耗时指标: " + metricName)
+                            .publishPercentiles(0.5, 0.9, 0.95, 0.99)
+                            .publishPercentileHistogram()
+                            .register(registry)
+            );
+            if (timer != null) timer.record(timeMs, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            // Metrics should never throw
+        }
     }
 
     /**
@@ -67,13 +88,18 @@ public class BusinessMetrics {
      */
     public void recordDistribution(String metricName, double value, String... tags) {
         String key = metricName + String.join(",", tags);
-        summaryCache.computeIfAbsent(key, k ->
-                DistributionSummary.builder(metricName)
-                        .tags(tags)
-                        .description("业务分布指标: " + metricName)
-                        .publishPercentiles(0.5, 0.9, 0.95, 0.99)
-                        .register(registry)
-        ).record(value);
+        try {
+            DistributionSummary summary = summaryCache.get(key, () ->
+                    DistributionSummary.builder(metricName)
+                            .tags(tags)
+                            .description("业务分布指标: " + metricName)
+                            .publishPercentiles(0.5, 0.9, 0.95, 0.99)
+                            .register(registry)
+            );
+            if (summary != null) summary.record(value);
+        } catch (Exception e) {
+            // Metrics should never throw
+        }
     }
 
     /**
@@ -82,15 +108,19 @@ public class BusinessMetrics {
      */
     public void recordGauge(String metricName, long value, String... tags) {
         String key = metricName + String.join(",", tags);
-        AtomicLong atomicValue = gaugeCache.computeIfAbsent(key, k -> {
-            AtomicLong atomic = new AtomicLong(value);
-            Gauge.builder(metricName, atomic, AtomicLong::get)
-                    .tags(tags)
-                    .description("业务状态指标: " + metricName)
-                    .register(registry);
-            return atomic;
-        });
-        atomicValue.set(value);
+        try {
+            AtomicLong atomicValue = gaugeCache.get(key, () -> {
+                AtomicLong atomic = new AtomicLong(value);
+                Gauge.builder(metricName, atomic, AtomicLong::get)
+                        .tags(tags)
+                        .description("业务状态指标: " + metricName)
+                        .register(registry);
+                return atomic;
+            });
+            if (atomicValue != null) atomicValue.set(value);
+        } catch (Exception e) {
+            // Metrics should never throw
+        }
     }
 
     /**

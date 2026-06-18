@@ -6,6 +6,7 @@ import lombok.Data;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -13,7 +14,7 @@ public class UserLoginEvent implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private Long userId;
+    private UUID userId;
     private String username;
     private String ipAddress;
     private String deviceId;

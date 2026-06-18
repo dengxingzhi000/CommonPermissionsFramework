@@ -36,6 +36,7 @@ public class IdentityPropagationProperties {
 
     /**
      * Shared secret for signing identity headers. Should be rotated regularly.
+     * MUST be set via environment variable IDENTITY_SIGNATURE_SECRET in production.
      */
-    private String signatureSecret = "changeit-identity-secret";
+    private String signatureSecret;
 }

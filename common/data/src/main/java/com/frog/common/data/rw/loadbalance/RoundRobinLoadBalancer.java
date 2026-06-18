@@ -14,7 +14,7 @@ public class RoundRobinLoadBalancer extends AbstractLoadBalancer {
 
     @Override
     protected String doSelect(List<SlaveInfo> available) {
-        int index = Math.abs(counter.getAndIncrement() % available.size());
+        int index = Math.floorMod(counter.getAndIncrement(), available.size());
         return available.get(index).name();
     }
 }

@@ -2,11 +2,13 @@ package com.frog.common.feign.client;
 
 import com.frog.common.response.ApiResults;
 import com.frog.common.feign.fallback.UserServiceClientFallbackFactory;
+import com.frog.common.dto.user.UserInfo;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -41,4 +43,13 @@ public interface SysUserServiceClient {
             @PathVariable UUID userId,
             @RequestParam("ipAddress") String ipAddress
     );
+
+    @GetMapping("/{userId}/info")
+    ApiResults<UserInfo> getUserInfo(@PathVariable UUID userId);
+
+    @GetMapping("/{userId}/roles")
+    ApiResults<Set<String>> findRolesByUserId(@PathVariable UUID userId);
+
+    @GetMapping("/{userId}/permissions")
+    ApiResults<Set<String>> findPermissionsByUserId(@PathVariable UUID userId);
 }

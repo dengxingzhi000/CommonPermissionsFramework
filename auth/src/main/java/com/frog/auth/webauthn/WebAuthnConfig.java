@@ -32,8 +32,9 @@ public class WebAuthnConfig {
 
     /**
      * 是否要求用户验证
+     * 生产环境建议启用，强制生物识别/PIN验证
      */
-    private boolean userVerificationRequired = false;
+    private boolean userVerificationRequired = true;
 
     /**
      * 支持的认证器附件类型

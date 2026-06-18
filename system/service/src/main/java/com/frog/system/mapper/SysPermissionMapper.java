@@ -7,7 +7,6 @@ import com.frog.system.domain.entity.SysPermission;
 import org.apache.ibatis.annotations.*;
 
 import java.io.Serializable;
-import java.security.Permission;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -68,7 +67,7 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
             INNER JOIN sys_role_permission rp ON p.id = rp.permission_id
             WHERE rp.role_id = #{roleId} AND p.status = 1 AND NOT p.deleted
             """)
-    List<Permission> findPermissionsByRoleId(@Param("roleId") UUID roleId);
+    List<SysPermission> findPermissionsByRoleId(@Param("roleId") UUID roleId);
 
     /**
      * 检查资源权限
@@ -80,6 +79,7 @@ public interface SysPermissionMapper extends BaseMapper<SysPermission> {
             INNER JOIN sys_permission p ON rp.permission_id = p.id
             WHERE ur.user_id = #{userId}
             AND p.permission_code = #{permission}
+            AND p.resource_type = #{resourceType}
             AND p.status = 1
             </script>
             """)

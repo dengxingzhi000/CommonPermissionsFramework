@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com</groupId>
-        <artifactId>NewNearSync</artifactId>
+        <artifactId>common-permissions-framework</artifactId>
         <version>1.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
@@ -73,8 +73,15 @@
             <artifactId>mybatis-plus-jsqlparser</artifactId>
         </dependency>
 
+        <!-- Spring Web (optional) for GlobalExceptionHandler and web-related utilities
+             Modules that use web features should have their own spring-boot-starter-web dependency -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- REMOVED (moved to specific modules that need them):
-             - spring-boot-starter-web (moved to common/web)
              - spring-boot-starter-security (moved to common/web)
              - spring-boot-starter-aop (moved to common/data)
              - spring-boot-starter-data-redis (moved to common/data)

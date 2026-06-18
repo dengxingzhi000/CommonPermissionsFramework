@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class FeignRequestSignatureInterceptor implements RequestInterceptor {
     @Value("${security.feign.app-id:internal-service}")
     private String appId;
-    @Value("${security.feign.secret-key:your-internal-secret-key}")
+    @Value("${security.feign.secret-key:}")
     private String secretKey;
 
     @Override

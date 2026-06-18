@@ -49,8 +49,8 @@ public class SpringSecurityContext implements SecurityContext {
     @Override
     public Integer getDataScopeLevel() {
         SecurityUser currentUser = SecurityUtils.getCurrentUser();
-        if (currentUser != null && currentUser.getAccountType() != null) {
-            return currentUser.getAccountType();
+        if (currentUser != null && currentUser.getDataScope() != null) {
+            return currentUser.getDataScope();
         }
 
         // Default to SELF (level 5) for maximum security

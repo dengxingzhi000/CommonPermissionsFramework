@@ -1,6 +1,6 @@
 package com.frog.common.log.util;
 
-import com.github.xiaoymin.knife4j.core.util.StrUtil;
+import cn.hutool.core.util.StrUtil;
 import lombok.extern.slf4j.Slf4j;
 import com.alibaba.fastjson2.JSON;
 import org.slf4j.MDC;

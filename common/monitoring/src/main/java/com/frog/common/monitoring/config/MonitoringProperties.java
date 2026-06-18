@@ -17,7 +17,7 @@ public class MonitoringProperties {
     /**
      * Logical service name used for telemetry resources.
      */
-    private String serviceName = "newnearsync-service";
+    private String serviceName = "${spring.application.name:unknown-service}";
 
     private final Otel otel = new Otel();
     private final Sentinel sentinel = new Sentinel();
