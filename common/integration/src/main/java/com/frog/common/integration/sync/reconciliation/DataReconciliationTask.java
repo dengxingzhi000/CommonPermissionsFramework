@@ -5,11 +5,13 @@ import com.frog.common.integration.sync.handler.DataSyncHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 数据对账定时任务
@@ -24,8 +26,20 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 public class DataReconciliationTask {
+
+    private static final String LOCK_SCRIPT =
+            "if redis.call('set', KEYS[1], ARGV[1], 'NX', 'EX', ARGV[2]) then return 1 else return 0 end";
+    private static final String UNLOCK_SCRIPT =
+            "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+
     private final DataSyncProperties properties;
-    private final Map<String, DataSyncHandler> handlers = new ConcurrentHashMap<>();
+    private final Map<String, ReconcilableHandler> handlers;
+    private final StringRedisTemplate redisTemplate;
+    private final String lockValue;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+
+    private final ExecutorService executorService;
+    private final List<ReconciliationListener> listeners;
 
     // Metrics
     private final Counter reconcileSuccessCounter;
@@ -34,18 +48,47 @@ public class DataReconciliationTask {
 
     public DataReconciliationTask(DataSyncProperties properties,
                                    List<DataSyncHandler> handlerList,
-                                   MeterRegistry meterRegistry) {
+                                   StringRedisTemplate redisTemplate,
+                                   MeterRegistry meterRegistry,
+                                   List<ReconciliationListener> listeners) {
         this.properties = properties;
+        this.redisTemplate = redisTemplate;
+        this.listeners = listeners != null ? List.copyOf(listeners) : List.of();
 
+        // 只注册支持对账的 Handler
+        Map<String, ReconcilableHandler> handlerMap = new ConcurrentHashMap<>();
         if (handlerList != null) {
-            handlerList.forEach(h -> handlers.put(h.getAggregateType(), h));
+            handlerList.stream()
+                    .filter(h -> h instanceof ReconcilableHandler)
+                    .map(h -> (ReconcilableHandler) h)
+                    .forEach(h -> handlerMap.put(h.getAggregateType(), h));
+        }
+        this.handlers = Collections.unmodifiableMap(handlerMap);
+
+        // 并行线程池
+        DataSyncProperties.ReconciliationConfig config = properties.getReconciliation();
+        if (config.isParallelEnabled() && handlers.size() > 1) {
+            this.executorService = Executors.newFixedThreadPool(
+                    config.getThreadPoolSize(),
+                    r -> {
+                        Thread t = new Thread(r, "reconciliation-worker");
+                        t.setDaemon(true);
+                        return t;
+                    }
+            );
+        } else {
+            this.executorService = null;
         }
 
+        // 生成唯一锁标识（避免误删其他实例的锁）
+        this.lockValue = UUID.randomUUID().toString();
+
+        // Metrics
         this.reconcileSuccessCounter = Counter.builder("datasync.reconcile.success")
-                .description("Number of successful reconciliation checks")
+                .description("Number of consistent items found during reconciliation")
                 .register(meterRegistry);
         this.reconcileFailureCounter = Counter.builder("datasync.reconcile.failure")
-                .description("Number of reconciliation failures found")
+                .description("Number of inconsistencies found during reconciliation")
                 .register(meterRegistry);
         this.reconcileFixCounter = Counter.builder("datasync.reconcile.fix")
                 .description("Number of auto-fixed inconsistencies")
@@ -54,8 +97,6 @@ public class DataReconciliationTask {
 
     /**
      * 定时对账任务
-     * <p>
-     * cron 表达式由配置控制，默认每天凌晨 3 点
      */
     @Scheduled(cron = "${datasync.reconciliation.cron:0 0 3 * * ?}")
     public void reconcile() {
@@ -63,105 +104,180 @@ public class DataReconciliationTask {
             return;
         }
 
-        log.info("[Reconciliation] Starting data reconciliation task...");
-        long startTime = System.currentTimeMillis();
-
-        int totalChecked = 0;
-        int totalFixed = 0;
-        int totalFailed = 0;
-
-        for (Map.Entry<String, DataSyncHandler> entry : handlers.entrySet()) {
-            String aggregateType = entry.getKey();
-            DataSyncHandler handler = entry.getValue();
-
-            try {
-                ReconciliationResult result = reconcileAggregate(aggregateType, handler);
-                totalChecked += result.checked;
-                totalFixed += result.fixed;
-                totalFailed += result.failed;
-
-                log.info("[Reconciliation] {} - checked: {}, fixed: {}, failed: {}",
-                        aggregateType, result.checked, result.fixed, result.failed);
-
-            } catch (Exception e) {
-                log.error("[Reconciliation] Error reconciling {}: {}",
-                        aggregateType, e.getMessage(), e);
-            }
+        // 防止重复执行
+        if (!running.compareAndSet(false, true)) {
+            log.warn("[Reconciliation] Task already running, skipping...");
+            return;
         }
 
-        long duration = System.currentTimeMillis() - startTime;
-        log.info("[Reconciliation] Completed in {}ms - total checked: {}, fixed: {}, failed: {}",
-                duration, totalChecked, totalFixed, totalFailed);
+        try {
+            if (!acquireLock()) {
+                log.info("[Reconciliation] Failed to acquire distributed lock, another instance is running");
+                return;
+            }
+
+            log.info("[Reconciliation] Starting data reconciliation task...");
+            long startTime = System.currentTimeMillis();
+
+            Map<String, ReconciliationResult> results = new ConcurrentHashMap<>();
+            int totalChecked = 0;
+            int totalFixed = 0;
+            int totalFailed = 0;
+
+            if (executorService != null) {
+                // 并行对账
+                List<Future<ReconciliationResult>> futures = new ArrayList<>();
+                for (Map.Entry<String, ReconcilableHandler> entry : handlers.entrySet()) {
+                    String aggregateType = entry.getKey();
+                    ReconcilableHandler handler = entry.getValue();
+                    futures.add(executorService.submit(() ->
+                            reconcileAggregate(aggregateType, handler)));
+                }
+
+                int index = 0;
+                for (Map.Entry<String, ReconcilableHandler> entry : handlers.entrySet()) {
+                    String aggregateType = entry.getKey();
+                    try {
+                        ReconciliationResult result = futures.get(index++).get(5, TimeUnit.MINUTES);
+                        results.put(aggregateType, result);
+                        totalChecked += result.checked();
+                        totalFixed += result.fixed();
+                        totalFailed += result.failed();
+                        log.info("[Reconciliation] {} - checked: {}, fixed: {}, failed: {}",
+                                aggregateType, result.checked(), result.fixed(), result.failed());
+                    } catch (Exception e) {
+                        log.error("[Reconciliation] Error waiting for {}: {}",
+                                aggregateType, e.getMessage(), e);
+                        results.put(aggregateType, ReconciliationResult.empty());
+                    }
+                }
+            } else {
+                // 串行对账
+                for (Map.Entry<String, ReconcilableHandler> entry : handlers.entrySet()) {
+                    String aggregateType = entry.getKey();
+                    ReconcilableHandler handler = entry.getValue();
+                    try {
+                        ReconciliationResult result = reconcileAggregate(aggregateType, handler);
+                        results.put(aggregateType, result);
+                        totalChecked += result.checked();
+                        totalFixed += result.fixed();
+                        totalFailed += result.failed();
+                        log.info("[Reconciliation] {} - checked: {}, fixed: {}, failed: {}",
+                                aggregateType, result.checked(), result.fixed(), result.failed());
+                    } catch (Exception e) {
+                        log.error("[Reconciliation] Error reconciling {}: {}",
+                                aggregateType, e.getMessage(), e);
+                        results.put(aggregateType, ReconciliationResult.empty());
+                    }
+                }
+            }
+
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("[Reconciliation] Completed in {}ms - total checked: {}, fixed: {}, failed: {}",
+                    duration, totalChecked, totalFixed, totalFailed);
+
+            // 通知监听器
+            notifyListeners(results, totalChecked, totalFixed, totalFailed);
+
+        } finally {
+            running.set(false);
+            releaseLock();
+        }
     }
 
     /**
      * 对账单个聚合类型
      */
-    private ReconciliationResult reconcileAggregate(String aggregateType,
-                                                     DataSyncHandler handler) {
-        ReconciliationResult result = new ReconciliationResult();
+    private ReconciliationResult reconcileAggregate(String aggregateType, ReconcilableHandler handler) {
+        long start = System.currentTimeMillis();
 
-        // 这里需要实现具体的对账逻辑：
-        // 1. 从源库获取数据
-        // 2. 从目标库获取冗余数据
-        // 3. 比对差异
-        // 4. 如果启用自动修复，调用 handler.fullSync() 修复
+        try {
+            ReconciliationReport report = handler.reconcile(
+                    properties.getReconciliation().getBatchSize(),
+                    properties.getReconciliation().isAutoFix()
+            );
 
-        // 由于具体的对账逻辑依赖业务表结构，
-        // 这里只提供框架，具体实现由 Handler 自己负责
+            long duration = System.currentTimeMillis() - start;
 
-        if (handler instanceof ReconcilableHandler reconcilableHandler) {
+            // 修复 metrics 计算：success = checked - failed（一致的数据）
+            int successCount = report.totalChecked() - report.inconsistentCount();
+            reconcileSuccessCounter.increment(Math.max(0, successCount));
+            reconcileFailureCounter.increment(report.inconsistentCount());
+            reconcileFixCounter.increment(report.fixedCount());
+
+            return ReconciliationResult.of(
+                    report.totalChecked(),
+                    report.fixedCount(),
+                    report.failedCount(),
+                    duration
+            );
+
+        } catch (Exception e) {
+            log.error("[Reconciliation] Handler error for {}: {}", aggregateType, e.getMessage(), e);
+            long duration = System.currentTimeMillis() - start;
+            return ReconciliationResult.of(0, 0, 0, duration);
+        }
+    }
+
+    /**
+     * 获取分布式锁
+     */
+    private boolean acquireLock() {
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(LOCK_SCRIPT, Long.class);
+            Long result = redisTemplate.execute(script,
+                    List.of(properties.getReconciliation().getLockKey()),
+                    lockValue,
+                    String.valueOf(properties.getReconciliation().getLockTtlSeconds()));
+            return result != null && result == 1L;
+        } catch (Exception e) {
+            log.error("[Reconciliation] Failed to acquire lock: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 释放分布式锁
+     */
+    private void releaseLock() {
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNLOCK_SCRIPT, Long.class);
+            redisTemplate.execute(script,
+                    List.of(properties.getReconciliation().getLockKey()),
+                    lockValue);
+        } catch (Exception e) {
+            log.error("[Reconciliation] Failed to release lock: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 通知所有监听器
+     */
+    private void notifyListeners(Map<String, ReconciliationResult> results, int totalChecked, int totalFixed, int totalFailed) {
+        if (listeners.isEmpty()) {
+            return;
+        }
+
+        for (ReconciliationListener listener : listeners) {
             try {
-                ReconciliationReport report = reconcilableHandler.reconcile(
-                        properties.getReconciliation().getBatchSize(),
-                        properties.getReconciliation().isAutoFix()
-                );
-
-                result.checked = report.totalChecked();
-                result.fixed = report.fixedCount();
-                result.failed = report.failedCount();
-
-                reconcileSuccessCounter.increment(result.checked - result.failed);
-                reconcileFailureCounter.increment(result.failed);
-                reconcileFixCounter.increment(result.fixed);
-
+                listener.onReconciliationComplete(results, totalFixed, totalFailed);
             } catch (Exception e) {
-                log.error("[Reconciliation] Handler error: {}", e.getMessage(), e);
+                log.error("[Reconciliation] Listener error: {}", e.getMessage(), e);
             }
         }
-
-        return result;
     }
 
     /**
-     * 对账结果
+     * 获取当前是否正在执行
      */
-    private static class ReconciliationResult {
-        int checked = 0;
-        int fixed = 0;
-        int failed = 0;
+    public boolean isRunning() {
+        return running.get();
     }
 
     /**
-     * 可对账的处理器接口
-     * <p>
-     * Handler 如果支持对账，需要实现此接口
+     * 获取已注册的处理器数量
      */
-    public interface ReconcilableHandler {
-        ReconciliationReport reconcile(int batchSize, boolean autoFix);
-    }
-
-    /**
-     * 对账报告
-     */
-    public record ReconciliationReport(
-            int totalChecked,
-            int inconsistentCount,
-            int fixedCount,
-            int failedCount
-    ) {
-        public static ReconciliationReport empty() {
-            return new ReconciliationReport(0, 0, 0, 0);
-        }
+    public int getHandlerCount() {
+        return handlers.size();
     }
 }

@@ -8,6 +8,7 @@ import com.frog.common.integration.sync.handler.DataSyncHandler;
 import com.frog.common.integration.sync.publisher.DataSyncPublisher;
 import com.frog.common.integration.sync.publisher.KafkaDataSyncPublisher;
 import com.frog.common.integration.sync.reconciliation.DataReconciliationTask;
+import com.frog.common.integration.sync.reconciliation.ReconciliationListener;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.trace.Tracer;
 import lombok.extern.slf4j.Slf4j;
@@ -144,10 +145,19 @@ public class DataSyncAutoConfiguration {
     public DataReconciliationTask dataReconciliationTask(
             DataSyncProperties properties,
             ObjectProvider<List<DataSyncHandler>> handlersProvider,
-            MeterRegistry meterRegistry) {
+            StringRedisTemplate redisTemplate,
+            MeterRegistry meterRegistry,
+            ObjectProvider<List<ReconciliationListener>> listenersProvider) {
 
-        log.info("[DataSync] Initializing reconciliation task with cron: {}",
-                properties.getReconciliation().getCron());
-        return new DataReconciliationTask(properties, handlersProvider.getIfAvailable(), meterRegistry);
+        log.info("[DataSync] Initializing reconciliation task with cron: {}, parallel: {}",
+                properties.getReconciliation().getCron(),
+                properties.getReconciliation().isParallelEnabled());
+        return new DataReconciliationTask(
+                properties,
+                handlersProvider.getIfAvailable(),
+                redisTemplate,
+                meterRegistry,
+                listenersProvider.getIfAvailable()
+        );
     }
 }

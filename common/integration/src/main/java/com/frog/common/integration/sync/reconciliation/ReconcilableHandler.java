@@ -1,7 +1,6 @@
 package com.frog.common.integration.sync.reconciliation;
 
 import com.frog.common.integration.sync.handler.DataSyncHandler;
-import com.frog.common.integration.sync.reconciliation.DataReconciliationTask.ReconciliationReport;
 
 /**
  * 可对账的处理器接口
