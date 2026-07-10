@@ -73,5 +73,17 @@
             <artifactId>spring-data-redis</artifactId>
         </dependency>
 
+        <!-- Spring Integration Redis (distributed lock) -->
+        <dependency>
+            <groupId>org.springframework.integration</groupId>
+            <artifactId>spring-integration-redis</artifactId>
+        </dependency>
+
+        <!-- Spring Integration Core -->
+        <dependency>
+            <groupId>org.springframework.integration</groupId>
+            <artifactId>spring-integration-core</artifactId>
+        </dependency>
+
     </dependencies>
 </project>
