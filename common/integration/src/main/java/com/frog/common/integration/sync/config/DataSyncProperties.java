@@ -145,7 +145,7 @@ public class DataSyncProperties {
         /**
          * 对账 cron 表达式
          */
-        private String cron = "0 0 3 * * ?"; // 每天凌晨 3 点
+        private String cron = "0 0 3 * * ?";
 
         /**
          * 对账批次大小
@@ -156,5 +156,30 @@ public class DataSyncProperties {
          * 是否自动修复
          */
         private boolean autoFix = false;
+
+        /**
+         * 分布式锁 key
+         */
+        private String lockKey = "datasync:reconciliation:lock";
+
+        /**
+         * 分布式锁过期时间（秒）
+         */
+        private long lockTtlSeconds = 3600;
+
+        /**
+         * 是否启用并行对账
+         */
+        private boolean parallelEnabled = true;
+
+        /**
+         * 并行线程池大小
+         */
+        private int threadPoolSize = 8;
+
+        /**
+         * 对账不一致时是否通知
+         */
+        private boolean notifyOnInconsistency = false;
     }
 }

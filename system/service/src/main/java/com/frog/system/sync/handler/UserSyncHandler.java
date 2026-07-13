@@ -2,7 +2,8 @@ package com.frog.system.sync.handler;
 
 import com.frog.common.integration.sync.event.DataSyncEvent;
 import com.frog.common.integration.sync.handler.DataSyncHandler;
-import com.frog.common.integration.sync.reconciliation.DataReconciliationTask;
+import com.frog.common.integration.sync.reconciliation.ReconcilableHandler;
+import com.frog.common.integration.sync.reconciliation.ReconciliationReport;
 import com.frog.system.domain.entity.SysUser;
 import com.frog.system.mapper.SysUserMapper;
 import com.frog.system.mapper.SysUserRoleMapper;
@@ -27,7 +28,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class UserSyncHandler implements DataSyncHandler, DataReconciliationTask.ReconcilableHandler {
+public class UserSyncHandler implements DataSyncHandler, ReconcilableHandler {
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final UserSyncExecutor syncExecutor;
@@ -87,7 +88,7 @@ public class UserSyncHandler implements DataSyncHandler, DataReconciliationTask.
     // ==================== 对账实现 ====================
 
     @Override
-    public DataReconciliationTask.ReconciliationReport reconcile(int batchSize, boolean autoFix) {
+    public ReconciliationReport reconcile(int batchSize, boolean autoFix) {
         log.info("[UserSync] Starting reconciliation, batchSize={}, autoFix={}", batchSize, autoFix);
 
         int totalChecked = 0;
@@ -135,7 +136,7 @@ public class UserSyncHandler implements DataSyncHandler, DataReconciliationTask.
             }
         }
 
-        return new DataReconciliationTask.ReconciliationReport(
+        return new ReconciliationReport(
                 totalChecked, inconsistentCount, fixedCount, failedCount);
     }
 }

@@ -7,6 +7,7 @@ import io.opentelemetry.api.trace.Tracer;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -111,7 +112,7 @@ public class KafkaIntegrationAutoConfiguration {
             return new DefaultErrorHandler();
         }
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
-                (record, ex) -> new org.apache.kafka.common.TopicPartition(
+                (record, ex) -> new TopicPartition(
                         record.topic() + properties.getDlqSuffix(), record.partition()));
         int maxAttempts = Math.max(1, properties.getMaxAttempts());
         ExponentialBackOff backOff = new ExponentialBackOff();
