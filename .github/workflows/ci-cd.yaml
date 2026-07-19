@@ -149,7 +149,7 @@ jobs:
     environment: dev
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
       - uses: azure/setup-helm@v4
       - name: Configure kubeconfig
         run: |
@@ -211,7 +211,7 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
       - uses: azure/setup-helm@v4
       - name: Configure kubeconfig
         run: echo "${KUBE_CONFIG}" | base64 -d > kubeconfig
@@ -272,7 +272,7 @@ jobs:
     environment: prod
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
       - uses: azure/setup-helm@v4
       - name: Configure kubeconfig
         run: echo "${KUBE_CONFIG}" | base64 -d > kubeconfig
